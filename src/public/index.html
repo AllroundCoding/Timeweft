@@ -1,0 +1,755 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Timeline</title>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <link rel="stylesheet" href="css/themes.css" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+
+<body class="theme-sands-of-time">
+
+  <!-- ── Auth Overlay ───────────────────────────────────────────────────── -->
+  <div id="auth-overlay">
+    <div id="auth-box">
+      <h2 id="auth-title">Login</h2>
+      <p id="auth-subtitle" style="display:none;font-size:0.85rem;color:var(--text-secondary);margin:0 0 16px;"></p>
+      <form id="auth-form" data-mode="login">
+        <div class="auth-field">
+          <label for="auth-username">Username</label>
+          <input type="text" id="auth-username" required autocomplete="username" />
+        </div>
+        <div class="auth-field">
+          <label for="auth-password">Password</label>
+          <input type="password" id="auth-password" required autocomplete="current-password" />
+        </div>
+        <div class="auth-field" id="auth-display-name-row" style="display:none;">
+          <label for="auth-display-name">Display Name (optional)</label>
+          <input type="text" id="auth-display-name" autocomplete="name" />
+        </div>
+        <div id="auth-error"></div>
+        <button class="btn btn-accent" type="submit" id="auth-submit" style="width:100%;margin-top:8px;">Login</button>
+      </form>
+      <div id="auth-toggle" style="text-align:center;margin-top:12px;font-size:0.82rem;color:var(--text-secondary);"></div>
+    </div>
+  </div>
+
+  <!-- ── Sidebar Navigation ───────────────────────────────────────────────── -->
+  <nav id="app-sidebar">
+    <div id="sidebar-top">
+
+      <button class="nav-btn active" data-module="timeline" title="Timeline">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+        </svg>
+        <span>Timeline</span>
+      </button>
+
+      <button class="nav-btn" data-module="entities" title="Entities">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+          <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+        </svg>
+        <span>Entities</span>
+      </button>
+
+      <button class="nav-btn" data-module="glossary" title="Glossary">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+          <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+        </svg>
+        <span>Glossary</span>
+      </button>
+
+      <button class="nav-btn" data-module="maps" title="Maps">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/>
+          <line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/>
+        </svg>
+        <span>Maps</span>
+      </button>
+
+      <button class="nav-btn" data-module="docs" title="Documents">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+          <polyline points="14 2 14 8 20 8"/>
+          <line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
+        </svg>
+        <span>Docs</span>
+      </button>
+
+    </div>
+
+    <div id="sidebar-bottom">
+      <button class="nav-btn" id="pending-nav-btn" title="Pending Deletions" style="display:none;position:relative;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+        </svg>
+        <span>Pending</span>
+        <span id="pending-deletions-badge" class="nav-badge" style="display:none;"></span>
+      </button>
+      <button class="nav-btn" id="user-nav-btn" title="Account">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+        </svg>
+        <span>Account</span>
+      </button>
+      <button class="nav-btn" id="admin-nav-btn" title="Admin" style="display:none;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+        </svg>
+        <span>Admin</span>
+      </button>
+      <button class="nav-btn" id="settings-nav-btn" title="Settings">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+        </svg>
+        <span>Settings</span>
+      </button>
+      <button class="nav-btn" id="logout-btn" title="Logout">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
+        </svg>
+        <span>Logout</span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- ── Main Area ─────────────────────────────────────────────────────────── -->
+  <div id="app-main">
+
+    <!-- Header -->
+    <div id="app-header">
+      <h1 id="timeline-title">Timeline</h1>
+      <div id="timeline-switcher" style="display:none;">
+        <select style="padding:4px 8px;border-radius:6px;border:1px solid var(--border);background:var(--bg-base);color:var(--text);font-size:0.82rem;"></select>
+      </div>
+      <div class="header-controls" id="timeline-controls">
+        <button class="btn btn-accent" id="add-node-btn">+ Add Node</button>
+      </div>
+    </div>
+    <div id="share-banner" style="display:none;"></div>
+
+    <!-- ── Split Container ──────────────────────────────────────────────── -->
+    <div id="split-container">
+
+      <!-- Primary Pane (always timeline) -->
+      <div id="pane-primary">
+        <div class="module-panel active" data-module="timeline">
+          <div class="tl-inner">
+            <div id="tl-viewport">
+              <div id="tl-root"></div>
+            </div>
+            <div id="detail-panel" class="collapsed">
+              <div id="detail-header">
+                <div id="detail-title">Select a node</div>
+                <button id="detail-close">×</button>
+              </div>
+              <div id="detail-body"></div>
+            </div>
+          </div>
+          <div id="status-bar">
+            <span><span class="dot"></span> Timeline loaded</span>
+            <span id="status-count">0 nodes</span>
+            <span id="status-year-range"></span>
+            <span id="status-lod" style="display:none;opacity:0.6;font-size:0.75rem;"></span>
+          </div>
+        </div>
+        <!-- Zoom Controls (inside primary pane for correct positioning in split mode) -->
+        <div id="zoom-controls">
+          <button class="zoom-btn" id="zoom-in-btn" title="Zoom In">+</button>
+          <button class="zoom-btn" id="zoom-reset-btn" title="Reset Zoom">⊙</button>
+          <button class="zoom-btn" id="zoom-out-btn" title="Zoom Out">−</button>
+          <button class="zoom-btn" id="scroll-mode-btn" title="Toggle scroll behavior"></button>
+        </div>
+      </div>
+
+      <!-- Resizable Divider -->
+      <div id="split-divider" class="hidden">
+        <div class="split-divider-handle"></div>
+      </div>
+
+      <!-- Secondary Pane (other modules) -->
+      <div id="pane-secondary" class="hidden">
+
+        <!-- ── Entities Module ───────────────────────────────────────────── -->
+        <div class="module-panel" data-module="entities">
+          <div id="ent-sidebar">
+            <div id="ent-sidebar-top">
+              <input type="search" id="ent-search" placeholder="Search entities…" />
+              <div id="ent-type-filter">
+                <select id="ent-type-select">
+                  <option value="">All types</option>
+                  <option value="character">Character</option>
+                  <option value="faction">Faction</option>
+                  <option value="location">Location</option>
+                  <option value="item">Item</option>
+                  <option value="concept">Concept</option>
+                  <option value="species">Species</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+              <button class="btn btn-accent" id="ent-new-btn" style="font-size:0.78rem;padding:5px 10px;">+ New Entity</button>
+            </div>
+            <div id="ent-list"></div>
+          </div>
+          <div id="ent-content">
+            <div id="ent-empty">
+              <div class="empty-icon">
+                <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+                  <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                </svg>
+              </div>
+              <p>Select an entity or create a new one</p>
+            </div>
+            <div id="ent-viewer" style="display:none;">
+              <div id="ent-viewer-header">
+                <div id="ent-viewer-title"></div>
+                <div style="display:flex;gap:8px;flex-shrink:0;">
+                  <button class="btn" id="ent-edit-btn" style="font-size:0.75rem;padding:4px 10px;">Edit</button>
+                  <button class="btn" id="ent-delete-btn" style="font-size:0.75rem;padding:4px 10px;color:var(--danger);border-color:var(--danger);">Delete</button>
+                </div>
+              </div>
+              <div id="ent-viewer-meta"></div>
+              <div id="ent-viewer-timeline" style="display:none;"></div>
+              <div id="ent-viewer-desc" class="markdown-body"></div>
+              <div id="ent-viewer-links">
+                <h3>Linked Events</h3>
+                <div id="ent-linked-nodes"></div>
+              </div>
+            </div>
+            <div id="ent-editor">
+              <div class="editor-field">
+                <label>Name</label>
+                <input type="text" id="ent-ed-name" placeholder="Entity name…" />
+              </div>
+              <div class="editor-row">
+                <div class="editor-field">
+                  <label>Type</label>
+                  <select id="ent-ed-type">
+                    <option value="character">Character</option>
+                    <option value="faction">Faction</option>
+                    <option value="location">Location</option>
+                    <option value="item">Item</option>
+                    <option value="concept">Concept</option>
+                    <option value="species">Species</option>
+                    <option value="other">Other</option>
+                  </select>
+                </div>
+                <div class="editor-field">
+                  <label>Color</label>
+                  <input type="color" id="ent-ed-color" value="#7c6bff" style="height:34px;padding:2px;" />
+                </div>
+              </div>
+              <div class="editor-field">
+                <label>Description (Markdown)</label>
+                <textarea id="ent-ed-desc" placeholder="Biography, history, traits…"></textarea>
+              </div>
+              <div class="editor-actions">
+                <button class="btn btn-accent" id="ent-save-btn">Save</button>
+                <button class="btn" id="ent-cancel-btn">Cancel</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── Glossary Module ───────────────────────────────────────────── -->
+        <div class="module-panel" data-module="glossary">
+          <div class="module-empty-state">
+            <div class="mes-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+                <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+              </svg>
+            </div>
+            <h2>Glossary</h2>
+            <p>Searchable dictionary of world terms — places, languages, concepts, items — cross-linked to events and entities.</p>
+            <span class="mes-badge">Coming in Phase 4</span>
+          </div>
+        </div>
+
+        <!-- ── Maps Module ───────────────────────────────────────────────── -->
+        <div class="module-panel" data-module="maps">
+          <div class="module-empty-state">
+            <div class="mes-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/>
+                <line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/>
+              </svg>
+            </div>
+            <h2>Maps</h2>
+            <p>Upload world maps, place pins linked to events and entities, and animate territory changes over time.</p>
+            <span class="mes-badge">Coming in Phase 5</span>
+          </div>
+        </div>
+
+        <!-- ── Docs Module ───────────────────────────────────────────────── -->
+        <div class="module-panel" data-module="docs" id="view-docs">
+          <div id="docs-sidebar">
+            <div id="docs-sidebar-top">
+              <input type="search" id="docs-search" placeholder="Search documents…" />
+              <button class="btn btn-accent" id="docs-new-btn" style="font-size:0.78rem;padding:5px 10px;">+ New Document</button>
+            </div>
+            <div id="docs-list"></div>
+          </div>
+          <div id="docs-content">
+            <div id="docs-empty">
+              <div class="empty-icon">📜</div>
+              <p>Select a document or create a new one</p>
+            </div>
+            <div id="docs-viewer" style="display:none;">
+              <div id="docs-viewer-header">
+                <div id="docs-viewer-title"></div>
+                <div style="display:flex;gap:8px;flex-shrink:0;">
+                  <button class="btn" id="docs-edit-btn" style="font-size:0.75rem;padding:4px 10px;">Edit</button>
+                  <button class="btn" id="docs-delete-btn" style="font-size:0.75rem;padding:4px 10px;color:var(--danger);border-color:var(--danger);">Delete</button>
+                </div>
+              </div>
+              <div id="docs-viewer-meta"></div>
+              <div id="docs-viewer-body"></div>
+            </div>
+            <div id="docs-editor">
+              <div class="editor-field">
+                <label>Title</label>
+                <input type="text" id="editor-title" placeholder="Document title…" />
+              </div>
+              <div class="editor-row">
+                <div class="editor-field">
+                  <label>Category</label>
+                  <select id="editor-category">
+                    <option>Overview</option>
+                    <option>People</option>
+                    <option>Places</option>
+                    <option>Factions</option>
+                    <option>Events</option>
+                    <option>Rules</option>
+                    <option>Other</option>
+                  </select>
+                </div>
+                <div class="editor-field">
+                  <label>Tags (comma-separated)</label>
+                  <input type="text" id="editor-tags" placeholder="e.g. history, faction, war" />
+                </div>
+              </div>
+              <div class="editor-field">
+                <label>Content (Markdown)</label>
+                <textarea id="editor-content" placeholder="Write in Markdown…"></textarea>
+              </div>
+              <div class="editor-actions">
+                <button class="btn btn-accent" id="editor-save-btn">Save</button>
+                <button class="btn" id="editor-cancel-btn">Cancel</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- #pane-secondary -->
+
+    </div><!-- #split-container -->
+
+  </div><!-- #app-main -->
+
+  <!-- @mention autocomplete dropdown -->
+  <div id="mention-dropdown" class="hidden"></div>
+
+  <!-- Tooltip -->
+  <div id="tooltip">
+    <div class="tt-title"></div>
+    <div class="tt-year"></div>
+    <div class="tt-type"></div>
+  </div>
+
+  <!-- Add / Edit Node Modal -->
+  <div id="settings-overlay">
+    <div id="settings-box">
+      <h2>Timeline Settings</h2>
+      <form id="settings-form" onsubmit="return false;">
+        <div class="form-grid">
+          <div class="form-group full">
+            <label style="font-size:0.75rem;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.05em;">World Bounds</label>
+          </div>
+          <div class="form-group">
+            <label>World Start</label>
+            <input type="number" id="s-world-start" placeholder="e.g. -1000000000" />
+          </div>
+          <div class="form-group">
+            <label>World End</label>
+            <input type="number" id="s-world-end" placeholder="e.g. 2000" />
+          </div>
+          <div class="form-group full">
+            <label style="font-size:0.75rem;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.05em;">Default View <span style="font-weight:400;text-transform:none;">(leave blank to fit data)</span></label>
+          </div>
+          <div class="form-group">
+            <label>Default View Start</label>
+            <input type="number" id="s-view-start" placeholder="e.g. 1500" />
+          </div>
+          <div class="form-group">
+            <label>Default View End</label>
+            <input type="number" id="s-view-end" placeholder="e.g. 2000" />
+          </div>
+          <div class="form-group full">
+            <label style="font-size:0.75rem;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.05em;">Split Layout</label>
+          </div>
+          <div class="form-group full">
+            <label>Secondary pane position</label>
+            <div id="split-pos-picker">
+              <button type="button" class="split-pos-btn" data-pos="left" title="Left">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/></svg>
+              </button>
+              <button type="button" class="split-pos-btn" data-pos="right" title="Right">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="18" rx="2"/><line x1="15" y1="3" x2="15" y2="21"/></svg>
+              </button>
+              <button type="button" class="split-pos-btn" data-pos="top" title="Top">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="18" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+              </button>
+              <button type="button" class="split-pos-btn" data-pos="bottom" title="Bottom">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="18" rx="2"/><line x1="2" y1="14" x2="22" y2="14"/></svg>
+              </button>
+            </div>
+          </div>
+          <div class="form-group full">
+            <label style="font-size:0.75rem;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.05em;">Calendar System</label>
+          </div>
+          <div class="form-group full">
+            <button type="button" class="btn" id="s-open-cal-editor" style="width:100%;">Open Time System Editor</button>
+          </div>
+        </div>
+        <div class="form-actions">
+          <button class="btn" type="button" id="settings-cancel">Cancel</button>
+          <button class="btn btn-accent" type="submit">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="modal-node-overlay">
+    <div id="modal-node-box">
+      <h2 id="modal-node-title-hdr">Add Node</h2>
+      <div class="mn-parent-info" id="mn-parent-label"></div>
+      <form id="modal-node-form" onsubmit="return false;">
+        <div class="form-grid">
+          <div class="form-group full">
+            <label>Title *</label>
+            <input type="text" id="mn-title" required placeholder="Name of this event, region, era…" />
+          </div>
+          <div class="form-group">
+            <label>Node Kind</label>
+            <select id="mn-type">
+              <option value="point">Point event (single date)</option>
+              <option value="span">Span (has start + end date)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Category</label>
+            <select id="mn-node-type">
+              <option value="event">Event</option>
+              <option value="milestone">Milestone</option>
+              <option value="conflict">Conflict</option>
+              <option value="disaster">Disaster</option>
+              <option value="cultural">Cultural</option>
+              <option value="religious">Religious</option>
+              <option value="legend">Legend / Myth</option>
+              <option value="region">Region</option>
+              <option value="kingdom">Kingdom</option>
+              <option value="character">Character</option>
+            </select>
+          </div>
+          <div class="form-group" id="mn-entity-type-row" style="display:none">
+            <label>Entity Type</label>
+            <select id="mn-entity-type">
+              <option value="character">Character</option>
+              <option value="faction">Faction</option>
+              <option value="location">Location</option>
+              <option value="item">Item</option>
+              <option value="concept">Concept</option>
+              <option value="species">Species</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+          <div class="form-group full">
+            <label>Start Date *</label>
+            <div class="date-fields">
+              <input type="number" id="mn-start-year" required placeholder="Year" class="df-year" />
+              <select id="mn-start-month" class="df-sm"><option value="">—</option></select>
+              <input type="number" id="mn-start-day" min="1" max="31" placeholder="Day" class="df-sm" />
+              <input type="number" id="mn-start-hour" min="0" max="23" placeholder="Hr" class="df-xs" />
+              <input type="number" id="mn-start-minute" min="0" max="59" placeholder="Min" class="df-xs" />
+            </div>
+          </div>
+          <div class="form-group full" id="mn-end-row" style="display:none;">
+            <label>End Date *</label>
+            <div class="date-fields">
+              <input type="number" id="mn-end-year" placeholder="Year" class="df-year" />
+              <select id="mn-end-month" class="df-sm"><option value="">—</option></select>
+              <input type="number" id="mn-end-day" min="1" max="31" placeholder="Day" class="df-sm" />
+              <input type="number" id="mn-end-hour" min="0" max="23" placeholder="Hr" class="df-xs" />
+              <input type="number" id="mn-end-minute" min="0" max="59" placeholder="Min" class="df-xs" />
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Importance</label>
+            <select id="mn-importance">
+              <option value="critical">Critical</option>
+              <option value="major">Major</option>
+              <option value="moderate" selected>Moderate</option>
+              <option value="minor">Minor</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Color</label>
+            <input type="color" id="mn-color" value="#5566bb" style="height:34px;padding:2px;" />
+          </div>
+          <div class="form-group">
+            <label>Opacity <span id="mn-opacity-val" style="opacity:.6">75%</span></label>
+            <input type="range" id="mn-opacity" min="0.1" max="1" step="0.05" value="0.75" style="width:100%;" />
+          </div>
+          <div class="form-group full" id="mn-parent-row" style="display:none;">
+            <label>Move to</label>
+            <select id="mn-parent-select"></select>
+          </div>
+          <div class="form-group full">
+            <label>Description</label>
+            <textarea id="mn-desc" placeholder="What happened? What is this place/era?"></textarea>
+          </div>
+        </div>
+        <div class="form-actions">
+          <button class="btn" type="button" id="mn-cancel">Cancel</button>
+          <button class="btn btn-accent" type="submit">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Time System Editor -->
+  <div id="ce-overlay">
+    <div id="ce-box">
+      <div class="ce-header">
+        <h2>Time System Editor</h2>
+        <div class="ce-preset-bar">
+          <select id="ce-preset-select"></select>
+          <input type="text" id="ce-preset-name" placeholder="Calendar name" />
+          <button type="button" class="btn btn-sm" id="ce-preset-new" title="New">+</button>
+          <button type="button" class="btn btn-sm btn-danger" id="ce-preset-delete" title="Delete">✕</button>
+        </div>
+      </div>
+      <div class="ce-tabs">
+        <button class="ce-tab active" data-tab="overview">Overview</button>
+        <button class="ce-tab" data-tab="months">Months</button>
+        <button class="ce-tab" data-tab="weeks">Weeks</button>
+        <button class="ce-tab" data-tab="days">Days</button>
+        <button class="ce-tab" data-tab="eras">Eras</button>
+        <button class="ce-tab" data-tab="moons">Moons</button>
+        <button class="ce-tab" data-tab="display">Display</button>
+      </div>
+      <div class="ce-tab-body" id="ce-tab-body"></div>
+      <div class="ce-footer">
+        <button class="btn" id="ce-cancel">Cancel</button>
+        <button class="btn btn-accent" id="ce-save">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right-click context menu -->
+  <div id="ctx-menu">
+    <button id="ctx-edit">✎ Edit</button>
+    <button id="ctx-add-child">+ Add Child</button>
+    <button id="ctx-delete">✕ Delete</button>
+    <button id="ctx-add-node">+ Add Node</button>
+  </div>
+
+  <!-- ── User Account Panel ──────────────────────────────────────────────── -->
+  <div id="user-panel-overlay">
+    <div class="panel-box">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+        <h2 style="margin:0;">Account</h2>
+        <button class="btn" id="user-panel-close" style="font-size:0.8rem;padding:4px 10px;">Close</button>
+      </div>
+
+      <div class="panel-section">
+        <h3>Profile</h3>
+        <div style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:10px;">
+          Username: <strong id="profile-username"></strong> · Role: <strong id="profile-role"></strong>
+        </div>
+        <form id="profile-form">
+          <div class="auth-field">
+            <label>Display Name</label>
+            <input type="text" id="profile-display-name" />
+          </div>
+          <div class="auth-field">
+            <label>Current Password (to change password)</label>
+            <input type="password" id="profile-cur-pw" autocomplete="current-password" />
+          </div>
+          <div class="auth-field">
+            <label>New Password</label>
+            <input type="password" id="profile-new-pw" autocomplete="new-password" />
+          </div>
+          <div id="profile-error" style="font-size:0.82rem;min-height:1.2em;margin-bottom:4px;"></div>
+          <button class="btn btn-accent" type="submit" style="font-size:0.82rem;">Update Profile</button>
+        </form>
+      </div>
+
+      <div class="panel-section">
+        <h3>API Keys</h3>
+        <p style="font-size:0.8rem;color:var(--text-secondary);margin:0 0 10px;">Use API keys to authenticate the MCP server or external API calls.</p>
+        <div style="display:flex;gap:8px;margin-bottom:12px;">
+          <input type="text" id="apikey-name" placeholder="Key name (e.g. Claude Desktop)" style="flex:1;padding:6px 8px;border-radius:6px;border:1px solid var(--border);background:var(--bg-base);color:var(--text);font-size:0.85rem;" />
+          <button class="btn btn-accent" id="apikey-create-btn" style="font-size:0.8rem;padding:6px 12px;white-space:nowrap;">Create Key</button>
+        </div>
+        <div id="apikey-reveal" style="display:none;margin-bottom:12px;">
+          <div style="font-size:0.78rem;color:var(--danger);margin-bottom:4px;">Copy this key now — it won't be shown again!</div>
+          <div class="api-key-reveal"></div>
+          <button class="btn" id="apikey-reveal-close" style="font-size:0.75rem;margin-top:6px;">Done</button>
+        </div>
+        <div id="apikey-list"></div>
+      </div>
+
+      <div class="panel-section">
+        <h3>Share My Timeline</h3>
+        <div style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap;">
+          <input type="text" id="share-username" placeholder="Username" style="flex:1;min-width:120px;padding:6px 8px;border-radius:6px;border:1px solid var(--border);background:var(--bg-base);color:var(--text);font-size:0.85rem;" />
+          <select id="share-preset" style="padding:6px 8px;border-radius:6px;border:1px solid var(--border);background:var(--bg-base);color:var(--text);font-size:0.85rem;">
+            <option value="read">Read</option>
+            <option value="edit">Edit</option>
+            <option value="full">Full</option>
+            <option value="custom">Custom...</option>
+          </select>
+          <button class="btn btn-accent" id="share-create-btn" style="font-size:0.82rem;padding:6px 12px;">Share</button>
+        </div>
+        <div id="share-new-advanced" style="display:none;margin-bottom:10px;">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:0.82rem;">
+            <label>Timeline: <select id="share-new-perm-timeline" style="padding:3px 6px;border-radius:4px;border:1px solid var(--border);background:var(--bg-base);color:var(--text);font-size:0.8rem;">
+              <option value="read">Read</option><option value="edit">Edit</option><option value="delete">Delete</option><option value="review">Review</option>
+            </select></label>
+            <label>Docs: <select id="share-new-perm-docs" style="padding:3px 6px;border-radius:4px;border:1px solid var(--border);background:var(--bg-base);color:var(--text);font-size:0.8rem;">
+              <option value="read">Read</option><option value="edit">Edit</option><option value="delete">Delete</option><option value="review">Review</option>
+            </select></label>
+            <label>Entities: <select id="share-new-perm-entities" style="padding:3px 6px;border-radius:4px;border:1px solid var(--border);background:var(--bg-base);color:var(--text);font-size:0.8rem;">
+              <option value="read">Read</option><option value="edit">Edit</option><option value="delete">Delete</option><option value="review">Review</option>
+            </select></label>
+            <label>Settings: <select id="share-new-perm-settings" style="padding:3px 6px;border-radius:4px;border:1px solid var(--border);background:var(--bg-base);color:var(--text);font-size:0.8rem;">
+              <option value="read">Read</option><option value="edit">Edit</option>
+            </select></label>
+          </div>
+        </div>
+        <div id="share-create-error" style="font-size:0.82rem;color:var(--danger);min-height:1.2em;margin-bottom:6px;"></div>
+        <div id="my-shares-list"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Share Edit Modal ────────────────────────────────────────────────── -->
+  <div id="share-edit-overlay">
+    <div class="panel-box" style="width:380px;">
+      <h3 style="margin:0 0 12px;">Edit Share: <span id="share-edit-grantee"></span></h3>
+      <input type="hidden" id="share-edit-grantee-id" />
+      <form id="share-edit-form">
+        <div class="auth-field">
+          <label>Preset</label>
+          <select id="share-edit-preset" style="width:100%;padding:6px 8px;border-radius:6px;border:1px solid var(--border);background:var(--bg-base);color:var(--text);font-size:0.85rem;">
+            <option value="read">Read</option>
+            <option value="edit">Edit</option>
+            <option value="full">Full</option>
+            <option value="custom">Custom...</option>
+          </select>
+        </div>
+        <div id="share-edit-advanced" style="display:none;">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:0.82rem;margin-bottom:12px;">
+            <label>Timeline: <select id="share-edit-perm-timeline" style="padding:3px 6px;border-radius:4px;border:1px solid var(--border);background:var(--bg-base);color:var(--text);font-size:0.8rem;">
+              <option value="read">Read</option><option value="edit">Edit</option><option value="delete">Delete</option><option value="review">Review</option>
+            </select></label>
+            <label>Docs: <select id="share-edit-perm-docs" style="padding:3px 6px;border-radius:4px;border:1px solid var(--border);background:var(--bg-base);color:var(--text);font-size:0.8rem;">
+              <option value="read">Read</option><option value="edit">Edit</option><option value="delete">Delete</option><option value="review">Review</option>
+            </select></label>
+            <label>Entities: <select id="share-edit-perm-entities" style="padding:3px 6px;border-radius:4px;border:1px solid var(--border);background:var(--bg-base);color:var(--text);font-size:0.8rem;">
+              <option value="read">Read</option><option value="edit">Edit</option><option value="delete">Delete</option><option value="review">Review</option>
+            </select></label>
+            <label>Settings: <select id="share-edit-perm-settings" style="padding:3px 6px;border-radius:4px;border:1px solid var(--border);background:var(--bg-base);color:var(--text);font-size:0.8rem;">
+              <option value="read">Read</option><option value="edit">Edit</option>
+            </select></label>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;justify-content:flex-end;">
+          <button type="button" class="btn" id="share-edit-cancel" style="font-size:0.82rem;">Cancel</button>
+          <button type="submit" class="btn btn-accent" style="font-size:0.82rem;">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ── Pending Deletions Panel ─────────────────────────────────────────── -->
+  <div id="pending-overlay">
+    <div class="panel-box" style="width:500px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+        <h2 style="margin:0;">Pending Deletions</h2>
+        <button class="btn" id="pending-close" style="font-size:0.8rem;padding:4px 10px;">Close</button>
+      </div>
+      <div id="pending-deletions-list"></div>
+    </div>
+  </div>
+
+  <!-- ── Admin Panel ──────────────────────────────────────────────────────── -->
+  <div id="admin-panel-overlay">
+    <div class="panel-box" style="width:600px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+        <h2 style="margin:0;">Admin Panel</h2>
+        <button class="btn" id="admin-panel-close" style="font-size:0.8rem;padding:4px 10px;">Close</button>
+      </div>
+
+      <div class="panel-section">
+        <h3>Global Settings</h3>
+        <label style="display:flex;align-items:center;gap:8px;font-size:0.85rem;color:var(--text);cursor:pointer;">
+          <input type="checkbox" id="admin-reg-toggle" />
+          Allow open registration
+        </label>
+      </div>
+
+      <div class="panel-section">
+        <h3>Users</h3>
+        <table class="user-table">
+          <thead>
+            <tr><th>Username</th><th>Display Name</th><th>Role</th><th>Status</th><th>Actions</th></tr>
+          </thead>
+          <tbody id="admin-user-tbody"></tbody>
+        </table>
+      </div>
+
+      <div class="panel-section">
+        <h3>Create User</h3>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <input type="text" id="admin-new-username" placeholder="Username" style="flex:1;min-width:120px;padding:6px 8px;border-radius:6px;border:1px solid var(--border);background:var(--bg-base);color:var(--text);font-size:0.85rem;" />
+          <input type="password" id="admin-new-password" placeholder="Password" style="flex:1;min-width:120px;padding:6px 8px;border-radius:6px;border:1px solid var(--border);background:var(--bg-base);color:var(--text);font-size:0.85rem;" />
+          <select id="admin-new-role" style="padding:6px 8px;border-radius:6px;border:1px solid var(--border);background:var(--bg-base);color:var(--text);font-size:0.85rem;">
+            <option value="user">User</option>
+            <option value="admin">Admin</option>
+          </select>
+          <button class="btn btn-accent" id="admin-create-user-btn" style="font-size:0.82rem;padding:6px 12px;">Create</button>
+        </div>
+        <div id="admin-create-error" style="font-size:0.82rem;color:var(--danger);margin-top:4px;min-height:1.2em;"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/calendar.js"></script>
+  <script src="js/calendar-editor.js"></script>
+  <script src="js/state.js"></script>
+  <script src="js/mentions.js"></script>
+  <script src="js/timeline-helpers.js"></script>
+  <script src="js/gantt.js"></script>
+  <script src="js/timeline-core.js"></script>
+  <script src="js/ui-panels.js"></script>
+  <script src="js/split-pane.js"></script>
+  <script src="js/docs-module.js"></script>
+  <script src="js/entities-module.js"></script>
+  <script src="js/auth-module.js"></script>
+  <script src="js/user-module.js"></script>
+  <script src="js/admin-module.js"></script>
+  <script src="js/sharing-module.js"></script>
+  <script src="js/app.js"></script>
+</body>
+
+</html>

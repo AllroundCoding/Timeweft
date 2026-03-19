@@ -1,0 +1,218 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   Timeline Theming Engine — Design Token Dictionary
+   ═══════════════════════════════════════════════════════════════════════════
+
+   ARCHITECTURE
+   ────────────
+   • All visual tokens live on .theme-[name] placed on <body>.
+   • Timeline components (tl-span, tl-point …) NEVER hardcode
+     colors, shadows, or radii — they consume only var(--token) references.
+   • Swap skins: swap the theme class on <body>. Nothing else changes.
+   • :root below holds neutral fallbacks so the UI is never broken if a
+     theme forgets a token.
+
+   TOKEN NAMING CONVENTION
+   ───────────────────────
+   Names describe FUNCTION in the timeline, never the current color.
+     ✓  --point-glow        ✗  --amber-glow
+     ✓  --span-radius       ✗  --pill-border-radius
+
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+
+/* ── Neutral fallbacks (browser default if no theme class is present) ───── */
+:root {
+  /* Canvas */
+  --bg-base:            #0a0b0f;
+  --bg-texture:         none;
+
+  /* Year ruler */
+  --ruler-bg:           #111318;          /* matches --bg-panel */
+  --ruler-tick:         rgba(255, 255, 255, 0.15);
+  --ruler-text:         #50566b;          /* matches --text-dim */
+
+  /* Span bars */
+  --span-radius:        5px;
+  --span-fallback-bg:   #5566bb;
+  --span-border-width:  0px;
+  --span-border-color:  transparent;
+  --span-shadow:        0 1px 4px rgba(0, 0, 0, 0.4);
+
+  /* Point events */
+  --point-color:        #8899cc;
+  --point-filter:       none;             /* filter: for the symbol glyph */
+  --point-shape:        3px;              /* border-radius of the dot */
+
+  /* Stem line (point → axis) */
+  --stem-color:         rgba(255, 255, 255, 0.18);
+
+  /* Point chip */
+  --chip-bg:            rgba(30, 35, 55, 0.88);
+  --chip-bg-hover:      rgba(80, 90, 140, 0.993);
+  --chip-border:        rgba(255, 255, 255, 0.12);
+  --chip-border-hover:  rgba(255, 255, 255, 0.30);
+  --chip-text:          #8b91a8;          /* matches --text-secondary */
+  --chip-radius:        4px;
+  --chip-backdrop:      blur(4px);
+
+  /* Node selection / expansion */
+  --node-glow:          0 0 0 2px rgba(255, 255, 255, 0.30),
+                        0 2px 8px rgba(0, 0, 0, 0.50);
+
+  /* Expansion panel */
+  --exp-panel-bg:       rgba(0, 0, 0, 0.22);
+  --exp-panel-border:   rgba(255, 255, 255, 0.15);
+
+  /* Critical importance accent */
+  --critical-accent:    rgba(255, 200, 80, 0.40);
+  --critical-text:      #ffc850;
+}
+
+
+/* ════════════════════════════════════════════════════════════════════════════
+   SKIN 1 — Sands of Time
+   ════════════════════════════════════════════════════════════════════════════
+   Aesthetic: flowing golden rivers of time cutting through a sandy void.
+   Dark warm charcoal base, glowing sand-grain events,
+   pill-shaped spans that feel organic and ancient.                          */
+
+.theme-sands-of-time {
+
+  /* ── Canvas ──────────────────────────────────────────────────────────── */
+  --bg-base:    #0d0a05;
+
+  /* feTurbulence fractal noise → grainy starfield/sandy void overlay.
+     %23 is # (hash) — required inside a CSS url() so the parser doesn't
+     treat it as a fragment identifier before the SVG engine sees it.       */
+  --bg-texture: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256"><filter id="g"><feTurbulence type="fractalNoise" baseFrequency="0.72" numOctaves="4" stitchTiles="stitch"/><feColorMatrix type="saturate" values="0"/></filter><rect width="256" height="256" filter="url(%23g)" opacity="0.09" fill="%23ffffff"/></svg>');
+
+  /* ── Ruler ───────────────────────────────────────────────────────────── */
+  --ruler-bg:   #0d0a05;
+  --ruler-tick: rgba(200, 150, 50, 0.20);
+  --ruler-text: rgba(200, 160, 80, 0.55);
+
+  /* ── Spans — organic pill shapes, golden border ─────────────────────── */
+  --span-radius:       20px;
+  --span-fallback-bg:  rgba(218, 165, 32, 0.22);
+  --span-border-width: 1px;
+  --span-border-color: rgba(218, 165, 32, 0.48);
+  --span-shadow:       0 2px 10px rgba(160, 110, 0, 0.28);
+
+  /* ── Point events — bright glowing sand grains ───────────────────────── */
+  --point-color:  #ffbf00;
+  --point-filter: drop-shadow(0 0 4px rgba(255, 191, 0, 0.85));
+  --point-shape:  50%;
+
+  /* ── Stem ────────────────────────────────────────────────────────────── */
+  --stem-color: rgba(200, 150, 30, 0.28);
+
+  /* ── Point chip ──────────────────────────────────────────────────────── */
+  --chip-bg:           rgba(18, 12, 3, 0.658);
+  --chip-bg-hover:     rgb(68, 44, 10);
+  --chip-border:       rgba(200, 140, 20, 0.30);
+  --chip-border-hover: rgba(218, 165, 32, 0.7);
+  --chip-text:         #c8a870;
+  --chip-radius:       3px;
+  --chip-backdrop:     blur(6px);
+
+  /* ── Selection ring ──────────────────────────────────────────────────── */
+  --node-glow: 0 0 0 2px rgba(255, 191, 0, 0.55),
+               0 0 14px rgba(255, 191, 0, 0.28);
+
+  /* ── Expansion panel ─────────────────────────────────────────────────── */
+  --exp-panel-bg:     rgba(10, 7, 2, 0.90);
+  --exp-panel-border: rgba(200, 140, 30, 0.32);
+
+  /* ── Critical ────────────────────────────────────────────────────────── */
+  --critical-accent: rgba(255, 191, 0, 0.52);
+  --critical-text:   #ffbf00;
+}
+
+
+/* ════════════════════════════════════════════════════════════════════════════
+   SKIN 2 — Sci-Fi Hologram
+   ════════════════════════════════════════════════════════════════════════════
+   Proves the architecture: swap every warm gold token for cold cyan.
+   Sharp edges, grid background, diamond points.      */
+
+.theme-sci-fi-hologram {
+
+  /* ── Canvas ──────────────────────────────────────────────────────────── */
+  --bg-base: #020a10;
+
+  /* Repeating 40 × 40 px grid overlay — cyan at 4 % opacity */
+  --bg-texture: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40"><rect width="40" height="40" fill="none"/><line x1="0" y1="20" x2="40" y2="20" stroke="%2300ffff" stroke-width="0.5" stroke-opacity="0.06"/><line x1="20" y1="0" x2="20" y2="40" stroke="%2300ffff" stroke-width="0.5" stroke-opacity="0.06"/></svg>');
+
+  /* ── Ruler ───────────────────────────────────────────────────────────── */
+  --ruler-bg:   #020a10;
+  --ruler-tick: rgba(0, 200, 255, 0.20);
+  --ruler-text: rgba(0, 200, 255, 0.50);
+
+  /* ── Spans — hard-edged rectangular blocks ───────────────────────────── */
+  --span-radius:       2px;
+  --span-fallback-bg:  rgba(0, 100, 160, 0.40);
+  --span-border-width: 1px;
+  --span-border-color: rgba(0, 229, 255, 0.55);
+  --span-shadow:       0 0 8px rgba(0, 229, 255, 0.18),
+                       inset 0 0 18px rgba(0, 150, 255, 0.05);
+
+  /* ── Point events — glowing cyan (square dot rotated 45°) ───────────── */
+  --point-color:  #00e5ff;
+  --point-filter: drop-shadow(0 0 4px rgba(0, 229, 255, 0.90));
+  --point-shape:  0%;     /* sharp square; rotate via CSS if desired */
+
+  /* ── Stem ────────────────────────────────────────────────────────────── */
+  --stem-color: rgba(0, 200, 255, 0.28);
+
+  /* ── Point chip ──────────────────────────────────────────────────────── */
+  --chip-bg:           rgba(0, 18, 30, 0.747);
+  --chip-bg-hover:     rgb(2, 48, 78);
+  --chip-border:       rgba(0, 200, 255, 0.32);
+  --chip-border-hover: rgba(0, 229, 255, 0.58);
+  --chip-text:         #80d8ff;
+  --chip-radius:       0px;
+  --chip-backdrop:     blur(8px);
+
+  /* ── Selection ring ──────────────────────────────────────────────────── */
+  --node-glow: 0 0 0 1px rgba(0, 255, 255, 0.80),
+               0 0 16px rgba(0, 229, 255, 0.38);
+
+  /* ── Expansion panel ─────────────────────────────────────────────────── */
+  --exp-panel-bg:     rgba(0, 10, 20, 0.95);
+  --exp-panel-border: rgba(0, 200, 255, 0.40);
+
+  /* ── Critical ────────────────────────────────────────────────────────── */
+  --critical-accent: rgba(0, 255, 180, 0.50);
+  --critical-text:   #00ffcc;
+}
+
+
+/* ════════════════════════════════════════════════════════════════════════════
+   HOW TO ADD A NEW SKIN
+   ════════════════════════════════════════════════════════════════════════════
+
+   1. Add a new .theme-[name] block here, overriding only the tokens
+      that differ from :root defaults.
+   2. Set <body class="theme-[name]"> (or swap it with JS at runtime).
+   3. Done — no component CSS or JS changes required.
+
+   RUNTIME SWITCHING (JS):
+     document.body.className = 'theme-sci-fi-hologram';
+
+   TAILWIND INTEGRATION (if you ever add Tailwind):
+     In tailwind.config.js extend.colors, map token names to CSS variables:
+
+       colors: {
+         'skin': {
+           'bg-base':      'var(--bg-base)',
+           'point':        'var(--point-color)',
+           'span-border':  'var(--span-border-color)',
+           'chip-bg':      'var(--chip-bg)',
+           'chip-text':    'var(--chip-text)',
+         }
+       }
+
+     Then use utility classes like:
+       bg-skin-bg-base   text-skin-chip-text   border-skin-span-border
+
+   ════════════════════════════════════════════════════════════════════════════ */
