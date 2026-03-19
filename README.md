@@ -93,9 +93,66 @@ Then restart Claude Desktop.
 - *"Show me the full tree under the Age of Expansion"*
 - *"Give me an overview of the timeline stats"*
 
-## Data
+## Authentication & Users
 
-All data is stored in a local SQLite database. The database is created automatically on first run.
+The app supports multi-user access with registration, login, and role-based permissions.
+
+- **First user** to register is automatically assigned the **admin** role
+- Admins can create, update, deactivate, and delete other users
+- Authentication uses **JWT tokens** (24-hour expiry) or **API keys** for programmatic access
+- API keys use the format `tl_...` and are returned once on creation — stored as SHA256 hashes
+
+### Routes
+
+| Route | Description |
+|-------|-------------|
+| `POST /api/auth/register` | Create a new account |
+| `POST /api/auth/login` | Log in and receive a JWT |
+| `GET /api/auth/me` | Get current user profile |
+| `PUT /user/profile` | Update display name or password |
+
+## Data & Per-User Isolation
+
+The app uses a **hybrid database model** with two layers of SQLite storage:
+
+### Accounts Database (`data/accounts.db`)
+
+A single shared database for authentication and cross-user concerns:
+
+- **users** — credentials, roles, activation status
+- **api_keys** — hashed API keys with usage tracking
+- **global_settings** — JWT secret, registration status
+- **timeline_shares** — sharing permissions between users
+
+### Per-User Timeline Database (`data/users/{userId}/timeline.db`)
+
+Each user gets their own isolated SQLite file containing all their timeline data:
+
+- **timeline_nodes** — hierarchical tree of events and eras
+- **calendars** — custom calendar systems
+- **documents** — markdown documents with tags
+- **entities** — characters, factions, locations, items
+- **entity_node_links** — relationships between entities and events
+- **settings** — world bounds, view preferences
+
+Databases are created automatically on registration and cached in memory at runtime.
+
+### Timeline Sharing
+
+Users can share their timelines with others at varying permission levels:
+
+| Level | Allows |
+|-------|--------|
+| **read** | View nodes, documents, and entities |
+| **edit** | Read + create and modify content |
+| **review** | Edit + request deletions (pending owner approval) |
+| **full** | All operations including immediate deletion |
+
+When accessing a shared timeline, the client sends an `X-Timeline-Owner` header — the middleware switches the request's database context to the owner's database while enforcing the granted permissions.
+
+### Legacy Migration
+
+If upgrading from a pre-auth single-user setup, the existing `timeline.db` is automatically migrated into the first registered user's database.
 
 ## Tech Stack
 
