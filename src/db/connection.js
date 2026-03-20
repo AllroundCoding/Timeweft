@@ -68,9 +68,20 @@ function _initAccountsSchema(db) {
     INSERT OR IGNORE INTO global_settings (key, value) VALUES
       ('registration_open', '0');
 
+    CREATE TABLE IF NOT EXISTS timelines (
+      id          TEXT PRIMARY KEY,
+      owner_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      name        TEXT NOT NULL DEFAULT 'Default',
+      description TEXT,
+      created_at  TEXT DEFAULT(datetime('now')),
+      updated_at  TEXT DEFAULT(datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_timelines_owner ON timelines(owner_id);
+
     CREATE TABLE IF NOT EXISTS timeline_shares (
       id             TEXT PRIMARY KEY,
       owner_id       TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      timeline_id    TEXT REFERENCES timelines(id) ON DELETE CASCADE,
       grantee_id     TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       preset         TEXT NOT NULL DEFAULT 'read'
                      CHECK(preset IN ('read','edit','full','custom')),
@@ -88,16 +99,6 @@ function _initAccountsSchema(db) {
     );
     CREATE INDEX IF NOT EXISTS idx_shares_grantee ON timeline_shares(grantee_id);
     CREATE INDEX IF NOT EXISTS idx_shares_owner ON timeline_shares(owner_id);
-
-    CREATE TABLE IF NOT EXISTS timelines (
-      id          TEXT PRIMARY KEY,
-      owner_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      name        TEXT NOT NULL DEFAULT 'Default',
-      description TEXT,
-      created_at  TEXT DEFAULT(datetime('now')),
-      updated_at  TEXT DEFAULT(datetime('now'))
-    );
-    CREATE INDEX IF NOT EXISTS idx_timelines_owner ON timelines(owner_id);
   `);
 }
 
