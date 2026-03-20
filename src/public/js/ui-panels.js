@@ -72,8 +72,8 @@ function openNodeDetail(node) {
     <div class="detail-year">${yearRange}</div>
     <div class="detail-desc markdown-body">${descHtml}</div>
     <div class="detail-actions">
-      <button class="btn" onclick="openEditNodeModal('${node.id}')">✎ Edit</button>
-      <button class="btn btn-danger" onclick="deleteNode('${node.id}')">Delete</button>
+      <button class="btn detail-edit-btn" onclick="openEditNodeModal('${node.id}')">✎ Edit</button>
+      <button class="btn btn-danger detail-delete-btn" onclick="deleteNode('${node.id}')">Delete</button>
     </div>`;
   document.getElementById('detail-panel').classList.remove('collapsed');
 }

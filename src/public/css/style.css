@@ -2863,7 +2863,8 @@ body {
 
 /* ── User/Admin Panels ─────────────────────────────────── */
 #user-panel-overlay,
-#admin-panel-overlay {
+#admin-panel-overlay,
+#timeline-mgmt-overlay {
   display: none;
   position: fixed;
   inset: 0;
@@ -2873,7 +2874,8 @@ body {
   justify-content: center;
 }
 #user-panel-overlay.open,
-#admin-panel-overlay.open {
+#admin-panel-overlay.open,
+#timeline-mgmt-overlay.open {
   display: flex;
 }
 .panel-box {
@@ -2990,6 +2992,21 @@ body {
 .share-item-perms { font-size: 0.72rem; color: var(--text-secondary); display: flex; gap: 6px; }
 .share-item-actions { display: flex; gap: 4px; }
 
+/* ── Timeline Management Items ──────────────────────────── */
+.tl-mgmt-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.84rem;
+}
+.tl-mgmt-item:last-child { border-bottom: none; }
+.tl-mgmt-name { flex: 1; display: flex; align-items: center; gap: 6px; }
+.tl-mgmt-title { font-weight: 500; color: var(--text); }
+.tl-mgmt-actions { display: flex; gap: 4px; flex-shrink: 0; }
+
 /* ── Pending Deletions ──────────────────────────────────── */
 .pending-deletion-item {
   display: flex;
@@ -3042,15 +3059,27 @@ body {
 /* ── Permission-based UI hiding (shared timeline) ──────── */
 .share-no-edit-timeline #add-node-btn,
 .share-no-edit-timeline #ctx-add-child,
-.share-no-edit-timeline #ctx-edit { display: none !important; }
+.share-no-edit-timeline #ctx-add-node,
+.share-no-edit-timeline #ctx-edit,
+.share-no-edit-timeline .gantt-act-btn,
+.share-no-edit-timeline .detail-edit-btn { display: none !important; }
 
-.share-no-delete-timeline #ctx-delete { display: none !important; }
+.share-no-delete-timeline #ctx-delete,
+.share-no-delete-timeline .detail-delete-btn { display: none !important; }
 
 .share-no-edit-docs #docs-new-btn,
-.share-no-edit-docs #editor-save-btn { display: none !important; }
+.share-no-edit-docs #editor-save-btn,
+.share-no-edit-docs #docs-edit-btn { display: none !important; }
+
+.share-no-delete-docs #docs-delete-btn { display: none !important; }
 
 .share-no-edit-entities #ent-new-btn,
-.share-no-edit-entities #ent-save-btn { display: none !important; }
+.share-no-edit-entities #ent-save-btn,
+.share-no-edit-entities #ent-edit-btn,
+.share-no-edit-entities .eln-unlink,
+.share-no-edit-entities .ent-link-search { display: none !important; }
+
+.share-no-delete-entities #ent-delete-btn { display: none !important; }
 
 .share-no-edit-settings #settings-nav-btn { display: none !important; }
 

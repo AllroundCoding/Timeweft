@@ -20,44 +20,53 @@ async function loadSharedTimelines() {
 function renderTimelineSwitcher() {
   const container = document.getElementById('timeline-switcher');
   if (!container) return;
-
-  if (!_sharedTimelines.length) {
-    container.style.display = 'none';
-    return;
-  }
-
   container.style.display = '';
+
   const select = container.querySelector('select');
   if (!select) return;
 
-  const currentOwnerId = VIEWING_TIMELINE?.owner_id || '';
-  select.innerHTML = `<option value="">My Timeline</option>` +
-    _sharedTimelines.map(s => {
+  const currentId = ACTIVE_TIMELINE?.id || '';
+  let html = '';
+
+  // Own timelines
+  if (MY_TIMELINES.length > 0) {
+    html += '<optgroup label="My Timelines">';
+    for (const tl of MY_TIMELINES) {
+      html += `<option value="${tl.id}" ${tl.id === currentId ? 'selected' : ''}>${escapeHtml(tl.name)}</option>`;
+    }
+    html += '</optgroup>';
+  }
+
+  // Shared timelines
+  if (_sharedTimelines.length > 0) {
+    html += '<optgroup label="Shared with me">';
+    for (const s of _sharedTimelines) {
       const label = s.owner_display_name || s.owner_username;
-      return `<option value="${s.owner_id}" ${s.owner_id === currentOwnerId ? 'selected' : ''}>${escapeHtml(label)}'s Timeline (${s.preset})</option>`;
-    }).join('');
+      const tlName = s.timeline_name || 'Timeline';
+      html += `<option value="${s.timeline_id}" data-shared="1" ${s.timeline_id === currentId ? 'selected' : ''}>${escapeHtml(label)} - ${escapeHtml(tlName)} (${s.preset})</option>`;
+    }
+    html += '</optgroup>';
+  }
+
+  select.innerHTML = html;
 }
 
-async function switchTimeline(ownerId) {
-  if (!ownerId) {
-    // Switch back to own timeline
-    VIEWING_TIMELINE = null;
+async function switchTimeline(timelineId) {
+  if (!timelineId) return;
+
+  // Find in own timelines
+  const own = MY_TIMELINES.find(t => t.id === timelineId);
+  if (own) {
+    ACTIVE_TIMELINE = makeOwnTimeline(own);
   } else {
-    const share = _sharedTimelines.find(s => s.owner_id === ownerId);
-    if (!share) return;
-    VIEWING_TIMELINE = {
-      owner_id: share.owner_id,
-      owner_username: share.owner_username,
-      owner_display_name: share.owner_display_name,
-      preset: share.preset,
-      perms: {
-        timeline: share.perm_timeline,
-        docs:     share.perm_docs,
-        entities: share.perm_entities,
-        settings: share.perm_settings,
-      },
-    };
+    // Find in shared timelines
+    const shared = _sharedTimelines.find(s => s.timeline_id === timelineId);
+    if (!shared) return;
+    ACTIVE_TIMELINE = makeSharedTimeline(shared);
   }
+
+  // Persist selection
+  localStorage.setItem('tl_active_timeline', ACTIVE_TIMELINE.id);
 
   // Clear all caches
   TL.childCache = {};
@@ -91,7 +100,7 @@ function updateShareBodyClasses() {
     'share-no-edit-timeline', 'share-no-edit-docs', 'share-no-edit-entities', 'share-no-edit-settings',
     'share-no-delete-timeline', 'share-no-delete-docs', 'share-no-delete-entities');
 
-  if (!VIEWING_TIMELINE) return;
+  if (!ACTIVE_TIMELINE || ACTIVE_TIMELINE.is_own) return;
 
   body.classList.add('share-mode');
   for (const area of ['timeline', 'docs', 'entities', 'settings']) {
@@ -106,15 +115,15 @@ function updateShareBanner() {
   const banner = document.getElementById('share-banner');
   if (!banner) return;
 
-  if (!VIEWING_TIMELINE) {
+  if (!ACTIVE_TIMELINE || ACTIVE_TIMELINE.is_own) {
     banner.style.display = 'none';
     return;
   }
 
-  const name = VIEWING_TIMELINE.owner_display_name || VIEWING_TIMELINE.owner_username;
-  const preset = VIEWING_TIMELINE.preset;
+  const name = ACTIVE_TIMELINE.owner_display_name || ACTIVE_TIMELINE.owner_username;
+  const tlName = ACTIVE_TIMELINE.name;
   banner.style.display = '';
-  banner.innerHTML = `Viewing <strong>${escapeHtml(name)}</strong>'s timeline <span class="badge badge-${preset}">${preset}</span>`;
+  banner.innerHTML = `Viewing <strong>${escapeHtml(name)}</strong>'s timeline <strong>${escapeHtml(tlName)}</strong>`;
 }
 
 // ── Share Management (in User Panel) ────────────────────────────────────────
@@ -138,10 +147,12 @@ function renderMyShares(shares) {
 
   list.innerHTML = shares.map(s => {
     const name = s.grantee_display_name || s.grantee_username;
+    const tlName = s.timeline_name || 'Timeline';
     return `
       <div class="share-item">
         <div class="share-item-info">
           <strong>${escapeHtml(name)}</strong>
+          <span style="font-size:0.75rem;color:var(--text-secondary);">${escapeHtml(tlName)}</span>
           <span class="badge badge-${s.preset}">${s.preset}</span>
         </div>
         <div class="share-item-perms">
@@ -151,22 +162,24 @@ function renderMyShares(shares) {
           <span title="Settings">S:${s.perm_settings}</span>
         </div>
         <div class="share-item-actions">
-          <button class="btn" style="font-size:0.7rem;padding:2px 6px;" data-edit-share="${s.grantee_id}">Edit</button>
-          <button class="btn" style="font-size:0.7rem;padding:2px 6px;color:var(--danger);border-color:var(--danger);" data-revoke-share="${s.grantee_id}">Revoke</button>
+          <button class="btn" style="font-size:0.7rem;padding:2px 6px;" data-edit-share data-timeline-id="${s.timeline_id}" data-grantee-id="${s.grantee_id}">Edit</button>
+          <button class="btn" style="font-size:0.7rem;padding:2px 6px;color:var(--danger);border-color:var(--danger);" data-revoke-share data-timeline-id="${s.timeline_id}" data-grantee-id="${s.grantee_id}">Revoke</button>
         </div>
       </div>`;
   }).join('');
 
   list.querySelectorAll('[data-revoke-share]').forEach(btn => {
     btn.addEventListener('click', async () => {
-      await apiFetch(`${API}/user/shares/${btn.dataset.revokeShare}`, { method: 'DELETE' });
+      const { timelineId, granteeId } = btn.dataset;
+      await apiFetch(`${API}/user/shares/${timelineId}/${granteeId}`, { method: 'DELETE' });
       loadMyShares();
     });
   });
 
   list.querySelectorAll('[data-edit-share]').forEach(btn => {
     btn.addEventListener('click', () => {
-      const share = shares.find(s => s.grantee_id === btn.dataset.editShare);
+      const { timelineId, granteeId } = btn.dataset;
+      const share = shares.find(s => s.timeline_id === timelineId && s.grantee_id === granteeId);
       if (share) openShareEditModal(share);
     });
   });
@@ -178,6 +191,7 @@ function openShareEditModal(share) {
 
   document.getElementById('share-edit-grantee').textContent =
     share.grantee_display_name || share.grantee_username;
+  document.getElementById('share-edit-timeline-id').value = share.timeline_id;
   document.getElementById('share-edit-grantee-id').value = share.grantee_id;
   document.getElementById('share-edit-preset').value = share.preset;
   document.getElementById('share-edit-perm-timeline').value = share.perm_timeline;
@@ -213,6 +227,7 @@ function setupShareEditModal() {
 
   document.getElementById('share-edit-form')?.addEventListener('submit', async e => {
     e.preventDefault();
+    const timelineId = document.getElementById('share-edit-timeline-id').value;
     const granteeId = document.getElementById('share-edit-grantee-id').value;
     const preset = document.getElementById('share-edit-preset').value;
 
@@ -224,7 +239,7 @@ function setupShareEditModal() {
       body.perm_settings = document.getElementById('share-edit-perm-settings').value;
     }
 
-    await apiFetch(`${API}/user/shares/${granteeId}`, {
+    await apiFetch(`${API}/user/shares/${timelineId}/${granteeId}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
@@ -244,8 +259,14 @@ async function submitNewShare() {
 
   if (!username) { errEl.textContent = 'Username required'; return; }
 
+  // Use the currently active timeline (must be own)
+  if (!ACTIVE_TIMELINE || !ACTIVE_TIMELINE.is_own) {
+    errEl.textContent = 'Switch to your own timeline to share it';
+    return;
+  }
+
   try {
-    const body = { username, preset };
+    const body = { username, timeline_id: ACTIVE_TIMELINE.id, preset };
     // If custom, gather per-area values
     if (preset === 'custom') {
       body.perm_timeline = document.getElementById('share-new-perm-timeline').value;

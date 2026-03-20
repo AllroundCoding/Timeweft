@@ -93,17 +93,20 @@ function applySplitLayout() {
   container.classList.toggle('split-v', !isH);
   container.style.flexDirection = isH ? 'row' : 'column';
 
-  // DOM order: timeline (primary) comes first when secondary is on right/bottom
-  // appendChild on an existing child moves it, so doing all three sets exact order
-  const timelineFirst = (SplitPane.position === 'right' || SplitPane.position === 'bottom');
-  if (timelineFirst) {
-    container.appendChild(primary);
-    container.appendChild(divider);
-    container.appendChild(secondary);
-  } else {
-    container.appendChild(secondary);
-    container.appendChild(divider);
-    container.appendChild(primary);
+  // DOM order: timeline (primary) comes first when secondary is on right/bottom.
+  // Skip reordering during drag — appendChild detaches the divider, which causes
+  // the browser to fire lostpointercapture and kills the drag operation.
+  if (!SplitPane.isDragging) {
+    const timelineFirst = (SplitPane.position === 'right' || SplitPane.position === 'bottom');
+    if (timelineFirst) {
+      container.appendChild(primary);
+      container.appendChild(divider);
+      container.appendChild(secondary);
+    } else {
+      container.appendChild(secondary);
+      container.appendChild(divider);
+      container.appendChild(primary);
+    }
   }
 
   // Apply sizes

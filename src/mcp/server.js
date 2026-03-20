@@ -17,14 +17,14 @@ const { randomUUID: generateUUID } = require('crypto');
 
 const {
   getAccountsDb,
-  getUserDb,
+  getTimelineDb,
   getNodes,
   getNode,
   getDescendants,
   searchNodes,
 } = require('../db/connection');
 const { hashApiKey } = require('../server/auth');
-const { findByApiKeyHash } = require('../db/auth');
+const { findByApiKeyHash, getDefaultTimeline, getTimeline } = require('../db/auth');
 const { dateToDecimal, DEFAULT_CALENDAR } = require('../server/calendar');
 
 // ── Authenticate via API key ─────────────────────────────────────────────────
@@ -47,8 +47,29 @@ if (!keyRow.user_is_active) {
   process.exit(1);
 }
 
-const db = getUserDb(keyRow.user_id);
-process.stderr.write(`MCP server authenticated as user ${keyRow.user_id}\n`);
+// Resolve timeline: explicit TIMELINE_ID env var, or default to first timeline
+const explicitTimelineId = process.env.TIMELINE_ID;
+let resolvedTimeline;
+if (explicitTimelineId) {
+  resolvedTimeline = getTimeline(accountsDb, explicitTimelineId);
+  if (!resolvedTimeline) {
+    process.stderr.write(`Error: Timeline ${explicitTimelineId} not found.\n`);
+    process.exit(1);
+  }
+  if (resolvedTimeline.owner_id !== keyRow.user_id) {
+    process.stderr.write(`Error: Timeline ${explicitTimelineId} does not belong to this user.\n`);
+    process.exit(1);
+  }
+} else {
+  resolvedTimeline = getDefaultTimeline(accountsDb, keyRow.user_id);
+  if (!resolvedTimeline) {
+    process.stderr.write('Error: No timelines found for this user.\n');
+    process.exit(1);
+  }
+}
+
+const db = getTimelineDb(keyRow.user_id, resolvedTimeline.id);
+process.stderr.write(`MCP server authenticated as user ${keyRow.user_id}, timeline "${resolvedTimeline.name}" (${resolvedTimeline.id})\n`);
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 

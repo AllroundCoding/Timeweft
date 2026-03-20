@@ -187,6 +187,7 @@ function setupListeners() {
     let prevW = 0;
     let resizeTimer = 0;
     new ResizeObserver(entries => {
+      if (SplitPane.isDragging) return;  // skip re-renders while dragging the divider
       const w = Math.round(entries[0].contentRect.width);
       if (w !== prevW) {
         prevW = w;
@@ -207,6 +208,24 @@ async function boot() {
     setupUserPanel();
     setupAdminPanel();
     setupSharingModule();
+    setupTimelineMgmt();
+
+    // Load timelines in parallel and determine active one
+    await Promise.all([loadMyTimelines(), loadSharedTimelines()]);
+
+    const savedTlId = localStorage.getItem('tl_active_timeline');
+    const matchOwn = MY_TIMELINES.find(t => t.id === savedTlId);
+    const matchShared = _sharedTimelines.find(s => s.timeline_id === savedTlId);
+    if (matchOwn) {
+      ACTIVE_TIMELINE = makeOwnTimeline(matchOwn);
+    } else if (matchShared) {
+      ACTIVE_TIMELINE = makeSharedTimeline(matchShared);
+    } else if (MY_TIMELINES.length) {
+      ACTIVE_TIMELINE = makeOwnTimeline(MY_TIMELINES[0]);
+    }
+    renderTimelineSwitcher();
+    updateShareBodyClasses();
+    updateShareBanner();
 
     // Docs module listeners (need DOM ready)
     document.getElementById('docs-new-btn')?.addEventListener('click', () => {
@@ -285,8 +304,7 @@ async function boot() {
       requestAnimationFrame(() => requestAnimationFrame(renderWorld));
     }
 
-    // Load shared timelines + pending deletions badge (non-blocking)
-    loadSharedTimelines();
+    // Update pending deletions badge (non-blocking)
     updatePendingBadge();
 
   } catch (err) {

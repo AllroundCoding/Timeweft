@@ -1,12 +1,13 @@
 'use strict';
 const { verifyJwt, hashApiKey } = require('./auth');
-const { getAccountsDb, getUserDb } = require('../db/connection');
-const { findUserById, findByApiKeyHash, touchApiKeyUsage, getShare } = require('../db/auth');
+const { getAccountsDb, getTimelineDb } = require('../db/connection');
+const { findUserById, findByApiKeyHash, touchApiKeyUsage,
+        getShare, getTimeline, getDefaultTimeline } = require('../db/auth');
 
 // ── Authentication middleware ───────────────────────────────────────────────
 // Accepts JWT (Authorization: Bearer <jwt>) or API key (Authorization: Bearer tl_...)
-// Sets req.user = { id, username, role } and req.db = user's timeline DB
-// If X-Timeline-Owner header is present, switches to shared timeline with permission checks
+// Sets req.user = { id, username, role } and req.db = timeline DB
+// Resolves timeline via X-Timeline-Id header (own or shared)
 
 function authenticate(req, res, next) {
   const accountsDb = getAccountsDb();
@@ -39,8 +40,7 @@ function authenticate(req, res, next) {
     }
     touchApiKeyUsage(accountsDb, keyHash);
     req.user = { id: keyRow.user_id, role: keyRow.role };
-    req.db = getUserDb(keyRow.user_id);
-    return _resolveTimelineOwner(req, res, next);
+    return _resolveTimeline(req, res, next);
   }
 
   // JWT
@@ -54,35 +54,59 @@ function authenticate(req, res, next) {
       return res.status(403).json({ error: 'Account is disabled' });
     }
     req.user = { id: user.id, username: user.username, role: user.role };
-    req.db = getUserDb(user.id);
-    return _resolveTimelineOwner(req, res, next);
+    return _resolveTimeline(req, res, next);
   } catch (err) {
     return res.status(401).json({ error: 'Invalid or expired token' });
   }
 }
 
-// ── Resolve X-Timeline-Owner header for shared timeline access ──────────────
+// ── Resolve X-Timeline-Id header for timeline + shared access ───────────────
 
-function _resolveTimelineOwner(req, res, next) {
-  const ownerId = req.headers['x-timeline-owner'];
+function _resolveTimeline(req, res, next) {
+  const accountsDb = getAccountsDb();
+  const timelineId = req.headers['x-timeline-id'];
 
-  // No header or own timeline — full access
-  if (!ownerId || ownerId === req.user.id) {
+  if (!timelineId) {
+    // No header — use user's default timeline
+    const tl = getDefaultTimeline(accountsDb, req.user.id);
+    if (!tl) {
+      // User has no timelines yet (e.g. during registration flow)
+      req.timelineOwner = null;
+      req.sharePerms = null;
+      req.db = null;
+      return next();
+    }
+    req.timelineId = tl.id;
+    req.db = getTimelineDb(req.user.id, tl.id);
     req.timelineOwner = null;
     req.sharePerms = null;
     return next();
   }
 
-  // Look up share
-  const accountsDb = getAccountsDb();
-  const share = getShare(accountsDb, ownerId, req.user.id);
+  // Header present — look up the timeline
+  const tl = getTimeline(accountsDb, timelineId);
+  if (!tl) {
+    return res.status(404).json({ error: 'Timeline not found' });
+  }
+
+  if (tl.owner_id === req.user.id) {
+    // Own timeline
+    req.timelineId = tl.id;
+    req.db = getTimelineDb(req.user.id, tl.id);
+    req.timelineOwner = null;
+    req.sharePerms = null;
+    return next();
+  }
+
+  // Shared timeline — check permissions
+  const share = getShare(accountsDb, tl.id, req.user.id);
   if (!share) {
     return res.status(403).json({ error: 'You do not have access to this timeline' });
   }
 
-  // Switch to owner's DB and attach permissions
-  req.db = getUserDb(ownerId);
-  req.timelineOwner = ownerId;
+  req.timelineId = tl.id;
+  req.db = getTimelineDb(tl.owner_id, tl.id);
+  req.timelineOwner = tl.owner_id;
   req.sharePerms = {
     timeline: share.perm_timeline,
     docs:     share.perm_docs,

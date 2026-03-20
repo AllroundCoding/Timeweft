@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Timeline</title>
+  <title>Timeweft</title>
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <link rel="stylesheet" href="css/themes.css" />
   <link rel="stylesheet" href="css/style.css" />
@@ -124,9 +124,10 @@
 
     <!-- Header -->
     <div id="app-header">
-      <h1 id="timeline-title">Timeline</h1>
-      <div id="timeline-switcher" style="display:none;">
+      <h1 id="timeline-title">Timeweft</h1>
+      <div id="timeline-switcher" style="display:flex;align-items:center;gap:4px;">
         <select style="padding:4px 8px;border-radius:6px;border:1px solid var(--border);background:var(--bg-base);color:var(--text);font-size:0.82rem;"></select>
+        <button class="btn" id="timeline-manage-btn" title="Manage Timelines" style="font-size:0.75rem;padding:4px 8px;">Manage</button>
       </div>
       <div class="header-controls" id="timeline-controls">
         <button class="btn btn-accent" id="add-node-btn">+ Add Node</button>
@@ -646,6 +647,7 @@
   <div id="share-edit-overlay">
     <div class="panel-box" style="width:380px;">
       <h3 style="margin:0 0 12px;">Edit Share: <span id="share-edit-grantee"></span></h3>
+      <input type="hidden" id="share-edit-timeline-id" />
       <input type="hidden" id="share-edit-grantee-id" />
       <form id="share-edit-form">
         <div class="auth-field">
@@ -689,6 +691,37 @@
         <button class="btn" id="pending-close" style="font-size:0.8rem;padding:4px 10px;">Close</button>
       </div>
       <div id="pending-deletions-list"></div>
+    </div>
+  </div>
+
+  <!-- ── Timeline Management ──────────────────────────────────────────────── -->
+  <div id="timeline-mgmt-overlay">
+    <div class="panel-box" style="width:550px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+        <h2 style="margin:0;">My Timelines</h2>
+        <button class="btn" id="timeline-mgmt-close" style="font-size:0.8rem;padding:4px 10px;">Close</button>
+      </div>
+
+      <div id="timeline-mgmt-list" class="panel-section"></div>
+
+      <div class="panel-section">
+        <h3>Create New Timeline</h3>
+        <div style="display:flex;gap:8px;">
+          <input type="text" id="tl-new-name" placeholder="Timeline name" style="flex:1;min-width:120px;padding:6px 8px;border-radius:6px;border:1px solid var(--border);background:var(--bg-base);color:var(--text);font-size:0.85rem;" />
+          <button class="btn btn-accent" id="tl-create-btn" style="font-size:0.82rem;padding:6px 12px;">Create</button>
+        </div>
+        <div id="tl-create-error" style="font-size:0.82rem;color:var(--danger);margin-top:4px;min-height:1.2em;"></div>
+      </div>
+
+      <div class="panel-section">
+        <h3>Import Timeline</h3>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <input type="file" id="tl-import-file" accept=".db" style="font-size:0.82rem;color:var(--text);" />
+          <input type="text" id="tl-import-name" placeholder="Name (optional)" style="min-width:100px;padding:6px 8px;border-radius:6px;border:1px solid var(--border);background:var(--bg-base);color:var(--text);font-size:0.85rem;" />
+          <button class="btn btn-accent" id="tl-import-btn" style="font-size:0.82rem;padding:6px 12px;">Import</button>
+        </div>
+        <div id="tl-import-error" style="font-size:0.82rem;color:var(--danger);margin-top:4px;min-height:1.2em;"></div>
+      </div>
     </div>
   </div>
 
@@ -748,6 +781,7 @@
   <script src="js/auth-module.js"></script>
   <script src="js/user-module.js"></script>
   <script src="js/admin-module.js"></script>
+  <script src="js/timeline-mgmt.js"></script>
   <script src="js/sharing-module.js"></script>
   <script src="js/app.js"></script>
 </body>

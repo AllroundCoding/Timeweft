@@ -71,25 +71,40 @@ const API = '/api';
 
 let AUTH_USER = null;  // { id, username, display_name, role }
 
-// ── Shared timeline state ──────────────────────────────────────────────────
-// When viewing another user's timeline:
-// { owner_id, owner_username, owner_display_name, preset,
-//   perms: { timeline, docs, entities, settings } }
-let VIEWING_TIMELINE = null;
+// ── Active timeline state ──────────────────────────────────────────────────
+// { id, name, description, owner_id, is_own,
+//   perms: { timeline, docs, entities, settings } | null }
+let ACTIVE_TIMELINE = null;
+
+// List of own timelines (from GET /user/timelines)
+let MY_TIMELINES = [];
+
+function makeOwnTimeline(tl) {
+  return { id: tl.id, name: tl.name, description: tl.description,
+    owner_id: AUTH_USER.id, is_own: true, perms: null };
+}
+
+function makeSharedTimeline(s) {
+  return { id: s.timeline_id, name: s.timeline_name,
+    owner_id: s.owner_id, owner_username: s.owner_username,
+    owner_display_name: s.owner_display_name, is_own: false,
+    perms: { timeline: s.perm_timeline, docs: s.perm_docs,
+             entities: s.perm_entities, settings: s.perm_settings } };
+}
 
 function isOwnTimeline() {
-  return !VIEWING_TIMELINE;
+  return !ACTIVE_TIMELINE || ACTIVE_TIMELINE.is_own;
 }
 
 function canEdit(area) {
-  if (!VIEWING_TIMELINE) return true;
-  const level = VIEWING_TIMELINE.perms[area];
+  if (!ACTIVE_TIMELINE || ACTIVE_TIMELINE.is_own) return true;
+  const level = ACTIVE_TIMELINE.perms?.[area];
   return level === 'edit' || level === 'delete' || level === 'review';
 }
 
 function canDelete(area) {
-  if (!VIEWING_TIMELINE) return true;
-  const level = VIEWING_TIMELINE.perms[area];
+  if (!ACTIVE_TIMELINE || ACTIVE_TIMELINE.is_own) return true;
+  const level = ACTIVE_TIMELINE.perms?.[area];
   return level === 'delete' || level === 'review';
 }
 
@@ -102,15 +117,15 @@ function setAuthToken(token) {
   else localStorage.removeItem('tl_token');
 }
 
-// Authenticated fetch wrapper — injects Authorization header + X-Timeline-Owner, handles 401
+// Authenticated fetch wrapper — injects Authorization header + X-Timeline-Id, handles 401
 async function apiFetch(url, options = {}) {
   const token = getAuthToken();
   if (token) {
     if (!options.headers) options.headers = {};
     if (typeof options.headers === 'object' && !(options.headers instanceof Headers)) {
       options.headers['Authorization'] = `Bearer ${token}`;
-      if (VIEWING_TIMELINE) {
-        options.headers['X-Timeline-Owner'] = VIEWING_TIMELINE.owner_id;
+      if (ACTIVE_TIMELINE?.id) {
+        options.headers['X-Timeline-Id'] = ACTIVE_TIMELINE.id;
       }
     }
   }

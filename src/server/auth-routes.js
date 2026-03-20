@@ -1,17 +1,24 @@
 'use strict';
-const express = require('express');
-const fs      = require('fs');
-const { getAccountsDb, getUserDb, migrateLegacyDb, LEGACY_DB_PATH } = require('../db/connection');
+const express  = require('express');
+const fs       = require('fs');
+const os       = require('os');
+const path     = require('path');
+const Database = require('better-sqlite3');
+const multer   = require('multer');
+const { getAccountsDb, getTimelineDb, closeTimelineDb, migrateLegacyDb,
+        USERS_DIR, LEGACY_DB_PATH } = require('../db/connection');
 const {
   findUserByUsername, findUserById, createUser, listUsers, updateUser, deleteUser, countUsers,
   createApiKey, listApiKeys, revokeApiKey,
   getGlobalSetting, setGlobalSetting, getAllGlobalSettings,
+  createTimeline, getTimeline, getTimelinesForUser, updateTimeline, deleteTimeline, getDefaultTimeline,
   createShare, getSharesForOwner, getSharesForGrantee, updateShare, deleteShare,
 } = require('../db/auth');
 const { hashPassword, verifyPassword, generateJwt, generateApiKey, hashApiKey } = require('./auth');
 const { authenticate, requireAdmin } = require('./middleware');
 
 const router = express.Router();
+const upload = multer({ dest: os.tmpdir(), limits: { fileSize: 100 * 1024 * 1024 } });
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -19,6 +26,20 @@ function sanitizeUser(user) {
   if (!user) return null;
   const { password_hash, ...safe } = user;
   return safe;
+}
+
+/** Verify timeline exists and belongs to user. Returns the timeline or sends a 404 and returns null. */
+function requireOwnTimeline(db, timelineId, userId, res) {
+  const tl = getTimeline(db, timelineId);
+  if (!tl || tl.owner_id !== userId) {
+    res.status(404).json({ error: 'Timeline not found' });
+    return null;
+  }
+  return tl;
+}
+
+function unlinkSafe(filePath) {
+  try { fs.unlinkSync(filePath); } catch (e) { if (e.code !== 'ENOENT') throw e; }
 }
 
 // ── Public routes ────────────────────────────────────────────────────────────
@@ -69,12 +90,13 @@ router.post('/auth/register', (req, res) => {
     const role = userCount === 0 ? 'admin' : 'user';
     const user = createUser(db, { username, passwordHash, displayName: display_name, role });
 
-    // Initialize user's timeline DB
-    getUserDb(user.id);
+    // Create default timeline and initialize DB
+    const tl = createTimeline(db, { ownerId: user.id, name: 'Default' });
+    getTimelineDb(user.id, tl.id);
 
     // If first user, migrate legacy data if present
     if (userCount === 0 && fs.existsSync(LEGACY_DB_PATH)) {
-      migrateLegacyDb(user.id);
+      migrateLegacyDb(user.id, tl.id);
     }
 
     const token = generateJwt(user.id, user.role);
@@ -186,6 +208,131 @@ router.delete('/user/api-keys/:id', authenticate, (req, res) => {
   }
 });
 
+// ── Timeline Management ─────────────────────────────────────────────────────
+
+router.get('/user/timelines', authenticate, (req, res) => {
+  try {
+    const db = getAccountsDb();
+    res.json({ timelines: getTimelinesForUser(db, req.user.id) });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/user/timelines', authenticate, (req, res) => {
+  try {
+    const { name, description } = req.body;
+    if (!name?.trim()) return res.status(400).json({ error: 'name is required' });
+    const db = getAccountsDb();
+    const tl = createTimeline(db, { ownerId: req.user.id, name: name.trim(), description });
+    getTimelineDb(req.user.id, tl.id); // initialize the DB file
+    res.status(201).json(tl);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.put('/user/timelines/:id', authenticate, (req, res) => {
+  try {
+    const db = getAccountsDb();
+    if (!requireOwnTimeline(db, req.params.id, req.user.id, res)) return;
+    const updated = updateTimeline(db, req.params.id, req.body);
+    res.json(updated);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.delete('/user/timelines/:id', authenticate, (req, res) => {
+  try {
+    const db = getAccountsDb();
+    if (!requireOwnTimeline(db, req.params.id, req.user.id, res)) return;
+    const all = getTimelinesForUser(db, req.user.id);
+    if (all.length <= 1) return res.status(400).json({ error: 'Cannot delete your only timeline' });
+    closeTimelineDb(req.user.id, req.params.id);
+    // Delete DB file and WAL/SHM
+    const dbPath = path.join(USERS_DIR, req.user.id, 'timelines', `${req.params.id}.db`);
+    for (const suffix of ['', '-wal', '-shm']) {
+      unlinkSafe(dbPath + suffix);
+    }
+    deleteTimeline(db, req.params.id); // cascade deletes shares
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/user/timelines/:id/duplicate', authenticate, (req, res) => {
+  try {
+    const db = getAccountsDb();
+    const src = requireOwnTimeline(db, req.params.id, req.user.id, res);
+    if (!src) return;
+    const name = req.body?.name || `${src.name} (copy)`;
+    const newTl = createTimeline(db, { ownerId: req.user.id, name, description: src.description });
+    // Flush WAL and copy file
+    closeTimelineDb(req.user.id, src.id);
+    const srcPath = path.join(USERS_DIR, req.user.id, 'timelines', `${src.id}.db`);
+    const dstDir = path.join(USERS_DIR, req.user.id, 'timelines');
+    fs.mkdirSync(dstDir, { recursive: true });
+    fs.copyFileSync(srcPath, path.join(dstDir, `${newTl.id}.db`));
+    res.status(201).json(newTl);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get('/user/timelines/:id/export', authenticate, (req, res) => {
+  try {
+    const db = getAccountsDb();
+    const tl = requireOwnTimeline(db, req.params.id, req.user.id, res);
+    if (!tl) return;
+    // Flush WAL for a clean file
+    closeTimelineDb(req.user.id, req.params.id);
+    const dbPath = path.join(USERS_DIR, req.user.id, 'timelines', `${req.params.id}.db`);
+    const safeName = tl.name.replace(/[^a-zA-Z0-9_-]/g, '_');
+    res.download(dbPath, `${safeName}.db`);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/user/timelines/import', authenticate, upload.single('file'), (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+    const name = req.body.name?.trim() || 'Imported Timeline';
+
+    // Validate: must be a valid SQLite DB with timeline_nodes table
+    let testDb;
+    try {
+      testDb = new Database(req.file.path, { readonly: true });
+      const hasTable = testDb.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='timeline_nodes'").get();
+      testDb.close();
+      testDb = null;
+      if (!hasTable) {
+        fs.unlinkSync(req.file.path);
+        return res.status(400).json({ error: 'Invalid timeline database: missing timeline_nodes table' });
+      }
+    } catch (err) {
+      if (testDb) testDb.close();
+      fs.unlinkSync(req.file.path);
+      return res.status(400).json({ error: 'Invalid SQLite file' });
+    }
+
+    const db = getAccountsDb();
+    const tl = createTimeline(db, { ownerId: req.user.id, name });
+    const dstDir = path.join(USERS_DIR, req.user.id, 'timelines');
+    fs.mkdirSync(dstDir, { recursive: true });
+    fs.renameSync(req.file.path, path.join(dstDir, `${tl.id}.db`));
+    // Run schema migration on the imported DB
+    getTimelineDb(req.user.id, tl.id);
+    res.status(201).json(tl);
+  } catch (err) {
+    // Clean up temp file on error
+    if (req.file) unlinkSafe(req.file.path);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ── Timeline Sharing ──────────────────────────────────────────────────────
 
 // Timelines shared WITH me
@@ -211,10 +358,14 @@ router.get('/user/shared-by-me', authenticate, (req, res) => {
 // Create or update a share
 router.post('/user/shares', authenticate, (req, res) => {
   try {
-    const { username, preset, perm_timeline, perm_docs, perm_entities, perm_settings } = req.body;
+    const { username, timeline_id, preset, perm_timeline, perm_docs, perm_entities, perm_settings } = req.body;
     if (!username) return res.status(400).json({ error: 'username is required' });
+    if (!timeline_id) return res.status(400).json({ error: 'timeline_id is required' });
 
     const db = getAccountsDb();
+
+    if (!requireOwnTimeline(db, timeline_id, req.user.id, res)) return;
+
     const grantee = findUserByUsername(db, username);
     if (!grantee) return res.status(404).json({ error: 'User not found' });
     if (grantee.id === req.user.id) return res.status(400).json({ error: 'Cannot share with yourself' });
@@ -228,6 +379,7 @@ router.post('/user/shares', authenticate, (req, res) => {
     const share = createShare(db, {
       ownerId: req.user.id,
       granteeId: grantee.id,
+      timelineId: timeline_id,
       preset: preset || 'read',
       perms,
     });
@@ -238,10 +390,11 @@ router.post('/user/shares', authenticate, (req, res) => {
 });
 
 // Update share permissions
-router.put('/user/shares/:granteeId', authenticate, (req, res) => {
+router.put('/user/shares/:timelineId/:granteeId', authenticate, (req, res) => {
   try {
     const db = getAccountsDb();
-    const share = updateShare(db, req.user.id, req.params.granteeId, req.body);
+    if (!requireOwnTimeline(db, req.params.timelineId, req.user.id, res)) return;
+    const share = updateShare(db, req.params.timelineId, req.params.granteeId, req.body);
     if (!share) return res.status(404).json({ error: 'Share not found' });
     res.json(share);
   } catch (err) {
@@ -250,10 +403,11 @@ router.put('/user/shares/:granteeId', authenticate, (req, res) => {
 });
 
 // Revoke share
-router.delete('/user/shares/:granteeId', authenticate, (req, res) => {
+router.delete('/user/shares/:timelineId/:granteeId', authenticate, (req, res) => {
   try {
     const db = getAccountsDb();
-    deleteShare(db, req.user.id, req.params.granteeId);
+    if (!requireOwnTimeline(db, req.params.timelineId, req.user.id, res)) return;
+    deleteShare(db, req.params.timelineId, req.params.granteeId);
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -292,8 +446,9 @@ router.post('/admin/users', authenticate, requireAdmin, (req, res) => {
     const passwordHash = hashPassword(password);
     const user = createUser(db, { username, passwordHash, displayName: display_name, role: role || 'user' });
 
-    // Initialize user's timeline DB
-    getUserDb(user.id);
+    // Create default timeline and initialize DB
+    const tl = createTimeline(db, { ownerId: user.id, name: 'Default' });
+    getTimelineDb(user.id, tl.id);
 
     res.status(201).json(sanitizeUser(user));
   } catch (err) {
