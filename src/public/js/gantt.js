@@ -444,5 +444,93 @@ function buildGantt(nodes) {
     TL.ganttScrollTop      = tlWrap.scrollTop;    // normalize
   };
 
+  // Arc overlay: highlight selected arc's nodes + draw connecting path
+  gantt._renderArcOverlay = () => {
+    // Remove previous overlay + highlights
+    track.querySelector('.arc-overlay')?.remove();
+    track.querySelectorAll('.arc-highlighted').forEach(el => el.classList.remove('arc-highlighted'));
+    track.classList.remove('has-arc-highlight');
+
+    const sel = TL.selectedArc;
+    if (!sel || !sel.nodeIds.size) return;
+
+    // Mark matching gantt elements with highlight class + CSS custom property for arc color
+    const arcColor = sel.color;
+    sel.nodeIds.forEach(nid => {
+      track.querySelectorAll(`[data-node-id="${nid}"]`).forEach(el => {
+        el.classList.add('arc-highlighted');
+        el.style.setProperty('--arc-color', arcColor);
+      });
+    });
+
+    // Dim non-highlighted nodes for contrast
+    track.classList.add('has-arc-highlight');
+
+    // Accumulate offsets up to the track element to get track-relative coords
+    function posRelToTrack(el) {
+      let x = 0, y = 0, cur = el;
+      while (cur && cur !== track) {
+        x += cur.offsetLeft;
+        y += cur.offsetTop;
+        cur = cur.offsetParent;
+      }
+      return { x, y };
+    }
+
+    // Draw connecting SVG path between consecutive arc nodes (by position in the timeline)
+    const points = [];
+    sel.nodeIds.forEach(nid => {
+      const el = track.querySelector(`[data-node-id="${nid}"]`);
+      if (!el) return;
+      const pos = posRelToTrack(el);
+      points.push({
+        x: pos.x + el.offsetWidth / 2,
+        y: pos.y + el.offsetHeight / 2,
+      });
+    });
+
+    // Sort by x position so the path follows timeline order
+    points.sort((a, b) => a.x - b.x);
+
+    if (points.length < 2) return;
+
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.classList.add('arc-overlay');
+    svg.setAttribute('width', canvasW);
+    svg.setAttribute('height', track.offsetHeight || 600);
+    svg.style.cssText = 'position:absolute;top:0;left:0;pointer-events:none;z-index:4;';
+
+    // Connecting bezier path
+    for (let i = 0; i < points.length - 1; i++) {
+      const p1 = points[i], p2 = points[i + 1];
+      const dx = p2.x - p1.x;
+      const dy = p2.y - p1.y;
+      const cpOff = Math.min(Math.abs(dx) * 0.35, 120);
+
+      const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      path.setAttribute('d',
+        `M ${p1.x} ${p1.y} C ${p1.x + cpOff} ${p1.y + dy * 0.1}, ${p2.x - cpOff} ${p2.y - dy * 0.1}, ${p2.x} ${p2.y}`);
+      path.setAttribute('fill', 'none');
+      path.setAttribute('stroke', arcColor);
+      path.setAttribute('stroke-width', '2.5');
+      path.setAttribute('stroke-dasharray', '6 4');
+      path.setAttribute('opacity', '0.55');
+      svg.appendChild(path);
+    }
+
+    // Dots at each node
+    for (const p of points) {
+      const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+      circle.setAttribute('cx', p.x);
+      circle.setAttribute('cy', p.y);
+      circle.setAttribute('r', '5');
+      circle.setAttribute('fill', arcColor);
+      circle.setAttribute('opacity', '0.85');
+      svg.appendChild(circle);
+    }
+
+    track.appendChild(svg);
+  };
+
   return gantt;
 }

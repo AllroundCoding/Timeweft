@@ -1,5 +1,5 @@
 'use strict';
-const { getAccountsDb, getUserDb } = require('../src/db/connection');
+const { getAccountsDb, getTimelineDb } = require('../src/db/connection');
 const { dateToDecimal, DEFAULT_CALENDAR } = require('../src/server/calendar');
 
 // ── Target ───────────────────────────────────────────────────────────────────
@@ -24,8 +24,15 @@ if (!user) {
   process.exit(1);
 }
 
-console.log(`Seeding into ${user.username}'s timeline (${user.id})`);
-const db = getUserDb(user.id);
+// Get the user's first timeline
+const timeline = accountsDb.prepare('SELECT id, name FROM timelines WHERE owner_id = ? ORDER BY created_at LIMIT 1').get(user.id);
+if (!timeline) {
+  console.error(`Error: user "${user.username}" has no timelines. Log in first to create one.`);
+  process.exit(1);
+}
+
+console.log(`Seeding into ${user.username}'s timeline "${timeline.name}" (${timeline.id})`);
+const db = getTimelineDb(user.id, timeline.id);
 console.log(`Target: ${TARGET} points`);
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -246,6 +253,14 @@ function scatterPoints(parentId, startY, endY, count, spanTitle, color) {
 // ── Clear existing data ──────────────────────────────────────────────────────
 
 db.exec(`
+  DELETE FROM arc_entity_links;
+  DELETE FROM arc_node_links;
+  DELETE FROM story_arcs;
+  DELETE FROM entity_relationships;
+  DELETE FROM entity_node_links;
+  DELETE FROM entity_doc_links;
+  DELETE FROM doc_node_links;
+  DELETE FROM entities;
   DELETE FROM document_tags;
   DELETE FROM documents;
   DELETE FROM timeline_nodes;
@@ -380,6 +395,262 @@ const tx = db.transaction(() => {
     insDocs.run(d.id, 'default', d.title, d.category, d.content, now, now);
     for (const t of d.tags) insTag.run(d.id, t);
   }
+
+  // ── Entities ────────────────────────────────────────────────────────────────
+
+  const insEntity = db.prepare(`INSERT OR IGNORE INTO entities
+    (id, timeline_id, name, entity_type, description, color, metadata, created_at, updated_at)
+    VALUES (?,?,?,?,?,?,?,?,?)`);
+  const insEntNodeLink = db.prepare('INSERT OR IGNORE INTO entity_node_links (entity_id, node_id, role) VALUES (?,?,?)');
+  const insEntDocLink  = db.prepare('INSERT OR IGNORE INTO entity_doc_links (entity_id, doc_id, role) VALUES (?,?,?)');
+
+  const ENTITY_COLORS = {
+    character: '#7c6bff', faction: '#e05c5c', location: '#4a9b6f',
+    item: '#c8a04a', creature: '#8b6b3d', concept: '#3a86a8',
+  };
+
+  const entities = [
+    // ── Characters (with family connections) ──────────────────────────────────
+    { id: 'ent_aldara',      name: 'Queen Aldara',        type: 'character', desc: 'Wise ruler during the Age of Fracture. Architect of the Silver Pact.' },
+    { id: 'ent_varenthos',   name: 'Varenthos',           type: 'character', desc: 'Legendary explorer who mapped the eastern archipelago.' },
+    { id: 'ent_arandor',     name: 'Arandor the Rebuilder', type: 'character', desc: 'United the fractured kingdoms after the Drevak Invasions.' },
+    { id: 'ent_drevak',      name: 'Warlord Drevak',      type: 'character', desc: 'Led the northern hordes in three devastating invasion waves.' },
+    { id: 'ent_seraphel',    name: 'Seraphel',            type: 'character', desc: 'High priestess who spoke the great prophecy in the Age of Restoration.' },
+    { id: 'ent_theron',      name: 'Theron Aldaris',      type: 'character', desc: 'Son of Queen Aldara. Led the defense of Silverhold.' },
+    { id: 'ent_isolde',      name: 'Isolde Aldaris',      type: 'character', desc: 'Daughter of Queen Aldara. Diplomat who brokered the Dawn Compact alliance.' },
+    { id: 'ent_kael',        name: 'Kael Aldaris',        type: 'character', desc: 'Grandson of Theron. Rose to become a general during the Restoration.' },
+    { id: 'ent_elara',       name: 'Elara Windhollow',    type: 'character', desc: 'Scholar and inventor during the Age of Innovation.' },
+    { id: 'ent_gorath',      name: 'Gorath the Undying',  type: 'character', desc: 'Ancient warlord cursed with immortality. Witnessed multiple ages.' },
+    { id: 'ent_nerissa',     name: 'Nerissa Tideborn',    type: 'character', desc: 'Tidefolk ambassador who established ties between the archipelago and the mainland.' },
+    { id: 'ent_lysander',    name: 'Lysander Brightforge', type: 'character', desc: 'Master artificer who created the World Compass.' },
+    { id: 'ent_corvus',      name: 'Corvus Drevaki',      type: 'character', desc: 'Son of Warlord Drevak. Defected to ally with Arandor.' },
+    { id: 'ent_freya',       name: 'Freya Stormcaller',   type: 'character', desc: 'Legendary mage who turned the tide at the Battle of Stormreach.' },
+    { id: 'ent_morkhan',     name: 'Morkhan the Elder',   type: 'character', desc: 'Patriarch of the Aldaris dynasty. Father of Aldara.' },
+
+    // ── Factions ──────────────────────────────────────────────────────────────
+    { id: 'ent_silver_flame', name: 'The Silver Flame',    type: 'faction', desc: 'Holy order dedicated to protecting the realm from dark forces.' },
+    { id: 'ent_iron_circle',  name: 'The Iron Circle',     type: 'faction', desc: 'Military alliance of the northern kingdoms.' },
+    { id: 'ent_dawn_compact', name: 'The Dawn Compact',    type: 'faction', desc: 'Alliance of free cities formed during the Age of Fracture.' },
+    { id: 'ent_obsidian',     name: 'The Obsidian Court',  type: 'faction', desc: 'Secretive cabal of shadow mages seeking forbidden knowledge.' },
+    { id: 'ent_emerald',      name: 'The Emerald Order',   type: 'faction', desc: 'Druidic circle protecting the ancient forests.' },
+    { id: 'ent_tidefolk',     name: 'The Tidefolk',        type: 'faction', desc: 'Coral-building civilization of the eastern archipelago.' },
+
+    // ── Locations ─────────────────────────────────────────────────────────────
+    { id: 'ent_silverhold',  name: 'Silverhold',           type: 'location', desc: 'Capital city of the Aldaris dynasty. Seat of power for centuries.' },
+    { id: 'ent_stormreach',  name: 'Stormreach',           type: 'location', desc: 'Coastal fortress where the decisive battle against Drevak was fought.' },
+    { id: 'ent_ashvale',     name: 'Ashvale',              type: 'location', desc: 'Volcanic region rich in arcane minerals. Home to master artificers.' },
+    { id: 'ent_archipelago',  name: 'The Eastern Archipelago', type: 'location', desc: 'Vast island chain stretching across the warm eastern seas.' },
+    { id: 'ent_spine',       name: 'The Spine Mountains',  type: 'location', desc: 'Continental divide separating east from west.' },
+
+    // ── Items ─────────────────────────────────────────────────────────────────
+    { id: 'ent_world_compass', name: 'The World Compass',  type: 'item', desc: 'Legendary navigational artifact crafted by Lysander Brightforge.' },
+    { id: 'ent_silver_pact',   name: 'The Silver Pact',    type: 'item', desc: 'Treaty scroll binding the Dawn Compact nations to mutual defense.' },
+  ];
+
+  for (const e of entities) {
+    insEntity.run(e.id, 'default', e.name, e.type, e.desc,
+      ENTITY_COLORS[e.type] || '#7c6bff', '{}', now, now);
+  }
+
+  // ── Entity ↔ Node links (tie some entities to existing timeline events) ───
+
+  // Grab some node IDs to link. We'll pick from the standalone events and a few era spans.
+  const someNodes = db.prepare("SELECT id, title FROM timeline_nodes WHERE parent_id IS NULL AND type = 'span' LIMIT 8").all();
+  const somePoints = db.prepare("SELECT id, title FROM timeline_nodes WHERE parent_id IS NULL AND type = 'point'").all();
+
+  // Link characters to relevant events
+  const entityNodePairs = [
+    ['ent_aldara',    someNodes[3]?.id,  'ruler'],       // Age of Fracture
+    ['ent_arandor',   someNodes[4]?.id,  'founder'],     // Age of Restoration
+    ['ent_drevak',    someNodes[3]?.id,  'antagonist'],  // Age of Fracture
+    ['ent_varenthos', someNodes[5]?.id,  'explorer'],    // Age of Expansion
+    ['ent_seraphel',  somePoints[2]?.id, 'speaker'],     // The Prophecy Spoken
+    ['ent_lysander',  somePoints[3]?.id, 'inventor'],    // World Compass Invented
+    ['ent_elara',     someNodes[6]?.id,  'innovator'],   // Age of Innovation
+    ['ent_gorath',    someNodes[0]?.id,  'witness'],     // Age of Myth
+    ['ent_nerissa',   someNodes[5]?.id,  'ambassador'],  // Age of Expansion
+    ['ent_freya',     someNodes[3]?.id,  'defender'],    // Age of Fracture
+    // Factions
+    ['ent_silver_flame', someNodes[4]?.id, 'protector'],
+    ['ent_iron_circle',  someNodes[2]?.id, 'military'],
+    ['ent_dawn_compact', someNodes[3]?.id, 'alliance'],
+    ['ent_tidefolk',     someNodes[5]?.id, 'civilization'],
+    // Locations
+    ['ent_silverhold',  someNodes[3]?.id, 'capital'],
+    ['ent_stormreach',  someNodes[3]?.id, 'battlefield'],
+  ];
+  for (const [entId, nodeId, role] of entityNodePairs) {
+    if (nodeId) insEntNodeLink.run(entId, nodeId, role);
+  }
+
+  // ── Entity ↔ Doc links ──────────────────────────────────────────────────────
+
+  const entityDocPairs = [
+    ['ent_aldara',    'doc_char_1', 'subject'],
+    ['ent_varenthos', 'doc_char_2', 'subject'],
+    ['ent_arandor',   'doc_char_3', 'subject'],
+    ['ent_drevak',    'doc_hist_3', 'antagonist'],
+    ['ent_silverhold','doc_hist_1', 'location'],
+    ['ent_archipelago','doc_geo_2', 'subject'],
+    ['ent_spine',     'doc_geo_1',  'feature'],
+  ];
+  for (const [entId, docId, role] of entityDocPairs) {
+    insEntDocLink.run(entId, docId, role);
+  }
+
+  // ── Entity Relationships ──────────────────────────────────────────────────
+
+  const insRel = db.prepare(`INSERT OR IGNORE INTO entity_relationships
+    (id, source_id, target_id, relationship, description, start_node_id, end_node_id, metadata, created_at)
+    VALUES (?,?,?,?,?,?,?,?,?)`);
+
+  let _relN = 0;
+  const relId = () => `rel_${++_relN}`;
+
+  const relationships = [
+    // ── Aldaris Family Tree ───────────────────────────────────────────────────
+    { src: 'ent_morkhan',  tgt: 'ent_aldara',    rel: 'parent_of',  desc: 'Father of Queen Aldara' },
+    { src: 'ent_aldara',   tgt: 'ent_theron',    rel: 'parent_of',  desc: 'Theron is the eldest son of Aldara' },
+    { src: 'ent_aldara',   tgt: 'ent_isolde',    rel: 'parent_of',  desc: 'Isolde is Aldara\'s daughter' },
+    { src: 'ent_theron',   tgt: 'ent_kael',      rel: 'parent_of',  desc: 'Kael is the grandson of Aldara through Theron' },
+    { src: 'ent_theron',   tgt: 'ent_isolde',    rel: 'sibling_of', desc: 'Brother and sister' },
+
+    // ── Drevak family ─────────────────────────────────────────────────────────
+    { src: 'ent_drevak',   tgt: 'ent_corvus',    rel: 'parent_of',  desc: 'Corvus defected from his father\'s horde' },
+
+    // ── Political / alliances ─────────────────────────────────────────────────
+    { src: 'ent_aldara',   tgt: 'ent_arandor',   rel: 'ally_of',    desc: 'Allied during the Age of Fracture to restore order' },
+    { src: 'ent_corvus',   tgt: 'ent_arandor',   rel: 'ally_of',    desc: 'Corvus defected to join Arandor\'s cause' },
+    { src: 'ent_drevak',   tgt: 'ent_arandor',   rel: 'enemy_of',   desc: 'Bitter enemies during the Drevak Invasions' },
+    { src: 'ent_drevak',   tgt: 'ent_aldara',    rel: 'enemy_of',   desc: 'Aldara\'s kingdom was a primary target of Drevak\'s invasions' },
+    { src: 'ent_gorath',   tgt: 'ent_drevak',    rel: 'rival_of',   desc: 'Ancient rivals competing for dominance of the north' },
+
+    // ── Organizational ────────────────────────────────────────────────────────
+    { src: 'ent_seraphel', tgt: 'ent_silver_flame', rel: 'leads',     desc: 'High priestess of the Silver Flame' },
+    { src: 'ent_freya',    tgt: 'ent_iron_circle',  rel: 'member_of', desc: 'Battle mage serving the Iron Circle' },
+    { src: 'ent_isolde',   tgt: 'ent_dawn_compact', rel: 'leads',     desc: 'Chief diplomat of the Dawn Compact' },
+    { src: 'ent_nerissa',  tgt: 'ent_tidefolk',     rel: 'member_of', desc: 'Ambassador of the Tidefolk' },
+    { src: 'ent_elara',    tgt: 'ent_emerald',      rel: 'member_of', desc: 'Scholar affiliated with the Emerald Order' },
+
+    // ── Faction alliances/rivalries ───────────────────────────────────────────
+    { src: 'ent_silver_flame', tgt: 'ent_dawn_compact', rel: 'ally_of',  desc: 'United front against the Obsidian Court' },
+    { src: 'ent_silver_flame', tgt: 'ent_obsidian',     rel: 'enemy_of', desc: 'Eternal enemies: light vs shadow' },
+    { src: 'ent_iron_circle',  tgt: 'ent_dawn_compact', rel: 'ally_of',  desc: 'Military backing for the free cities' },
+
+    // ── Spatial ───────────────────────────────────────────────────────────────
+    { src: 'ent_silverhold',   tgt: 'ent_spine',        rel: 'located_in', desc: 'Silverhold sits at the base of the Spine Mountains' },
+    { src: 'ent_stormreach',   tgt: 'ent_archipelago',  rel: 'located_in', desc: 'Coastal fortress near the archipelago' },
+
+    // ── Possession / creation ─────────────────────────────────────────────────
+    { src: 'ent_lysander',     tgt: 'ent_world_compass', rel: 'created_by', desc: 'Lysander invented the World Compass' },
+    { src: 'ent_aldara',       tgt: 'ent_silver_pact',   rel: 'owns',       desc: 'Aldara authored and holds the Silver Pact' },
+  ];
+
+  for (const r of relationships) {
+    insRel.run(relId(), r.src, r.tgt, r.rel, r.desc, null, null, '{}', now);
+  }
+
+  // ── Story Arcs ────────────────────────────────────────────────────────────
+
+  const insArc = db.prepare(`INSERT OR IGNORE INTO story_arcs
+    (id, name, description, color, status, sort_order, metadata, created_at, updated_at)
+    VALUES (?,?,?,?,?,?,?,?,?)`);
+  const insArcNode   = db.prepare('INSERT OR IGNORE INTO arc_node_links (arc_id, node_id, position, arc_label) VALUES (?,?,?,?)');
+  const insArcEntity = db.prepare('INSERT OR IGNORE INTO arc_entity_links (arc_id, entity_id, role) VALUES (?,?,?)');
+
+  // Fetch some deeper nodes to attach to arcs
+  const fracNodes = db.prepare("SELECT id, title, start_date FROM timeline_nodes WHERE parent_id IS NOT NULL ORDER BY start_date LIMIT 60").all();
+
+  const arcs = [
+    {
+      id: 'arc_drevak_wars', name: 'The Drevak Invasions',
+      desc: 'Three devastating waves of invasion from the northern wastes that tested every alliance to the breaking point.',
+      color: '#c44536', status: 'resolved', sort: 0,
+      entities: [
+        ['ent_drevak', 'antagonist'], ['ent_arandor', 'protagonist'],
+        ['ent_corvus', 'turncoat'], ['ent_freya', 'defender'],
+        ['ent_iron_circle', 'military'], ['ent_stormreach', 'battlefield'],
+      ],
+      nodeSlice: [0, 8], // indices into fracNodes
+      labels: ['First signs', 'First wave strikes', 'Fall of outer forts', 'Corvus defects',
+               'Alliance forms', 'Battle of Stormreach', 'The rout', 'Peace declared'],
+    },
+    {
+      id: 'arc_aldaris_dynasty', name: 'Rise of House Aldaris',
+      desc: 'From minor nobility to rulers of the largest kingdom — the Aldaris family shaped an era.',
+      color: '#6a4c93', status: 'resolved', sort: 1,
+      entities: [
+        ['ent_morkhan', 'founder'], ['ent_aldara', 'protagonist'],
+        ['ent_theron', 'heir'], ['ent_isolde', 'diplomat'],
+        ['ent_kael', 'legacy'], ['ent_silverhold', 'seat of power'],
+      ],
+      nodeSlice: [8, 16],
+      labels: ['Morkhan takes the throne', 'Aldara crowned', 'Silver Pact signed', 'Theron born',
+               'Isolde\'s diplomacy', 'Dawn Compact formed', 'Theron\'s defense', 'Kael rises'],
+    },
+    {
+      id: 'arc_shadow_war', name: 'The Shadow War',
+      desc: 'The hidden conflict between the Silver Flame and the Obsidian Court, fought in secret across centuries.',
+      color: '#2a2a4a', status: 'active', sort: 2,
+      entities: [
+        ['ent_seraphel', 'protagonist'], ['ent_obsidian', 'antagonist'],
+        ['ent_silver_flame', 'protagonist'], ['ent_gorath', 'wild card'],
+      ],
+      nodeSlice: [16, 22],
+      labels: ['First infiltration', 'Obsidian reveals power', 'Silver Flame mobilizes',
+               'Gorath intervenes', 'Shadow siege', 'Uneasy truce'],
+    },
+    {
+      id: 'arc_tidefolk_contact', name: 'First Contact with the Tidefolk',
+      desc: 'The discovery and integration of the coral-building Tidefolk civilization into the wider world.',
+      color: '#3a86a8', status: 'resolved', sort: 3,
+      entities: [
+        ['ent_varenthos', 'explorer'], ['ent_nerissa', 'ambassador'],
+        ['ent_tidefolk', 'civilization'], ['ent_archipelago', 'location'],
+      ],
+      nodeSlice: [22, 28],
+      labels: ['Varenthos departs', 'Archipelago sighted', 'First contact', 'Trade established',
+               'Nerissa\'s embassy', 'Full alliance'],
+    },
+    {
+      id: 'arc_innovation', name: 'The Arcane Revolution',
+      desc: 'A wave of magical-mechanical innovation that transforms society, led by visionary artificers.',
+      color: '#c8a04a', status: 'active', sort: 4,
+      entities: [
+        ['ent_elara', 'protagonist'], ['ent_lysander', 'inventor'],
+        ['ent_world_compass', 'artifact'], ['ent_emerald', 'faction'],
+        ['ent_ashvale', 'location'],
+      ],
+      nodeSlice: [28, 35],
+      labels: ['First arcane forge', 'Ashvale mines opened', 'Elara\'s breakthrough',
+               'World Compass created', 'Emerald Order protests', 'Regulation debates', 'New age dawns'],
+    },
+    {
+      id: 'arc_reckoning', name: 'Seeds of the Reckoning',
+      desc: 'Ancient sins begin to resurface. Omens and disasters foretell a coming crisis.',
+      color: '#8b2020', status: 'planned', sort: 5,
+      entities: [
+        ['ent_gorath', 'harbinger'], ['ent_seraphel', 'prophet'],
+      ],
+      nodeSlice: [35, 40],
+      labels: ['First omen', 'Gorath\'s warning', 'Earthquakes begin', 'Ancient seal cracks', 'The gathering'],
+    },
+  ];
+
+  for (const arc of arcs) {
+    insArc.run(arc.id, arc.name, arc.desc, arc.color, arc.status, arc.sort, '{}', now, now);
+
+    // Link entities
+    for (const [entId, role] of arc.entities) {
+      insArcEntity.run(arc.id, entId, role);
+    }
+
+    // Link timeline nodes with labels
+    const arcNodes = fracNodes.slice(arc.nodeSlice[0], arc.nodeSlice[1]);
+    arcNodes.forEach((n, i) => {
+      insArcNode.run(arc.id, n.id, i, arc.labels[i] || null);
+    });
+  }
 });
 
 tx();
@@ -390,7 +661,11 @@ const total  = db.prepare('SELECT COUNT(*) AS c FROM timeline_nodes').get().c;
 const spans  = db.prepare("SELECT COUNT(*) AS c FROM timeline_nodes WHERE type='span'").get().c;
 const points = db.prepare("SELECT COUNT(*) AS c FROM timeline_nodes WHERE type='point'").get().c;
 const roots  = db.prepare('SELECT COUNT(*) AS c FROM timeline_nodes WHERE parent_id IS NULL').get().c;
-const docs   = db.prepare('SELECT COUNT(*) AS c FROM documents').get().c;
+const docCount = db.prepare('SELECT COUNT(*) AS c FROM documents').get().c;
+const entCount = db.prepare('SELECT COUNT(*) AS c FROM entities').get().c;
+const relCount = db.prepare('SELECT COUNT(*) AS c FROM entity_relationships').get().c;
+const arcCount = db.prepare('SELECT COUNT(*) AS c FROM story_arcs').get().c;
+const arcNodeCount = db.prepare('SELECT COUNT(*) AS c FROM arc_node_links').get().c;
 const maxDepth = db.prepare(`
   WITH RECURSIVE d(id, depth) AS (
     SELECT id, 0 FROM timeline_nodes WHERE parent_id IS NULL
@@ -400,4 +675,6 @@ const maxDepth = db.prepare(`
   SELECT MAX(depth) FROM d
 `).get()['MAX(depth)'] ?? 0;
 
-console.log(`Seeded ${total} nodes (${spans} spans, ${points} points), ${roots} root nodes, max depth ${maxDepth}, and ${docs} documents.`);
+console.log(`Seeded ${total} nodes (${spans} spans, ${points} points), ${roots} root nodes, max depth ${maxDepth}`);
+console.log(`  ${docCount} documents, ${entCount} entities, ${relCount} relationships`);
+console.log(`  ${arcCount} story arcs with ${arcNodeCount} arc-node links`);

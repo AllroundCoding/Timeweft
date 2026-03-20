@@ -19,12 +19,14 @@ function renderWorld() {
   const nodes = TL.childCache['root'] || [];
   if (nodes.length === 0) {
     vp?.classList.remove('gantt-mode');
-    root.innerHTML = '<div class="tl-empty">No timeline nodes yet — click <strong>+ Add Node</strong> to start.</div>';
+    root.innerHTML = '<div class="tl-empty">No timeline groups yet — click <strong>+ Add Group</strong> or right-click here to start.</div>';
   } else {
     vp?.classList.add('gantt-mode');
     const gantt = buildGantt(nodes);
     root.appendChild(gantt);
     gantt._applyScroll();  // synchronous — no flash
+    // Arc overlay (async, non-blocking — renders after data fetched)
+    if (gantt._renderArcOverlay) gantt._renderArcOverlay();
   }
   updateStatusBar();
 }

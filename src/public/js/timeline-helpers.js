@@ -209,8 +209,91 @@ function findNodeEl(target, container) {
   return null;
 }
 
+// ── Drag-to-select date range ────────────────────────────────────────────────
+
+const _drag = { active: false, row: null, parentId: null, startPx: 0, overlay: null, didDrag: false };
+const DRAG_MIN_PX = 8; // minimum drag distance to trigger
+
+function _clientXToYear(clientX) {
+  const tlWrap = document.querySelector('.gantt-timeline');
+  if (!tlWrap) return null;
+  const rect = tlWrap.getBoundingClientRect();
+  const canvasPx = tlWrap.scrollLeft + (clientX - rect.left);
+  const ppy = TL.levelPPY['root'];
+  if (!ppy || TL.yearMin == null) return null;
+  return TL.yearMin + (canvasPx - CANVAS_PAD) / ppy;
+}
+
+function _clientXToCanvasPx(clientX) {
+  const tlWrap = document.querySelector('.gantt-timeline');
+  if (!tlWrap) return 0;
+  const rect = tlWrap.getBoundingClientRect();
+  return tlWrap.scrollLeft + (clientX - rect.left);
+}
+
+function _startDrag(e, row, parentSpan) {
+  if (e.button !== 0) return;                     // left button only
+  if (findNodeEl(e.target, row)) return;           // started on a node — skip
+  if (document.body.classList.contains('share-no-edit-timeline')) return;
+
+  _drag.active   = true;
+  _drag.didDrag  = false;
+  _drag.row      = row;
+  _drag.parentId = parentSpan?.id ?? null;
+  _drag.startPx  = _clientXToCanvasPx(e.clientX);
+
+  // Create selection overlay inside the track (same parent as the row)
+  const overlay = document.createElement('div');
+  overlay.className = 'drag-select-overlay';
+  overlay.style.left   = _drag.startPx + 'px';
+  overlay.style.width  = '0px';
+  overlay.style.top    = row.offsetTop + 'px';
+  overlay.style.height = row.offsetHeight + 'px';
+  row.parentElement.appendChild(overlay);
+  _drag.overlay = overlay;
+}
+
+function _moveDrag(e) {
+  if (!_drag.active) return;
+  const currentPx = _clientXToCanvasPx(e.clientX);
+  const dist = Math.abs(currentPx - _drag.startPx);
+  if (dist >= DRAG_MIN_PX) _drag.didDrag = true;
+  const left  = Math.min(_drag.startPx, currentPx);
+  _drag.overlay.style.left  = left + 'px';
+  _drag.overlay.style.width = dist + 'px';
+}
+
+function _endDrag(e) {
+  if (!_drag.active) return;
+  _drag.active = false;
+  const overlay = _drag.overlay;
+  if (overlay) overlay.remove();
+  _drag.overlay = null;
+
+  const endPx = _clientXToCanvasPx(e.clientX);
+  if (!_drag.didDrag) return; // too short, let click handle it
+
+  const year1 = _clientXToYear(e.clientX);
+  // Reconstruct start year from canvas px
+  const ppy = TL.levelPPY['root'];
+  if (!ppy || TL.yearMin == null || year1 == null) return;
+  const year0 = TL.yearMin + (_drag.startPx - CANVAS_PAD) / ppy;
+
+  const startYear = Math.min(year0, year1);
+  const endYear   = Math.max(year0, year1);
+
+  openAddNodeModal(_drag.parentId, null, { startYear, endYear });
+}
+
+// Global listeners for drag (must survive across lane boundaries)
+document.addEventListener('mousemove', _moveDrag);
+document.addEventListener('mouseup', _endDrag);
+
+// ── Lane event delegation ────────────────────────────────────────────────────
+
 function attachLaneDelegation(row, parentSpan) {
   row.addEventListener('click', e => {
+    if (_drag.didDrag) { _drag.didDrag = false; return; } // suppress click after drag
     const el = findNodeEl(e.target, row);
     if (!el) return;
     e.stopPropagation();
@@ -222,6 +305,8 @@ function attachLaneDelegation(row, parentSpan) {
       openNodeDetail(node);
     }
   });
+
+  row.addEventListener('mousedown', e => _startDrag(e, row, parentSpan));
 
   row.addEventListener('contextmenu', e => {
     const el = findNodeEl(e.target, row);

@@ -15,6 +15,8 @@ const TL = {
   yearMin:        null,    // last rendered yearMin (for zoom anchor calculation)
   viewAnchor:     null,    // { year, vpOffset } set by zoomRoot for scroll restoration
   cursorYear:     null,    // decimal year under the mouse cursor on the timeline
+  showArcOverlay: true,    // whether to show story arc overlay on the gantt
+  selectedArc:    null,    // { id, color, nodeIds: Set } — arc currently highlighted on gantt
 };
 
 // Layout constants

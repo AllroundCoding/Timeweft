@@ -56,6 +56,13 @@
         <span>Entities</span>
       </button>
 
+      <button class="nav-btn" data-module="arcs" title="Story Arcs">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M2 20 C6 4, 10 4, 12 12 S18 20, 22 4"/>
+        </svg>
+        <span>Arcs</span>
+      </button>
+
       <button class="nav-btn" data-module="glossary" title="Glossary">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
@@ -130,7 +137,7 @@
         <button class="btn" id="timeline-manage-btn" title="Manage Timelines" style="font-size:0.75rem;padding:4px 8px;">Manage</button>
       </div>
       <div class="header-controls" id="timeline-controls">
-        <button class="btn btn-accent" id="add-node-btn">+ Add Node</button>
+        <button class="btn btn-accent" id="add-node-btn">+ Add Group</button>
       </div>
     </div>
     <div id="share-banner" style="display:none;"></div>
@@ -219,9 +226,29 @@
               <div id="ent-viewer-meta"></div>
               <div id="ent-viewer-timeline" style="display:none;"></div>
               <div id="ent-viewer-desc" class="markdown-body"></div>
+              <div id="ent-viewer-rels">
+                <h3>Relationships <button id="ent-view-graph-btn" class="section-action-btn" title="View relationship graph">Graph ↗</button></h3>
+                <div id="ent-rel-list"></div>
+                <div id="ent-rel-add" class="ent-link-search">
+                  <input type="text" id="ent-rel-search" placeholder="Search entities to relate…" />
+                  <div id="ent-rel-search-results"></div>
+                </div>
+              </div>
               <div id="ent-viewer-links">
                 <h3>Linked Events</h3>
                 <div id="ent-linked-nodes"></div>
+              </div>
+              <div id="ent-viewer-docs">
+                <h3>Related Documents</h3>
+                <div id="ent-linked-docs"></div>
+              </div>
+              <div id="ent-rel-graph-wrap" style="display:none;">
+                <div id="ent-rel-graph-toolbar">
+                  <label>Depth <input type="range" id="rel-depth-slider" min="1" max="5" value="2" /><span id="rel-depth-val">2</span></label>
+                  <select id="rel-mode-select"><option value="general">General</option><option value="family">Family Tree</option></select>
+                  <button id="rel-graph-close" class="section-action-btn">Close Graph</button>
+                </div>
+                <div id="rel-graph-container"></div>
               </div>
             </div>
             <div id="ent-editor">
@@ -248,12 +275,84 @@
                 </div>
               </div>
               <div class="editor-field">
+                <label>Folder</label>
+                <select id="ent-ed-folder"></select>
+              </div>
+              <div class="editor-field">
                 <label>Description (Markdown)</label>
                 <textarea id="ent-ed-desc" placeholder="Biography, history, traits…"></textarea>
               </div>
               <div class="editor-actions">
                 <button class="btn btn-accent" id="ent-save-btn">Save</button>
                 <button class="btn" id="ent-cancel-btn">Cancel</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── Arcs Module ──────────────────────────────────────────────── -->
+        <div class="module-panel" data-module="arcs">
+          <div id="arcs-sidebar">
+            <div class="sidebar-header">
+              <h3>Story Arcs</h3>
+              <button class="btn btn-sm" id="arc-new-btn" title="New arc">+</button>
+            </div>
+            <input type="text" id="arc-search" class="sidebar-search" placeholder="Search arcs…" />
+            <div id="arc-list" class="sidebar-list"></div>
+          </div>
+          <div id="arcs-content">
+            <div id="arc-empty" class="module-empty-state" style="display:flex;">
+              <div class="mes-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                  <path d="M2 20 C6 4, 10 4, 12 12 S18 20, 22 4"/>
+                </svg>
+              </div>
+              <h2>Story Arcs</h2>
+              <p>Weave narrative threads through your timeline events.</p>
+            </div>
+            <div id="arc-viewer" style="display:none;">
+              <div id="arc-viewer-header">
+                <div id="arc-viewer-title"></div>
+                <div id="arc-viewer-actions">
+                  <button class="btn btn-sm detail-edit-btn" id="arc-edit-btn">Edit</button>
+                  <button class="btn btn-sm btn-danger detail-delete-btn" id="arc-delete-btn">Delete</button>
+                </div>
+              </div>
+              <div id="arc-viewer-meta"></div>
+              <div id="arc-viewer-desc" class="markdown-body"></div>
+              <div id="arc-viewer-nodes">
+                <h3>Events</h3>
+                <div id="arc-node-list"></div>
+                <div class="ent-link-search">
+                  <input type="text" id="arc-node-search" placeholder="Search events to add…" />
+                  <div id="arc-node-results"></div>
+                </div>
+              </div>
+              <div id="arc-viewer-entities">
+                <h3>Participants</h3>
+                <div id="arc-entity-list"></div>
+                <div class="ent-link-search">
+                  <input type="text" id="arc-entity-search" placeholder="Search entities to add…" />
+                  <div id="arc-entity-results"></div>
+                </div>
+              </div>
+            </div>
+            <div id="arc-editor">
+              <div class="editor-field"><label>Name</label><input type="text" id="arc-ed-name" placeholder="Arc name…" /></div>
+              <div class="editor-field"><label>Color</label><input type="color" id="arc-ed-color" value="#c97b2a" /></div>
+              <div class="editor-field">
+                <label>Status</label>
+                <select id="arc-ed-status">
+                  <option value="planned">Planned</option>
+                  <option value="active" selected>Active</option>
+                  <option value="resolved">Resolved</option>
+                  <option value="abandoned">Abandoned</option>
+                </select>
+              </div>
+              <div class="editor-field"><label>Description</label><textarea id="arc-ed-desc" rows="6" placeholder="Arc description (markdown)…"></textarea></div>
+              <div class="editor-actions">
+                <button class="btn btn-accent" id="arc-save-btn">Save</button>
+                <button class="btn" id="arc-cancel-btn">Cancel</button>
               </div>
             </div>
           </div>
@@ -313,6 +412,14 @@
               </div>
               <div id="docs-viewer-meta"></div>
               <div id="docs-viewer-body"></div>
+              <div id="docs-viewer-entities">
+                <h3>Related Entities</h3>
+                <div id="doc-linked-entities"></div>
+              </div>
+              <div id="docs-viewer-nodes">
+                <h3>Related Events</h3>
+                <div id="doc-linked-nodes"></div>
+              </div>
             </div>
             <div id="docs-editor">
               <div class="editor-field">
@@ -336,6 +443,10 @@
                   <label>Tags (comma-separated)</label>
                   <input type="text" id="editor-tags" placeholder="e.g. history, faction, war" />
                 </div>
+              </div>
+              <div class="editor-field">
+                <label>Folder</label>
+                <select id="editor-folder"></select>
               </div>
               <div class="editor-field">
                 <label>Content (Markdown)</label>
@@ -555,12 +666,38 @@
     </div>
   </div>
 
-  <!-- Right-click context menu -->
+  <!-- Right-click context menu (timeline) -->
   <div id="ctx-menu">
     <button id="ctx-edit">✎ Edit</button>
     <button id="ctx-add-child">+ Add Child</button>
     <button id="ctx-delete">✕ Delete</button>
-    <button id="ctx-add-node">+ Add Node</button>
+    <button id="ctx-add-point">+ Add Point Event</button>
+    <button id="ctx-add-span">+ Add Span</button>
+    <button id="ctx-add-group">+ Add Group</button>
+  </div>
+
+  <!-- Right-click context menu (folders / sidebar lists) -->
+  <div id="folder-ctx-menu">
+    <button id="fctx-new-folder">+ New Folder</button>
+    <button id="fctx-new-subfolder">+ New Subfolder</button>
+    <button id="fctx-rename">✎ Rename Folder</button>
+    <button id="fctx-color">🎨 Change Color</button>
+    <button id="fctx-delete" style="color:var(--danger);">✕ Delete Folder</button>
+    <button id="fctx-move">↳ Move to Folder…</button>
+    <div id="fctx-move-list" class="fctx-submenu"></div>
+  </div>
+
+  <!-- Folder prompt/confirm modal -->
+  <div id="folder-modal">
+    <div id="fm-box">
+      <h3 id="fm-title"></h3>
+      <p id="fm-message"></p>
+      <input type="text" id="fm-input" />
+      <div id="fm-actions">
+        <button class="btn" id="fm-cancel">Cancel</button>
+        <button class="btn btn-accent" id="fm-ok">OK</button>
+      </div>
+    </div>
   </div>
 
   <!-- ── User Account Panel ──────────────────────────────────────────────── -->
@@ -778,6 +915,9 @@
   <script src="js/split-pane.js"></script>
   <script src="js/docs-module.js"></script>
   <script src="js/entities-module.js"></script>
+  <script src="js/relationship-graph.js"></script>
+  <script src="js/arcs-module.js"></script>
+  <script src="js/folders-module.js"></script>
   <script src="js/auth-module.js"></script>
   <script src="js/user-module.js"></script>
   <script src="js/admin-module.js"></script>

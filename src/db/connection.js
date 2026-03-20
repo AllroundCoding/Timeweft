@@ -15,6 +15,8 @@ const LEGACY_DB_PATH = path.join(DATA_DIR, 'timeline.db');
 const TIMELINE_TABLES = [
   'timeline_nodes', 'settings', 'calendars', 'documents',
   'document_tags', 'entities', 'entity_node_links',
+  'folders', 'entity_doc_links', 'doc_node_links',
+  'entity_relationships', 'story_arcs', 'arc_node_links', 'arc_entity_links',
 ];
 
 let _accountsDb = null;
@@ -265,6 +267,76 @@ function _initTimelineSchema(db) {
       requested_at   TEXT DEFAULT(datetime('now')),
       UNIQUE(resource_type, resource_id)
     );
+
+    CREATE TABLE IF NOT EXISTS entity_doc_links (
+      entity_id  TEXT NOT NULL REFERENCES entities(id) ON DELETE CASCADE,
+      doc_id     TEXT NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
+      role       TEXT DEFAULT '',
+      created_at TEXT DEFAULT(datetime('now')),
+      PRIMARY KEY (entity_id, doc_id)
+    );
+
+    CREATE TABLE IF NOT EXISTS doc_node_links (
+      doc_id     TEXT NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
+      node_id    TEXT NOT NULL REFERENCES timeline_nodes(id) ON DELETE CASCADE,
+      role       TEXT DEFAULT '',
+      created_at TEXT DEFAULT(datetime('now')),
+      PRIMARY KEY (doc_id, node_id)
+    );
+
+    CREATE TABLE IF NOT EXISTS folders (
+      id          TEXT PRIMARY KEY,
+      parent_id   TEXT REFERENCES folders(id) ON DELETE CASCADE,
+      name        TEXT NOT NULL,
+      folder_type TEXT NOT NULL CHECK(folder_type IN ('docs','entities')),
+      sort_order  INTEGER DEFAULT 0,
+      color       TEXT,
+      created_at  TEXT DEFAULT(datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_folders_parent ON folders(parent_id);
+    CREATE INDEX IF NOT EXISTS idx_folders_type ON folders(folder_type);
+
+    CREATE TABLE IF NOT EXISTS entity_relationships (
+      id            TEXT PRIMARY KEY,
+      source_id     TEXT NOT NULL REFERENCES entities(id) ON DELETE CASCADE,
+      target_id     TEXT NOT NULL REFERENCES entities(id) ON DELETE CASCADE,
+      relationship  TEXT NOT NULL,
+      description   TEXT,
+      start_node_id TEXT REFERENCES timeline_nodes(id) ON DELETE SET NULL,
+      end_node_id   TEXT REFERENCES timeline_nodes(id) ON DELETE SET NULL,
+      metadata      TEXT DEFAULT '{}',
+      created_at    TEXT DEFAULT(datetime('now')),
+      UNIQUE(source_id, target_id, relationship)
+    );
+    CREATE INDEX IF NOT EXISTS idx_rel_source ON entity_relationships(source_id);
+    CREATE INDEX IF NOT EXISTS idx_rel_target ON entity_relationships(target_id);
+
+    CREATE TABLE IF NOT EXISTS story_arcs (
+      id          TEXT PRIMARY KEY,
+      name        TEXT NOT NULL,
+      description TEXT,
+      color       TEXT DEFAULT '#c97b2a',
+      status      TEXT DEFAULT 'active' CHECK(status IN ('planned','active','resolved','abandoned')),
+      sort_order  INTEGER DEFAULT 0,
+      metadata    TEXT DEFAULT '{}',
+      created_at  TEXT DEFAULT(datetime('now')),
+      updated_at  TEXT DEFAULT(datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS arc_node_links (
+      arc_id    TEXT NOT NULL REFERENCES story_arcs(id) ON DELETE CASCADE,
+      node_id   TEXT NOT NULL REFERENCES timeline_nodes(id) ON DELETE CASCADE,
+      position  INTEGER DEFAULT 0,
+      arc_label TEXT,
+      PRIMARY KEY (arc_id, node_id)
+    );
+
+    CREATE TABLE IF NOT EXISTS arc_entity_links (
+      arc_id    TEXT NOT NULL REFERENCES story_arcs(id) ON DELETE CASCADE,
+      entity_id TEXT NOT NULL REFERENCES entities(id) ON DELETE CASCADE,
+      role      TEXT DEFAULT '',
+      PRIMARY KEY (arc_id, entity_id)
+    );
   `);
 }
 
@@ -332,6 +404,11 @@ function _migrateSchema(db) {
   // Add node_id to entities for 1:1 binding (entity IS the timeline node)
   const entCols = colNames('entities');
   if (!entCols.includes('node_id')) db.exec('ALTER TABLE entities ADD COLUMN node_id TEXT REFERENCES timeline_nodes(id)');
+  if (!entCols.includes('folder_id')) db.exec('ALTER TABLE entities ADD COLUMN folder_id TEXT REFERENCES folders(id) ON DELETE SET NULL');
+
+  // Add folder_id to documents
+  const docCols = colNames('documents');
+  if (!docCols.includes('folder_id')) db.exec('ALTER TABLE documents ADD COLUMN folder_id TEXT REFERENCES folders(id) ON DELETE SET NULL');
 }
 
 // ── Legacy migration: copy old timeline.db data into a user's DB ────────────

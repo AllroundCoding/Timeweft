@@ -437,8 +437,8 @@ app.put('/api/docs/:id', requirePerm('docs', 'edit'), (req, res) => {
     const merged = { ...existing, ...b, id: req.params.id, updated_at: now };
 
     req.db.transaction(() => {
-      req.db.prepare('UPDATE documents SET title=?, category=?, content=?, updated_at=? WHERE id=?')
-        .run(merged.title, merged.category, merged.content, now, req.params.id);
+      req.db.prepare('UPDATE documents SET title=?, category=?, content=?, folder_id=?, updated_at=? WHERE id=?')
+        .run(merged.title, merged.category, merged.content, merged.folder_id ?? null, now, req.params.id);
       if (b.tags !== undefined) {
         req.db.prepare('DELETE FROM document_tags WHERE doc_id = ?').run(req.params.id);
         for (const tag of b.tags)
@@ -616,10 +616,12 @@ app.put('/api/entities/:id', requirePerm('entities', 'edit'), (req, res) => {
     req.db.prepare(`UPDATE entities SET
       name=COALESCE(?,name), entity_type=COALESCE(?,entity_type),
       description=COALESCE(?,description), color=COALESCE(?,color),
-      metadata=COALESCE(?,metadata), updated_at=datetime('now')
+      metadata=COALESCE(?,metadata), folder_id=COALESCE(?,folder_id),
+      updated_at=datetime('now')
       WHERE id=?`).run(
       b.name, b.entity_type, b.description, b.color,
-      b.metadata != null ? JSON.stringify(b.metadata) : null, req.params.id);
+      b.metadata != null ? JSON.stringify(b.metadata) : null,
+      b.folder_id !== undefined ? b.folder_id : null, req.params.id);
     const entity = req.db.prepare('SELECT * FROM entities WHERE id = ?').get(req.params.id);
     if (!entity) return res.status(404).json({ error: 'Entity not found' });
     try { entity.metadata = JSON.parse(entity.metadata); } catch { entity.metadata = {}; }
@@ -679,6 +681,544 @@ app.delete('/api/entities/:id/links/:nodeId', handleDelete('entities'), (req, re
     req.db.prepare('DELETE FROM entity_node_links WHERE entity_id = ? AND node_id = ?')
       .run(req.params.id, req.params.nodeId);
     res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Entity ↔ Document linking ────────────────────────────────────────────────
+
+app.get('/api/entities/:id/docs', (req, res) => {
+  try {
+    const docs = req.db.prepare(`
+      SELECT d.id, d.title, d.category, l.role
+      FROM entity_doc_links l
+      JOIN documents d ON d.id = l.doc_id
+      WHERE l.entity_id = ?
+      ORDER BY d.title`).all(req.params.id);
+    res.json({ docs });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/entities/:id/doc-links', requirePerm('entities', 'edit'), (req, res) => {
+  try {
+    const { doc_id, role } = req.body;
+    if (!doc_id) return res.status(400).json({ error: 'doc_id is required' });
+    req.db.prepare('INSERT OR IGNORE INTO entity_doc_links (entity_id, doc_id, role) VALUES (?, ?, ?)')
+      .run(req.params.id, doc_id, role || '');
+    res.status(201).json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/entities/:id/doc-links/:docId', requirePerm('entities', 'edit'), (req, res) => {
+  try {
+    req.db.prepare('DELETE FROM entity_doc_links WHERE entity_id = ? AND doc_id = ?')
+      .run(req.params.id, req.params.docId);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Document ↔ Node linking ──────────────────────────────────────────────────
+
+app.get('/api/docs/:id/nodes', (req, res) => {
+  try {
+    const nodes = req.db.prepare(`
+      SELECT n.id, n.title, n.type, n.node_type, n.start_date, n.color, l.role
+      FROM doc_node_links l
+      JOIN timeline_nodes n ON n.id = l.node_id
+      WHERE l.doc_id = ?
+      ORDER BY n.start_date`).all(req.params.id);
+    res.json({ nodes });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/docs/:id/entities', (req, res) => {
+  try {
+    const entities = req.db.prepare(`
+      SELECT e.id, e.name, e.entity_type, e.color, l.role
+      FROM entity_doc_links l
+      JOIN entities e ON e.id = l.entity_id
+      WHERE l.doc_id = ?
+      ORDER BY e.name`).all(req.params.id);
+    res.json({ entities });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/docs/:id/node-links', requirePerm('docs', 'edit'), (req, res) => {
+  try {
+    const { node_id, role } = req.body;
+    if (!node_id) return res.status(400).json({ error: 'node_id is required' });
+    req.db.prepare('INSERT OR IGNORE INTO doc_node_links (doc_id, node_id, role) VALUES (?, ?, ?)')
+      .run(req.params.id, node_id, role || '');
+    res.status(201).json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/docs/:id/node-links/:nodeId', requirePerm('docs', 'edit'), (req, res) => {
+  try {
+    req.db.prepare('DELETE FROM doc_node_links WHERE doc_id = ? AND node_id = ?')
+      .run(req.params.id, req.params.nodeId);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Backlinks ─────────────────────────────────────────────────────────────────
+
+app.get('/api/backlinks/:type/:id', (req, res) => {
+  try {
+    const { type, id } = req.params;
+    const result = { entities: [], docs: [], nodes: [] };
+
+    if (type === 'entity') {
+      result.docs = req.db.prepare(`SELECT d.id, d.title, d.category, l.role FROM entity_doc_links l JOIN documents d ON d.id = l.doc_id WHERE l.entity_id = ? ORDER BY d.title`).all(id);
+      result.nodes = req.db.prepare(`SELECT n.id, n.title, n.node_type, n.start_date, l.role FROM entity_node_links l JOIN timeline_nodes n ON n.id = l.node_id WHERE l.entity_id = ? ORDER BY n.start_date`).all(id);
+    } else if (type === 'doc') {
+      result.entities = req.db.prepare(`SELECT e.id, e.name, e.entity_type, e.color, l.role FROM entity_doc_links l JOIN entities e ON e.id = l.entity_id WHERE l.doc_id = ? ORDER BY e.name`).all(id);
+      result.nodes = req.db.prepare(`SELECT n.id, n.title, n.node_type, n.start_date, l.role FROM doc_node_links l JOIN timeline_nodes n ON n.id = l.node_id WHERE l.doc_id = ? ORDER BY n.start_date`).all(id);
+    } else if (type === 'node') {
+      result.entities = req.db.prepare(`SELECT e.id, e.name, e.entity_type, e.color, l.role FROM entity_node_links l JOIN entities e ON e.id = l.entity_id WHERE l.node_id = ? ORDER BY e.name`).all(id);
+      result.docs = req.db.prepare(`SELECT d.id, d.title, d.category, l.role FROM doc_node_links l JOIN documents d ON d.id = l.doc_id WHERE l.node_id = ? ORDER BY d.title`).all(id);
+    } else {
+      return res.status(400).json({ error: 'type must be entity, doc, or node' });
+    }
+
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Folders ──────────────────────────────────────────────────────────────────
+
+app.get('/api/folders', (req, res) => {
+  try {
+    const type = req.query.type;
+    const rows = type
+      ? req.db.prepare('SELECT * FROM folders WHERE folder_type = ? ORDER BY sort_order, name').all(type)
+      : req.db.prepare('SELECT * FROM folders ORDER BY folder_type, sort_order, name').all();
+    res.json({ folders: rows });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/folders', requirePerm('docs', 'edit'), (req, res) => {
+  try {
+    const { name, folder_type, parent_id, color } = req.body;
+    if (!name?.trim()) return res.status(400).json({ error: 'name is required' });
+    if (!['docs', 'entities'].includes(folder_type)) return res.status(400).json({ error: 'folder_type must be docs or entities' });
+    const id = 'fld_' + generateUUID().replace(/-/g, '').substring(0, 8);
+    req.db.prepare('INSERT INTO folders (id, parent_id, name, folder_type, color) VALUES (?, ?, ?, ?, ?)')
+      .run(id, parent_id || null, name.trim(), folder_type, color || null);
+    const folder = req.db.prepare('SELECT * FROM folders WHERE id = ?').get(id);
+    res.status(201).json(folder);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.put('/api/folders/:id', requirePerm('docs', 'edit'), (req, res) => {
+  try {
+    const { name, parent_id, color, sort_order } = req.body;
+    const existing = req.db.prepare('SELECT * FROM folders WHERE id = ?').get(req.params.id);
+    if (!existing) return res.status(404).json({ error: 'Folder not found' });
+    req.db.prepare('UPDATE folders SET name=COALESCE(?,name), parent_id=COALESCE(?,parent_id), color=COALESCE(?,color), sort_order=COALESCE(?,sort_order) WHERE id=?')
+      .run(name, parent_id !== undefined ? parent_id : undefined, color, sort_order, req.params.id);
+    const folder = req.db.prepare('SELECT * FROM folders WHERE id = ?').get(req.params.id);
+    res.json(folder);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/folders/:id', requirePerm('docs', 'edit'), (req, res) => {
+  try {
+    const existing = req.db.prepare('SELECT * FROM folders WHERE id = ?').get(req.params.id);
+    if (!existing) return res.status(404).json({ error: 'Folder not found' });
+    req.db.prepare('DELETE FROM folders WHERE id = ?').run(req.params.id);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Entity Relationships ─────────────────────────────────────────────────────
+
+const SYMMETRIC_RELS = new Set([
+  'married_to', 'sibling_of', 'ally_of', 'rival_of', 'enemy_of',
+]);
+
+app.get('/api/entities/:id/relationships', (req, res) => {
+  try {
+    const { id } = req.params;
+    const { direction = 'both', type } = req.query;
+    let sql, params;
+    if (direction === 'outgoing') {
+      sql = `SELECT r.*, e.name AS other_name, e.entity_type AS other_type, e.color AS other_color
+             FROM entity_relationships r JOIN entities e ON e.id = r.target_id
+             WHERE r.source_id = ?`;
+      params = [id];
+    } else if (direction === 'incoming') {
+      sql = `SELECT r.*, e.name AS other_name, e.entity_type AS other_type, e.color AS other_color
+             FROM entity_relationships r JOIN entities e ON e.id = r.source_id
+             WHERE r.target_id = ?`;
+      params = [id];
+    } else {
+      sql = `SELECT r.*, e.name AS other_name, e.entity_type AS other_type, e.color AS other_color
+             FROM entity_relationships r
+             JOIN entities e ON e.id = CASE WHEN r.source_id = ? THEN r.target_id ELSE r.source_id END
+             WHERE r.source_id = ? OR r.target_id = ?`;
+      params = [id, id, id];
+    }
+    if (type) {
+      const types = type.split(',').map(t => t.trim());
+      sql += ` AND r.relationship IN (${types.map(() => '?').join(',')})`;
+      params.push(...types);
+    }
+    const rows = req.db.prepare(sql).all(...params);
+    rows.forEach(r => { try { r.metadata = JSON.parse(r.metadata); } catch { r.metadata = {}; } });
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/entities/:id/relationships', requirePerm('entities', 'edit'), (req, res) => {
+  try {
+    const { id } = req.params;
+    const { target_id, relationship, description, start_node_id, end_node_id, metadata } = req.body;
+    if (!target_id || !relationship) return res.status(400).json({ error: 'target_id and relationship required' });
+    if (target_id === id) return res.status(400).json({ error: 'Cannot relate an entity to itself' });
+    const relId = 'rel_' + generateUUID().replace(/-/g, '').slice(0, 12);
+    req.db.prepare(`INSERT INTO entity_relationships (id, source_id, target_id, relationship, description, start_node_id, end_node_id, metadata)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`).run(
+      relId, id, target_id, relationship, description || null,
+      start_node_id || null, end_node_id || null, JSON.stringify(metadata || {}),
+    );
+    res.json({ id: relId, source_id: id, target_id, relationship });
+  } catch (err) {
+    if (err.message?.includes('UNIQUE constraint')) return res.status(409).json({ error: 'Relationship already exists' });
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.put('/api/relationships/:relId', requirePerm('entities', 'edit'), (req, res) => {
+  try {
+    const { relId } = req.params;
+    const existing = req.db.prepare('SELECT * FROM entity_relationships WHERE id = ?').get(relId);
+    if (!existing) return res.status(404).json({ error: 'Relationship not found' });
+    const { description, start_node_id, end_node_id, metadata } = req.body;
+    req.db.prepare(`UPDATE entity_relationships SET
+      description = COALESCE(?, description),
+      start_node_id = ?,
+      end_node_id = ?,
+      metadata = COALESCE(?, metadata)
+      WHERE id = ?`).run(
+      description ?? null,
+      start_node_id !== undefined ? (start_node_id || null) : existing.start_node_id,
+      end_node_id !== undefined ? (end_node_id || null) : existing.end_node_id,
+      metadata ? JSON.stringify(metadata) : null,
+      relId,
+    );
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/relationships/:relId', handleDelete('entities'), (req, res) => {
+  try {
+    const { relId } = req.params;
+    const info = req.db.prepare('DELETE FROM entity_relationships WHERE id = ?').run(relId);
+    if (!info.changes) return res.status(404).json({ error: 'Relationship not found' });
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// BFS subgraph builder for relationship graph visualization
+function buildSubgraph(db, startIds, depth, typeFilter, entityTypeFilter) {
+  const nodeMap = new Map();   // entityId -> entity row
+  const edgeMap = new Map();   // relId -> relationship row
+  const truncated = [];        // { node_id, count, relationship_types }
+  const visited = new Set(startIds);
+  let frontier = [...startIds];
+
+  // Seed the starting entities
+  for (const eid of startIds) {
+    const ent = db.prepare(`SELECT id, name, entity_type, color, node_id FROM entities WHERE id = ?`).get(eid);
+    if (ent) {
+      if (ent.node_id) {
+        const n = db.prepare('SELECT start_date, end_date FROM timeline_nodes WHERE id = ?').get(ent.node_id);
+        if (n) { ent.start_date = n.start_date; ent.end_date = n.end_date; }
+      }
+      nodeMap.set(eid, ent);
+    }
+  }
+
+  for (let d = 0; d < depth; d++) {
+    const nextFrontier = [];
+    for (const eid of frontier) {
+      let sql = `SELECT r.*, e.id AS eid, e.name, e.entity_type, e.color, e.node_id
+        FROM entity_relationships r
+        JOIN entities e ON e.id = CASE WHEN r.source_id = ? THEN r.target_id ELSE r.source_id END
+        WHERE (r.source_id = ? OR r.target_id = ?)`;
+      const params = [eid, eid, eid];
+      if (typeFilter?.length) {
+        sql += ` AND r.relationship IN (${typeFilter.map(() => '?').join(',')})`;
+        params.push(...typeFilter);
+      }
+      if (entityTypeFilter?.length) {
+        sql += ` AND e.entity_type IN (${entityTypeFilter.map(() => '?').join(',')})`;
+        params.push(...entityTypeFilter);
+      }
+      const rows = db.prepare(sql).all(...params);
+
+      for (const row of rows) {
+        if (!edgeMap.has(row.id)) {
+          try { row.metadata = JSON.parse(row.metadata); } catch { row.metadata = {}; }
+          edgeMap.set(row.id, {
+            id: row.id, source_id: row.source_id, target_id: row.target_id,
+            relationship: row.relationship, description: row.description,
+            start_node_id: row.start_node_id, end_node_id: row.end_node_id, metadata: row.metadata,
+          });
+        }
+        if (!visited.has(row.eid)) {
+          visited.add(row.eid);
+          const ent = { id: row.eid, name: row.name, entity_type: row.entity_type, color: row.color, node_id: row.node_id };
+          if (row.node_id) {
+            const n = db.prepare('SELECT start_date, end_date FROM timeline_nodes WHERE id = ?').get(row.node_id);
+            if (n) { ent.start_date = n.start_date; ent.end_date = n.end_date; }
+          }
+          nodeMap.set(row.eid, ent);
+          if (d < depth - 1) nextFrontier.push(row.eid);
+        }
+      }
+    }
+    frontier = nextFrontier;
+  }
+
+  // Compute truncated edges for boundary nodes
+  for (const eid of frontier.length ? frontier : [...visited]) {
+    if (frontier.length && !frontier.includes(eid)) continue;
+    const countRows = db.prepare(`SELECT r.relationship, COUNT(*) as cnt
+      FROM entity_relationships r
+      JOIN entities e ON e.id = CASE WHEN r.source_id = ? THEN r.target_id ELSE r.source_id END
+      WHERE (r.source_id = ? OR r.target_id = ?) AND e.id NOT IN (${[...visited].map(() => '?').join(',')})
+      GROUP BY r.relationship`).all(eid, eid, eid, ...visited);
+    const total = countRows.reduce((s, r) => s + r.cnt, 0);
+    if (total > 0) {
+      truncated.push({ node_id: eid, count: total, relationship_types: countRows.map(r => r.relationship) });
+    }
+  }
+
+  return {
+    nodes: [...nodeMap.values()],
+    edges: [...edgeMap.values()],
+    truncated_edges: truncated,
+  };
+}
+
+app.get('/api/relationship-graph', (req, res) => {
+  try {
+    const { entity_ids, depth = '2', types, entity_types } = req.query;
+    if (!entity_ids) return res.status(400).json({ error: 'entity_ids required' });
+    const startIds = entity_ids.split(',').map(s => s.trim()).filter(Boolean);
+    const d = Math.min(Math.max(parseInt(depth) || 2, 1), 5);
+    const typeFilter = types ? types.split(',').map(s => s.trim()) : null;
+    const entityTypeFilter = entity_types ? entity_types.split(',').map(s => s.trim()) : null;
+    const result = buildSubgraph(req.db, startIds, d, typeFilter, entityTypeFilter);
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Story Arcs ───────────────────────────────────────────────────────────────
+
+app.get('/api/arcs', (req, res) => {
+  try {
+    const arcs = req.db.prepare(`SELECT a.*,
+      (SELECT COUNT(*) FROM arc_node_links WHERE arc_id = a.id) AS node_count,
+      (SELECT COUNT(*) FROM arc_entity_links WHERE arc_id = a.id) AS entity_count
+      FROM story_arcs a ORDER BY a.sort_order, a.name`).all();
+    arcs.forEach(a => { try { a.metadata = JSON.parse(a.metadata); } catch { a.metadata = {}; } });
+    res.json(arcs);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/arcs/:id', (req, res) => {
+  try {
+    const arc = req.db.prepare('SELECT * FROM story_arcs WHERE id = ?').get(req.params.id);
+    if (!arc) return res.status(404).json({ error: 'Arc not found' });
+    try { arc.metadata = JSON.parse(arc.metadata); } catch { arc.metadata = {}; }
+    const nodes = req.db.prepare(`SELECT anl.*, n.title AS node_title, n.start_date, n.color AS node_color
+      FROM arc_node_links anl JOIN timeline_nodes n ON n.id = anl.node_id
+      WHERE anl.arc_id = ? ORDER BY anl.position, n.start_date`).all(req.params.id);
+    const entities = req.db.prepare(`SELECT ael.*, e.name AS entity_name, e.entity_type, e.color AS entity_color
+      FROM arc_entity_links ael JOIN entities e ON e.id = ael.entity_id
+      WHERE ael.arc_id = ?`).all(req.params.id);
+    res.json({ arc, nodes, entities });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/arcs', requirePerm('timeline', 'edit'), (req, res) => {
+  try {
+    const { name, description, color, status, sort_order, metadata } = req.body;
+    if (!name) return res.status(400).json({ error: 'name required' });
+    const id = 'arc_' + generateUUID().replace(/-/g, '').slice(0, 12);
+    req.db.prepare(`INSERT INTO story_arcs (id, name, description, color, status, sort_order, metadata)
+      VALUES (?, ?, ?, ?, ?, ?, ?)`).run(
+      id, name, description || null, color || '#c97b2a',
+      status || 'active', sort_order ?? 0, JSON.stringify(metadata || {}),
+    );
+    res.json({ id, name });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.put('/api/arcs/:id', requirePerm('timeline', 'edit'), (req, res) => {
+  try {
+    const existing = req.db.prepare('SELECT * FROM story_arcs WHERE id = ?').get(req.params.id);
+    if (!existing) return res.status(404).json({ error: 'Arc not found' });
+    const { name, description, color, status, sort_order, metadata } = req.body;
+    req.db.prepare(`UPDATE story_arcs SET
+      name = COALESCE(?, name), description = COALESCE(?, description),
+      color = COALESCE(?, color), status = COALESCE(?, status),
+      sort_order = COALESCE(?, sort_order), metadata = COALESCE(?, metadata),
+      updated_at = datetime('now') WHERE id = ?`).run(
+      name || null, description !== undefined ? description : null,
+      color || null, status || null, sort_order ?? null,
+      metadata ? JSON.stringify(metadata) : null, req.params.id,
+    );
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/arcs/:id', handleDelete('timeline'), (req, res) => {
+  try {
+    const info = req.db.prepare('DELETE FROM story_arcs WHERE id = ?').run(req.params.id);
+    if (!info.changes) return res.status(404).json({ error: 'Arc not found' });
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Arc ↔ Node links
+app.post('/api/arcs/:id/nodes', requirePerm('timeline', 'edit'), (req, res) => {
+  try {
+    const { node_id, position, arc_label } = req.body;
+    if (!node_id) return res.status(400).json({ error: 'node_id required' });
+    req.db.prepare(`INSERT OR IGNORE INTO arc_node_links (arc_id, node_id, position, arc_label)
+      VALUES (?, ?, ?, ?)`).run(req.params.id, node_id, position ?? 0, arc_label || null);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.put('/api/arcs/:id/nodes/:nodeId', requirePerm('timeline', 'edit'), (req, res) => {
+  try {
+    const { position, arc_label } = req.body;
+    req.db.prepare(`UPDATE arc_node_links SET position = COALESCE(?, position), arc_label = COALESCE(?, arc_label)
+      WHERE arc_id = ? AND node_id = ?`).run(position ?? null, arc_label ?? null, req.params.id, req.params.nodeId);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/arcs/:id/nodes/:nodeId', requirePerm('timeline', 'edit'), (req, res) => {
+  try {
+    req.db.prepare('DELETE FROM arc_node_links WHERE arc_id = ? AND node_id = ?').run(req.params.id, req.params.nodeId);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Arc ↔ Entity links
+app.post('/api/arcs/:id/entities', requirePerm('timeline', 'edit'), (req, res) => {
+  try {
+    const { entity_id, role } = req.body;
+    if (!entity_id) return res.status(400).json({ error: 'entity_id required' });
+    req.db.prepare(`INSERT OR IGNORE INTO arc_entity_links (arc_id, entity_id, role)
+      VALUES (?, ?, ?)`).run(req.params.id, entity_id, role || '');
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/arcs/:id/entities/:entityId', requirePerm('timeline', 'edit'), (req, res) => {
+  try {
+    req.db.prepare('DELETE FROM arc_entity_links WHERE arc_id = ? AND entity_id = ?').run(req.params.id, req.params.entityId);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Gantt arc overlay — returns arcs with node positions for visible range
+app.get('/api/arcs/gantt-overlay', (req, res) => {
+  try {
+    const { year_min, year_max } = req.query;
+    let sql = `SELECT a.id, a.name, a.color, a.status,
+      anl.node_id, anl.position, anl.arc_label, n.start_date, n.title AS node_title
+      FROM story_arcs a
+      JOIN arc_node_links anl ON anl.arc_id = a.id
+      JOIN timeline_nodes n ON n.id = anl.node_id`;
+    const params = [];
+    if (year_min != null && year_max != null) {
+      sql += ` WHERE n.start_date >= ? AND n.start_date <= ?`;
+      params.push(parseFloat(year_min), parseFloat(year_max));
+    }
+    sql += ' ORDER BY a.sort_order, a.name, anl.position, n.start_date';
+    const rows = req.db.prepare(sql).all(...params);
+    const arcMap = new Map();
+    for (const r of rows) {
+      if (!arcMap.has(r.id)) arcMap.set(r.id, { id: r.id, name: r.name, color: r.color, status: r.status, nodes: [] });
+      arcMap.get(r.id).nodes.push({
+        node_id: r.node_id, position: r.position, arc_label: r.arc_label,
+        start_date: r.start_date, node_title: r.node_title,
+      });
+    }
+    res.json([...arcMap.values()].filter(a => a.nodes.length >= 2));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Node → arcs lookup
+app.get('/api/nodes/:id/arcs', (req, res) => {
+  try {
+    const arcs = req.db.prepare(`SELECT a.id, a.name, a.color, a.status, anl.arc_label, anl.position
+      FROM arc_node_links anl JOIN story_arcs a ON a.id = anl.arc_id
+      WHERE anl.node_id = ? ORDER BY a.sort_order, a.name`).all(req.params.id);
+    res.json(arcs);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

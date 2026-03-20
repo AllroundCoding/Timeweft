@@ -41,6 +41,10 @@ function openSecondary(name) {
   // Module-specific init
   if (name === 'docs') loadDocsList();
   if (name === 'entities') loadEntitiesList();
+  if (name === 'arcs') loadArcsList();
+
+  // Clear arc highlight when switching away from arcs
+  if (name !== 'arcs' && TL.selectedArc) { TL.selectedArc = null; }
 
   // Re-render timeline since viewport width changed
   requestAnimationFrame(() => requestAnimationFrame(renderWorld));
@@ -49,6 +53,9 @@ function openSecondary(name) {
 function closeSecondary() {
   SplitPane.secondaryModule = null;
   localStorage.removeItem('tl-split-module');
+
+  // Clear arc highlight
+  if (TL.selectedArc) { TL.selectedArc = null; }
 
   // Deactivate all secondary panels
   document.querySelectorAll('#pane-secondary .module-panel').forEach(el =>

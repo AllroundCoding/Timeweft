@@ -8,6 +8,22 @@ let _ctxNode = null;
 let _ctxLaneParentId = null;
 let _ctxCursorYear = null;
 
+function _positionCtxMenu(e) {
+  const menu = document.getElementById('ctx-menu');
+  menu.style.left = e.clientX + 'px';
+  menu.style.top  = e.clientY + 'px';
+  menu.classList.add('open');
+}
+
+function _setCtxButtons(show) {
+  document.getElementById('ctx-edit').style.display      = show.edit   ? '' : 'none';
+  document.getElementById('ctx-add-child').style.display = show.child  ? '' : 'none';
+  document.getElementById('ctx-delete').style.display    = show.del    ? '' : 'none';
+  document.getElementById('ctx-add-point').style.display = show.point  ? '' : 'none';
+  document.getElementById('ctx-add-span').style.display  = show.span   ? '' : 'none';
+  document.getElementById('ctx-add-group').style.display = show.group  ? '' : 'none';
+}
+
 function showCtxMenu(e, node) {
   e.preventDefault();
   e.stopPropagation();
@@ -15,15 +31,8 @@ function showCtxMenu(e, node) {
   _ctxNode = node;
   _ctxLaneParentId = null;
   _ctxCursorYear = TL.cursorYear;
-  const menu = document.getElementById('ctx-menu');
-  document.getElementById('ctx-edit').style.display = '';
-  const addChild = document.getElementById('ctx-add-child');
-  if (addChild) addChild.style.display = node.type === 'span' ? '' : 'none';
-  document.getElementById('ctx-delete').style.display = '';
-  document.getElementById('ctx-add-node').style.display = 'none';
-  menu.style.left = e.clientX + 'px';
-  menu.style.top  = e.clientY + 'px';
-  menu.classList.add('open');
+  _setCtxButtons({ edit: true, child: node.type === 'span', del: true });
+  _positionCtxMenu(e);
 }
 
 function showCtxMenuBlank(e, parentId) {
@@ -33,14 +42,19 @@ function showCtxMenuBlank(e, parentId) {
   _ctxNode = null;
   _ctxLaneParentId = parentId;
   _ctxCursorYear = TL.cursorYear;
-  const menu = document.getElementById('ctx-menu');
-  document.getElementById('ctx-edit').style.display = 'none';
-  document.getElementById('ctx-add-child').style.display = 'none';
-  document.getElementById('ctx-delete').style.display = 'none';
-  document.getElementById('ctx-add-node').style.display = '';
-  menu.style.left = e.clientX + 'px';
-  menu.style.top  = e.clientY + 'px';
-  menu.classList.add('open');
+  _setCtxButtons({ point: true, span: true });
+  _positionCtxMenu(e);
+}
+
+function showCtxMenuRoot(e) {
+  e.preventDefault();
+  e.stopPropagation();
+  hideTip();
+  _ctxNode = null;
+  _ctxLaneParentId = null;
+  _ctxCursorYear = TL.cursorYear;
+  _setCtxButtons({ group: true });
+  _positionCtxMenu(e);
 }
 
 function hideCtxMenu() {
@@ -74,8 +88,45 @@ function openNodeDetail(node) {
     <div class="detail-actions">
       <button class="btn detail-edit-btn" onclick="openEditNodeModal('${node.id}')">✎ Edit</button>
       <button class="btn btn-danger detail-delete-btn" onclick="deleteNode('${node.id}')">Delete</button>
+    </div>
+    <div class="detail-section">
+      <h3>Story Arcs</h3>
+      <div id="node-arcs-list"></div>
+    </div>
+    <div class="detail-section">
+      <h3>Related Documents</h3>
+      <div id="node-linked-docs"></div>
     </div>`;
   document.getElementById('detail-panel').classList.remove('collapsed');
+  renderNodeArcs(node.id);
+  renderNodeDocLinks(node.id);
+}
+
+async function renderNodeArcs(nodeId) {
+  const listEl = document.getElementById('node-arcs-list');
+  if (!listEl) return;
+  try {
+    const arcs = await apiFetch(`${API}/nodes/${nodeId}/arcs`).then(r => r.json());
+    if (!arcs?.length) {
+      listEl.innerHTML = '<div style="color:var(--text-dim);font-size:0.78rem;">Not part of any arc.</div>';
+      return;
+    }
+    listEl.innerHTML = arcs.map(a => `
+      <div class="node-arc-item" data-arc-id="${a.id}">
+        <span class="arc-color-dot" style="background:${a.color || '#c97b2a'}"></span>
+        <span class="node-arc-name">${a.name}</span>
+        ${a.arc_label ? `<span class="arc-label-badge">${a.arc_label}</span>` : ''}
+        <span class="arc-status-badge arc-status-${a.status}" style="font-size:0.6rem;">${a.status}</span>
+      </div>`).join('');
+    listEl.querySelectorAll('.node-arc-item').forEach(el => {
+      el.addEventListener('click', () => {
+        switchModule('arcs');
+        setTimeout(() => openArc(el.dataset.arcId), 100);
+      });
+    });
+  } catch {
+    listEl.innerHTML = '';
+  }
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -86,42 +137,55 @@ const SPAN_COLORS = ['#5566bb','#6655aa','#558866','#885544','#558899','#997755'
 let _modalParentId = null;
 let _modalEditId   = null;
 
-function openAddNodeModal(parentId = null) {
+function _prefillDateFields(prefix, decYear) {
+  const ppy = TL.levelPPY['root'];
+  if (!ppy) return;
+  const d = decimalToDate(decYear);
+  const tlW = Math.max(200, vpWidth() - GANTT_SIDEBAR_W);
+  const step = pickStep(tlW / ppy, ppy);
+  const mc  = calMonthCount();
+  const diy = calDaysInYear();
+
+  populateMonthSelect(document.getElementById(`${prefix}-month`));
+  document.getElementById(`${prefix}-year`).value = d.year;
+  if (step < 1) {
+    document.getElementById(`${prefix}-month`).value = d.month || '';
+    syncDayMax(prefix);
+  }
+  if (step < 1 / mc) {
+    document.getElementById(`${prefix}-day`).value = d.day || '';
+  }
+  if (step < 1 / diy) {
+    document.getElementById(`${prefix}-hour`).value = d.hour || '';
+    document.getElementById(`${prefix}-minute`).value = d.minute || '';
+  }
+}
+
+function openAddNodeModal(parentId = null, typeOverride = null, dragRange = null) {
   _modalParentId = parentId;
   _modalEditId   = null;
-  document.getElementById('modal-node-title-hdr').textContent = 'Add Node';
+  const isRoot = !parentId;
+  // If we have a drag range, it's always a span
+  const nodeKind = dragRange ? 'span' : (typeOverride || (isRoot ? 'span' : 'point'));
+  document.getElementById('modal-node-title-hdr').textContent =
+    isRoot ? 'Add Group' : (nodeKind === 'span' ? 'Add Span' : 'Add Point Event');
   document.getElementById('mn-title').value       = '';
   clearDateFields('mn-start');
   clearDateFields('mn-end');
 
-  // Prefill start date from cursor position on the timeline
-  const prefillYear = TL.cursorYear ?? _ctxCursorYear;
-  if (prefillYear != null) {
-    const ppy = TL.levelPPY['root'];
-    if (ppy) {
-      const d = decimalToDate(prefillYear);
-      const tlW = Math.max(200, vpWidth() - GANTT_SIDEBAR_W);
-      const step = pickStep(tlW / ppy, ppy);
-      const mc  = calMonthCount();
-      const diy = calDaysInYear();
-
-      populateMonthSelect(document.getElementById('mn-start-month'));
-      document.getElementById('mn-start-year').value = d.year;
-      if (step < 1) {
-        document.getElementById('mn-start-month').value = d.month || '';
-        syncDayMax('mn-start');
-      }
-      if (step < 1 / mc) {
-        document.getElementById('mn-start-day').value = d.day || '';
-      }
-      if (step < 1 / diy) {
-        document.getElementById('mn-start-hour').value = d.hour || '';
-        document.getElementById('mn-start-minute').value = d.minute || '';
-      }
-    }
+  if (dragRange) {
+    // Prefill both start and end from drag selection
+    _prefillDateFields('mn-start', dragRange.startYear);
+    _prefillDateFields('mn-end', dragRange.endYear);
+  } else {
+    // Prefill start date from cursor position on the timeline
+    const prefillYear = TL.cursorYear ?? _ctxCursorYear;
+    if (prefillYear != null) _prefillDateFields('mn-start', prefillYear);
   }
 
-  document.getElementById('mn-type').value        = 'point';
+  const typeSelect = document.getElementById('mn-type');
+  typeSelect.value     = nodeKind;
+  typeSelect.disabled  = isRoot || !!typeOverride || !!dragRange;
   document.getElementById('mn-node-type').value   = 'event';
   document.getElementById('mn-entity-type-row').style.display = 'none';
   document.getElementById('mn-entity-type').value = 'character';
@@ -130,7 +194,7 @@ function openAddNodeModal(parentId = null) {
   document.getElementById('mn-color').value       = SPAN_COLORS[0];
   document.getElementById('mn-opacity').value      = 0.6;
   document.getElementById('mn-opacity-val').textContent = '60%';
-  document.getElementById('mn-end-row').style.display = 'none';
+  document.getElementById('mn-end-row').style.display = nodeKind === 'span' ? '' : 'none';
   document.getElementById('mn-parent-row').style.display = 'none';
   const parentName = parentId ? (TL.nodeById[parentId]?.title || parentId) : 'Root';
   document.getElementById('mn-parent-label').textContent = `Parent: ${parentName}`;
@@ -169,7 +233,9 @@ function openEditNodeModal(nodeId) {
   } else {
     clearDateFields('mn-end');
   }
-  document.getElementById('mn-type').value        = node.type;
+  const editTypeSelect = document.getElementById('mn-type');
+  editTypeSelect.value    = node.type;
+  editTypeSelect.disabled = !node.parent_id;  // root-level nodes stay span-only
   document.getElementById('mn-node-type').value   = node.node_type || 'event';
   document.getElementById('mn-entity-type-row').style.display = (node.node_type === 'character') ? '' : 'none';
   document.getElementById('mn-importance').value  = node.importance || 'moderate';

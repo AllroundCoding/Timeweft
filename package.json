@@ -7,11 +7,18 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "nodemon index.js"
   },
-  "keywords": ["timeline", "lore", "storytelling", "interactive", "web application"],
+  "keywords": [
+    "timeline",
+    "lore",
+    "storytelling",
+    "interactive",
+    "web application"
+  ],
   "author": "Claude & Stefan Knol",
   "license": "ISC",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.27.1",
+    "@playwright/test": "^1.58.2",
     "bcryptjs": "^3.0.3",
     "better-sqlite3": "^12.6.2",
     "cors": "^2.8.6",

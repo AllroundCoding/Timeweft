@@ -11,15 +11,112 @@ async function loadEntitiesList(search = '', entityType = '') {
   if (search) params.set('search', search);
   if (entityType) params.set('entity_type', entityType);
   const q = params.toString() ? `?${params}` : '';
-  const res = await apiFetch(`${API}/entities${q}`);
-  const data = await res.json();
-  EntState.entities = data.entities;
+  const [entRes] = await Promise.all([
+    apiFetch(`${API}/entities${q}`).then(r => r.json()),
+    loadFolders('entities'),
+  ]);
+  EntState.entities = entRes.entities;
   renderEntList();
+}
+
+function _renderEntItem(ent, container) {
+  const el = document.createElement('div');
+  el.className = 'ent-list-item' + (ent.id === EntState.activeId ? ' active' : '');
+  el.dataset.entId = ent.id;
+  el.innerHTML = `<div class="ent-list-color" style="background:${ent.color}"></div>
+    <div class="ent-list-info">
+      <div class="ent-item-name">${escapeHtml(ent.name)}</div>
+      <div class="ent-item-type">${ent.entity_type}${ent.link_count ? ` · ${ent.link_count} linked` : ''}</div>
+    </div>`;
+  el.addEventListener('click', () => openEntity(ent.id));
+  container.appendChild(el);
 }
 
 function renderEntList() {
   const container = document.getElementById('ent-list');
   container.innerHTML = '';
+
+  const folders = FolderState.entities || [];
+  if (!folders.length) {
+    // No folders — flat list grouped by type (original behaviour)
+    _renderEntListFlat(container);
+    return;
+  }
+
+  const tree = buildFolderTree(folders);
+  const folderMap = {};
+  folders.forEach(f => { folderMap[f.id] = f; });
+
+  // Group entities by folder_id
+  const byFolder = { _unfiled: [] };
+  folders.forEach(f => { byFolder[f.id] = []; });
+  EntState.entities.forEach(e => {
+    const fid = e.folder_id && byFolder[e.folder_id] ? e.folder_id : '_unfiled';
+    byFolder[fid].push(e);
+  });
+
+  // Render folder tree recursively
+  function renderFolder(f, depth) {
+    const items = byFolder[f.id] || [];
+    const hasChildren = tree.children(f.id).length > 0;
+    const group = document.createElement('div');
+    group.className = 'folder-group';
+    group.dataset.folderId = f.id;
+
+    const header = document.createElement('div');
+    header.className = 'folder-header';
+    header.dataset.folderId = f.id;
+    header.style.paddingLeft = (8 + depth * 14) + 'px';
+    const clr = f.color || 'var(--text-dim)';
+    header.innerHTML = `<span class="folder-toggle">${items.length || hasChildren ? '▸' : '·'}</span>
+      <span class="folder-icon" style="color:${clr}">📁</span>
+      <span class="folder-name">${escapeHtml(f.name)}</span>
+      <span class="folder-count">${items.length}</span>`;
+    group.appendChild(header);
+
+    const body = document.createElement('div');
+    body.className = 'folder-body collapsed';
+    body.style.paddingLeft = (depth * 14) + 'px';
+    items.forEach(ent => _renderEntItem(ent, body));
+    tree.children(f.id).forEach(child => renderFolder(child, depth + 1));
+    group.appendChild(body);
+
+    header.addEventListener('click', () => {
+      body.classList.toggle('collapsed');
+      header.querySelector('.folder-toggle').textContent = body.classList.contains('collapsed') ? '▸' : '▾';
+    });
+
+    container.appendChild(group);
+  }
+
+  tree.roots.forEach(f => renderFolder(f, 0));
+
+  // Unfiled items grouped by type
+  if (byFolder._unfiled.length) {
+    const unfiledHeader = document.createElement('div');
+    unfiledHeader.className = 'folder-header unfiled-header';
+    unfiledHeader.innerHTML = `<span class="folder-toggle">▸</span>
+      <span class="folder-icon" style="color:var(--text-dim)">📂</span>
+      <span class="folder-name">Unfiled</span>
+      <span class="folder-count">${byFolder._unfiled.length}</span>`;
+    container.appendChild(unfiledHeader);
+
+    const unfiledBody = document.createElement('div');
+    unfiledBody.className = 'folder-body collapsed';
+    byFolder._unfiled.forEach(ent => _renderEntItem(ent, unfiledBody));
+    container.appendChild(unfiledBody);
+
+    unfiledHeader.addEventListener('click', () => {
+      unfiledBody.classList.toggle('collapsed');
+      unfiledHeader.querySelector('.folder-toggle').textContent = unfiledBody.classList.contains('collapsed') ? '▸' : '▾';
+    });
+  }
+
+  if (!EntState.entities.length)
+    container.innerHTML = '<div style="padding:20px 14px;color:var(--text-dim);font-size:0.8rem;">No entities found.</div>';
+}
+
+function _renderEntListFlat(container) {
   const byType = {};
   EntState.entities.forEach(e => { (byType[e.entity_type] = byType[e.entity_type] || []).push(e); });
   const order = ['character','faction','location','item','concept','species','other'];
@@ -30,18 +127,7 @@ function renderEntList() {
     header.className = 'ent-type-header';
     header.textContent = type.charAt(0).toUpperCase() + type.slice(1) + 's';
     container.appendChild(header);
-    items.forEach(ent => {
-      const el = document.createElement('div');
-      el.className = 'ent-list-item' + (ent.id === EntState.activeId ? ' active' : '');
-      el.dataset.entId = ent.id;
-      el.innerHTML = `<div class="ent-list-color" style="background:${ent.color}"></div>
-        <div class="ent-list-info">
-          <div class="ent-item-name">${ent.name}</div>
-          <div class="ent-item-type">${ent.entity_type}${ent.link_count ? ` · ${ent.link_count} linked` : ''}</div>
-        </div>`;
-      el.addEventListener('click', () => openEntity(ent.id));
-      container.appendChild(el);
-    });
+    items.forEach(ent => _renderEntItem(ent, container));
   });
   if (!EntState.entities.length)
     container.innerHTML = '<div style="padding:20px 14px;color:var(--text-dim);font-size:0.8rem;">No entities found.</div>';
@@ -79,8 +165,14 @@ async function openEntity(id) {
 
   document.getElementById('ent-viewer-desc').innerHTML = renderMarkdown(ent.description || '');
 
+  // Render relationships
+  renderEntityRelationships(ent.id);
+
   // Render linked nodes with unlink buttons
   renderEntityLinks(ent);
+
+  // Render cross-linked documents
+  renderEntityDocLinks(id);
 
   document.getElementById('ent-edit-btn').onclick = () => openEntEditor(ent);
   document.getElementById('ent-delete-btn').onclick = () => deleteEntity(ent.id, ent.name);
@@ -92,12 +184,14 @@ function showEntSection(section) {
   document.getElementById('ent-editor').classList.toggle('active', section === 'editor');
 }
 
-function openEntEditor(ent = null) {
+async function openEntEditor(ent = null) {
   EntState.editingId = ent ? ent.id : null;
   document.getElementById('ent-ed-name').value  = ent ? ent.name        : '';
   document.getElementById('ent-ed-type').value  = ent ? ent.entity_type : 'character';
   document.getElementById('ent-ed-color').value = ent ? ent.color       : '#7c6bff';
   document.getElementById('ent-ed-desc').value  = ent ? ent.description || '' : '';
+  await loadFolders('entities');
+  document.getElementById('ent-ed-folder').innerHTML = renderFolderDropdown(FolderState.entities, ent?.folder_id);
   showEntSection('editor');
 }
 
@@ -204,6 +298,138 @@ function renderEntityLinks(ent) {
   searchInput?.addEventListener('input', doNodeSearch);
   yearMinInput?.addEventListener('input', doNodeSearch);
   yearMaxInput?.addEventListener('input', doNodeSearch);
+}
+
+// ── Entity Relationships ─────────────────────────────────────────────────────
+
+const REL_INVERSE = {
+  parent_of:'child of', married_to:'married to', sibling_of:'sibling of',
+  member_of:'has member', leads:'led by', serves:'served by',
+  ally_of:'ally of', rival_of:'rival of', enemy_of:'enemy of',
+  located_in:'contains', owns:'owned by', created_by:'creator of',
+};
+const REL_LABELS = {
+  parent_of:'parent of', married_to:'married to', sibling_of:'sibling of',
+  member_of:'member of', leads:'leads', serves:'serves',
+  ally_of:'ally of', rival_of:'rival of', enemy_of:'enemy of',
+  located_in:'located in', owns:'owns', created_by:'created by',
+  custom:'related to',
+};
+
+async function renderEntityRelationships(entityId) {
+  const listEl = document.getElementById('ent-rel-list');
+  const rels = await apiFetch(`${API}/entities/${entityId}/relationships`).then(r => r.json());
+
+  if (!rels.length) {
+    listEl.innerHTML = '<div style="color:var(--text-dim);font-size:0.8rem;margin-bottom:8px;">No relationships yet.</div>';
+  } else {
+    listEl.innerHTML = rels.map(r => {
+      const isSource = r.source_id === entityId;
+      const label = isSource ? (REL_LABELS[r.relationship] || r.relationship) : (REL_INVERSE[r.relationship] || r.relationship);
+      const ended = r.end_node_id ? ' rel-ended' : '';
+      return `<div class="rel-item${ended}" data-entity-id="${r.other_name ? (isSource ? r.target_id : r.source_id) : ''}">
+        <span class="rel-dot" style="background:${r.other_color || '#7c6bff'}"></span>
+        <span class="rel-label">${label}</span>
+        <span class="rel-target">${r.other_name || '?'}</span>
+        ${r.description ? `<span class="rel-desc">${r.description}</span>` : ''}
+        <button class="rel-remove" data-rel-id="${r.id}" title="Remove">×</button>
+      </div>`;
+    }).join('');
+
+    listEl.querySelectorAll('.rel-item').forEach(el => {
+      el.addEventListener('click', e => {
+        if (e.target.closest('.rel-remove')) return;
+        const eid = el.dataset.entityId;
+        if (eid) openEntity(eid);
+      });
+    });
+    listEl.querySelectorAll('.rel-remove').forEach(btn => {
+      btn.addEventListener('click', async e => {
+        e.stopPropagation();
+        await apiFetch(`${API}/relationships/${btn.dataset.relId}`, { method: 'DELETE' });
+        renderEntityRelationships(entityId);
+      });
+    });
+  }
+
+  // Relationship search
+  const searchInput = document.getElementById('ent-rel-search');
+  const resultsEl = document.getElementById('ent-rel-search-results');
+  let timeout;
+  searchInput.value = '';
+  resultsEl.innerHTML = '';
+
+  searchInput.oninput = () => {
+    clearTimeout(timeout);
+    const q = searchInput.value.trim();
+    if (!q) { resultsEl.innerHTML = ''; return; }
+    timeout = setTimeout(async () => {
+      const data = await apiFetch(`${API}/entities?search=${encodeURIComponent(q)}&limit=8`).then(r => r.json());
+      const matches = (data || []).filter(e => e.id !== entityId);
+      if (!matches.length) { resultsEl.innerHTML = '<div class="ent-search-hint">No matches</div>'; return; }
+      resultsEl.innerHTML = matches.map(e => `
+        <div class="ent-search-result rel-search-result" data-entity-id="${e.id}">
+          <span class="rel-dot" style="background:${e.color}"></span>
+          <span class="eln-title">${e.name}</span>
+          <span class="eln-badge">${e.entity_type}</span>
+        </div>`).join('');
+
+      resultsEl.querySelectorAll('.rel-search-result').forEach(el => {
+        el.addEventListener('click', () => showRelTypeSelector(entityId, el.dataset.entityId, el));
+      });
+    }, 200);
+  };
+
+  // Graph button
+  document.getElementById('ent-view-graph-btn').onclick = () => openRelGraph(entityId);
+}
+
+function showRelTypeSelector(sourceId, targetId, anchorEl) {
+  // Remove any existing selector
+  document.querySelector('.rel-type-selector')?.remove();
+  const sel = document.createElement('div');
+  sel.className = 'rel-type-selector';
+  sel.innerHTML = Object.entries(REL_LABELS).map(([k, v]) =>
+    `<div class="rel-type-option" data-type="${k}">${v}</div>`
+  ).join('');
+  anchorEl.after(sel);
+
+  sel.querySelectorAll('.rel-type-option').forEach(opt => {
+    opt.addEventListener('click', async () => {
+      sel.remove();
+      await apiFetch(`${API}/entities/${sourceId}/relationships`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ target_id: targetId, relationship: opt.dataset.type }),
+      });
+      document.getElementById('ent-rel-search').value = '';
+      document.getElementById('ent-rel-search-results').innerHTML = '';
+      renderEntityRelationships(sourceId);
+    });
+  });
+
+  // Dismiss on outside click
+  setTimeout(() => {
+    document.addEventListener('click', function dismiss(e) {
+      if (!sel.contains(e.target)) { sel.remove(); document.removeEventListener('click', dismiss); }
+    });
+  }, 0);
+}
+
+function openRelGraph(entityId) {
+  document.getElementById('ent-viewer').style.display = 'none';
+  document.getElementById('ent-rel-graph-wrap').style.display = '';
+  document.getElementById('rel-depth-val').textContent = document.getElementById('rel-depth-slider').value;
+  document.getElementById('rel-depth-slider').oninput = (e) => {
+    document.getElementById('rel-depth-val').textContent = e.target.value;
+    renderRelGraph(entityId);
+  };
+  document.getElementById('rel-mode-select').onchange = () => renderRelGraph(entityId);
+  document.getElementById('rel-graph-close').onclick = () => {
+    document.getElementById('ent-rel-graph-wrap').style.display = 'none';
+    document.getElementById('ent-viewer').style.display = 'block';
+  };
+  renderRelGraph(entityId);
 }
 
 async function deleteEntity(id, name) {

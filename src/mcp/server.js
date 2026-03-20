@@ -471,6 +471,212 @@ const TOOL_DEFINITIONS = [
     },
   },
 
+  // ── Entity-Doc Links ────────────────────────────────────────────────────
+  {
+    name: 'link_entity_doc',
+    description: 'Link an entity to a document (many-to-many cross-reference).',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        entity_id: { type: 'string' },
+        doc_id:    { type: 'string' },
+        role:      { type: 'string', description: 'Role/relationship label (optional)' },
+      },
+      required: ['entity_id', 'doc_id'],
+    },
+  },
+  {
+    name: 'unlink_entity_doc',
+    description: 'Remove a link between an entity and a document.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        entity_id: { type: 'string' },
+        doc_id:    { type: 'string' },
+      },
+      required: ['entity_id', 'doc_id'],
+    },
+  },
+
+  // ── Doc-Node Links ─────────────────────────────────────────────────────
+  {
+    name: 'link_doc_node',
+    description: 'Link a document to a timeline node (many-to-many cross-reference).',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        doc_id:  { type: 'string' },
+        node_id: { type: 'string' },
+        role:    { type: 'string', description: 'Role/relationship label (optional)' },
+      },
+      required: ['doc_id', 'node_id'],
+    },
+  },
+  {
+    name: 'unlink_doc_node',
+    description: 'Remove a link between a document and a timeline node.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        doc_id:  { type: 'string' },
+        node_id: { type: 'string' },
+      },
+      required: ['doc_id', 'node_id'],
+    },
+  },
+
+  // ── Backlinks ──────────────────────────────────────────────────────────
+  {
+    name: 'get_backlinks',
+    description: 'Get all cross-references pointing to or from a given entity, document, or node.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        type: { type: 'string', enum: ['entity', 'doc', 'node'], description: 'Resource type' },
+        id:   { type: 'string', description: 'Resource ID' },
+      },
+      required: ['type', 'id'],
+    },
+  },
+
+  // ── Folders ────────────────────────────────────────────────────────────
+  {
+    name: 'list_folders',
+    description: 'List all folders, optionally filtered by type (docs or entities).',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        type: { type: 'string', enum: ['docs', 'entities'], description: 'Filter by folder type' },
+      },
+    },
+  },
+  {
+    name: 'create_folder',
+    description: 'Create a new folder for organizing documents or entities.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        name:        { type: 'string' },
+        folder_type: { type: 'string', enum: ['docs', 'entities'] },
+        parent_id:   { type: 'string', description: 'Parent folder ID for nesting (optional)' },
+        color:       { type: 'string', description: 'Hex color (optional)' },
+      },
+      required: ['name', 'folder_type'],
+    },
+  },
+
+  // ── Entity Relationships ─────────────────────────────────────────────────
+  {
+    name: 'add_relationship',
+    description: 'Create a relationship between two entities. Types: parent_of, married_to, sibling_of, member_of, leads, serves, ally_of, rival_of, enemy_of, located_in, owns, created_by, custom.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        source_id:     { type: 'string', description: 'Source entity ID' },
+        target_id:     { type: 'string', description: 'Target entity ID' },
+        relationship:  { type: 'string', description: 'Relationship type' },
+        description:   { type: 'string', description: 'Optional description of the relationship' },
+        start_node_id: { type: 'string', description: 'Timeline node ID when this relationship began (optional)' },
+        end_node_id:   { type: 'string', description: 'Timeline node ID when this relationship ended (optional)' },
+      },
+      required: ['source_id', 'target_id', 'relationship'],
+    },
+  },
+  {
+    name: 'remove_relationship',
+    description: 'Remove a relationship by its ID.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        relationship_id: { type: 'string', description: 'Relationship ID to remove' },
+      },
+      required: ['relationship_id'],
+    },
+  },
+  {
+    name: 'get_relationships',
+    description: 'Get all relationships for an entity, optionally filtered by type.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        entity_id: { type: 'string', description: 'Entity ID to get relationships for' },
+        type:      { type: 'string', description: 'Filter by relationship type (e.g. parent_of, ally_of)' },
+      },
+      required: ['entity_id'],
+    },
+  },
+
+  // ── Story Arcs ──────────────────────────────────────────────────────────
+  {
+    name: 'list_arcs',
+    description: 'List all story arcs with summary stats (node count, entity count, status).',
+    inputSchema: { type: 'object', properties: {} },
+  },
+  {
+    name: 'get_arc',
+    description: 'Get full details of a story arc including its nodes and entity participants.',
+    inputSchema: {
+      type: 'object',
+      properties: { arc_id: { type: 'string', description: 'Story arc ID' } },
+      required: ['arc_id'],
+    },
+  },
+  {
+    name: 'create_arc',
+    description: 'Create a new story arc.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        name:        { type: 'string', description: 'Arc name' },
+        description: { type: 'string', description: 'Arc description (markdown)' },
+        color:       { type: 'string', description: 'Hex color (default #c97b2a)' },
+        status:      { type: 'string', description: 'planned, active, resolved, or abandoned (default: active)' },
+      },
+      required: ['name'],
+    },
+  },
+  {
+    name: 'update_arc',
+    description: 'Update a story arc\'s properties.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        arc_id:      { type: 'string', description: 'Story arc ID' },
+        name:        { type: 'string' },
+        description: { type: 'string' },
+        color:       { type: 'string' },
+        status:      { type: 'string' },
+      },
+      required: ['arc_id'],
+    },
+  },
+  {
+    name: 'add_arc_event',
+    description: 'Add a timeline node to a story arc.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        arc_id:    { type: 'string', description: 'Story arc ID' },
+        node_id:   { type: 'string', description: 'Timeline node ID to add' },
+        position:  { type: 'number', description: 'Position in the arc sequence (default 0)' },
+        arc_label: { type: 'string', description: 'Label (e.g. inciting incident, climax, resolution)' },
+      },
+      required: ['arc_id', 'node_id'],
+    },
+  },
+  {
+    name: 'remove_arc_event',
+    description: 'Remove a timeline node from a story arc.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        arc_id:  { type: 'string', description: 'Story arc ID' },
+        node_id: { type: 'string', description: 'Timeline node ID to remove' },
+      },
+      required: ['arc_id', 'node_id'],
+    },
+  },
+
   // ── Mentions Search ───────────────────────────────────────────────────────
   {
     name: 'search_mentions',
@@ -1054,6 +1260,98 @@ async function handleUnlinkEntityNode(args) {
   return { content: [{ type: 'text', text: `Unlinked entity \`${args.entity_id}\` from node \`${args.node_id}\`.` }] };
 }
 
+// ── Entity-Doc link handlers ──────────────────────────────────────────────────
+
+async function handleLinkEntityDoc(args) {
+  db.prepare('INSERT OR IGNORE INTO entity_doc_links (entity_id, doc_id, role) VALUES (?, ?, ?)')
+    .run(args.entity_id, args.doc_id, args.role || '');
+  const entity = db.prepare('SELECT name FROM entities WHERE id = ?').get(args.entity_id);
+  const doc = db.prepare('SELECT title FROM documents WHERE id = ?').get(args.doc_id);
+  return { content: [{ type: 'text', text: `Linked entity **${entity?.name || args.entity_id}** to doc **${doc?.title || args.doc_id}**${args.role ? ` (${args.role})` : ''}.` }] };
+}
+
+async function handleUnlinkEntityDoc(args) {
+  db.prepare('DELETE FROM entity_doc_links WHERE entity_id = ? AND doc_id = ?')
+    .run(args.entity_id, args.doc_id);
+  return { content: [{ type: 'text', text: `Unlinked entity \`${args.entity_id}\` from doc \`${args.doc_id}\`.` }] };
+}
+
+// ── Doc-Node link handlers ────────────────────────────────────────────────────
+
+async function handleLinkDocNode(args) {
+  db.prepare('INSERT OR IGNORE INTO doc_node_links (doc_id, node_id, role) VALUES (?, ?, ?)')
+    .run(args.doc_id, args.node_id, args.role || '');
+  const doc = db.prepare('SELECT title FROM documents WHERE id = ?').get(args.doc_id);
+  const node = getNode(db, args.node_id);
+  return { content: [{ type: 'text', text: `Linked doc **${doc?.title || args.doc_id}** to node **${node?.title || args.node_id}**${args.role ? ` (${args.role})` : ''}.` }] };
+}
+
+async function handleUnlinkDocNode(args) {
+  db.prepare('DELETE FROM doc_node_links WHERE doc_id = ? AND node_id = ?')
+    .run(args.doc_id, args.node_id);
+  return { content: [{ type: 'text', text: `Unlinked doc \`${args.doc_id}\` from node \`${args.node_id}\`.` }] };
+}
+
+// ── Backlinks handler ─────────────────────────────────────────────────────────
+
+async function handleGetBacklinks(args) {
+  const { type, id } = args;
+  const links = {};
+
+  if (type === 'entity') {
+    links.linked_docs = db.prepare(`SELECT d.id, d.title, l.role FROM entity_doc_links l
+      JOIN documents d ON d.id = l.doc_id WHERE l.entity_id = ?`).all(id);
+    links.linked_nodes = db.prepare(`SELECT n.id, n.title, l.role FROM entity_node_links l
+      JOIN timeline_nodes n ON n.id = l.node_id WHERE l.entity_id = ?`).all(id);
+  } else if (type === 'doc') {
+    links.linked_entities = db.prepare(`SELECT e.id, e.name, l.role FROM entity_doc_links l
+      JOIN entities e ON e.id = l.entity_id WHERE l.doc_id = ?`).all(id);
+    links.linked_nodes = db.prepare(`SELECT n.id, n.title, l.role FROM doc_node_links l
+      JOIN timeline_nodes n ON n.id = l.node_id WHERE l.doc_id = ?`).all(id);
+  } else if (type === 'node') {
+    links.linked_entities = db.prepare(`SELECT e.id, e.name, l.role FROM entity_node_links l
+      JOIN entities e ON e.id = l.entity_id WHERE l.node_id = ?`).all(id);
+    links.linked_docs = db.prepare(`SELECT d.id, d.title, l.role FROM doc_node_links l
+      JOIN documents d ON d.id = l.doc_id WHERE l.node_id = ?`).all(id);
+  }
+
+  const sections = Object.entries(links).filter(([, arr]) => arr.length);
+  if (!sections.length) return { content: [{ type: 'text', text: `No backlinks found for ${type} \`${id}\`.` }] };
+
+  let text = `**Backlinks for ${type} \`${id}\`:**\n\n`;
+  for (const [key, arr] of sections) {
+    text += `### ${key.replace(/_/g, ' ')}\n`;
+    for (const r of arr) {
+      const label = r.name || r.title;
+      text += `- **${label}** (\`${r.id}\`)${r.role ? ` — ${r.role}` : ''}\n`;
+    }
+    text += '\n';
+  }
+  return { content: [{ type: 'text', text }] };
+}
+
+// ── Folder handlers ───────────────────────────────────────────────────────────
+
+async function handleListFolders(args) {
+  const rows = args?.type
+    ? db.prepare('SELECT * FROM folders WHERE folder_type = ? ORDER BY sort_order, name').all(args.type)
+    : db.prepare('SELECT * FROM folders ORDER BY folder_type, sort_order, name').all();
+  if (!rows.length) return { content: [{ type: 'text', text: 'No folders found.' }] };
+
+  let text = `**${rows.length} folder(s):**\n\n`;
+  for (const f of rows) {
+    text += `- **${f.name}** (\`${f.id}\`) — ${f.folder_type}${f.parent_id ? `, parent: \`${f.parent_id}\`` : ''}${f.color ? `, color: ${f.color}` : ''}\n`;
+  }
+  return { content: [{ type: 'text', text }] };
+}
+
+async function handleCreateFolder(args) {
+  const id = generateUUID();
+  db.prepare('INSERT INTO folders (id, name, folder_type, parent_id, color) VALUES (?, ?, ?, ?, ?)')
+    .run(id, args.name, args.folder_type, args.parent_id || null, args.color || null);
+  return { content: [{ type: 'text', text: `Created ${args.folder_type} folder **${args.name}** (\`${id}\`).` }] };
+}
+
 // ── Mentions search handler ───────────────────────────────────────────────────
 
 async function handleSearchMentions(args) {
@@ -1083,6 +1381,117 @@ async function handleSearchMentions(args) {
     text += `- [${it._kind}] **${it.name}** (\`${it.id}\`) — ${it.type_label}\n`;
   }
   return { content: [{ type: 'text', text }] };
+}
+
+// ── Relationship handlers ─────────────────────────────────────────────────────
+
+async function handleAddRelationship(args) {
+  const { source_id, target_id, relationship, description, start_node_id, end_node_id } = args;
+  if (!source_id || !target_id || !relationship) return { content: [{ type: 'text', text: 'source_id, target_id, and relationship are required.' }] };
+  if (source_id === target_id) return { content: [{ type: 'text', text: 'Cannot relate an entity to itself.' }] };
+  const id = 'rel_' + require('crypto').randomUUID().replace(/-/g, '').slice(0, 12);
+  try {
+    db.prepare(`INSERT INTO entity_relationships (id, source_id, target_id, relationship, description, start_node_id, end_node_id)
+      VALUES (?, ?, ?, ?, ?, ?, ?)`).run(id, source_id, target_id, relationship, description || null, start_node_id || null, end_node_id || null);
+  } catch (e) {
+    if (e.message?.includes('UNIQUE')) return { content: [{ type: 'text', text: 'Relationship already exists.' }] };
+    throw e;
+  }
+  const src = db.prepare('SELECT name FROM entities WHERE id = ?').get(source_id);
+  const tgt = db.prepare('SELECT name FROM entities WHERE id = ?').get(target_id);
+  return { content: [{ type: 'text', text: `Created relationship: **${src?.name || source_id}** → *${relationship}* → **${tgt?.name || target_id}** (\`${id}\`)` }] };
+}
+
+async function handleRemoveRelationship(args) {
+  const info = db.prepare('DELETE FROM entity_relationships WHERE id = ?').run(args.relationship_id);
+  return { content: [{ type: 'text', text: info.changes ? 'Relationship removed.' : 'Relationship not found.' }] };
+}
+
+async function handleGetRelationships(args) {
+  const { entity_id, type } = args;
+  let sql = `SELECT r.*, e.name AS other_name, e.entity_type AS other_type
+    FROM entity_relationships r
+    JOIN entities e ON e.id = CASE WHEN r.source_id = ? THEN r.target_id ELSE r.source_id END
+    WHERE (r.source_id = ? OR r.target_id = ?)`;
+  const params = [entity_id, entity_id, entity_id];
+  if (type) { sql += ' AND r.relationship = ?'; params.push(type); }
+  const rows = db.prepare(sql).all(...params);
+  if (!rows.length) return { content: [{ type: 'text', text: 'No relationships found.' }] };
+  const ent = db.prepare('SELECT name FROM entities WHERE id = ?').get(entity_id);
+  let text = `**${ent?.name || entity_id}** has **${rows.length}** relationship(s):\n\n`;
+  for (const r of rows) {
+    const dir = r.source_id === entity_id ? '→' : '←';
+    text += `- ${dir} *${r.relationship}* **${r.other_name}** (${r.other_type}) — \`${r.id}\``;
+    if (r.description) text += ` — ${r.description}`;
+    text += '\n';
+  }
+  return { content: [{ type: 'text', text }] };
+}
+
+// ── Story Arc handlers ────────────────────────────────────────────────────────
+
+async function handleListArcs() {
+  const arcs = db.prepare(`SELECT a.*,
+    (SELECT COUNT(*) FROM arc_node_links WHERE arc_id = a.id) AS node_count,
+    (SELECT COUNT(*) FROM arc_entity_links WHERE arc_id = a.id) AS entity_count
+    FROM story_arcs a ORDER BY a.sort_order, a.name`).all();
+  if (!arcs.length) return { content: [{ type: 'text', text: 'No story arcs yet.' }] };
+  let text = `**${arcs.length}** story arc(s):\n\n`;
+  for (const a of arcs) {
+    text += `- **${a.name}** (\`${a.id}\`) — ${a.status} — ${a.node_count} events, ${a.entity_count} participants\n`;
+  }
+  return { content: [{ type: 'text', text }] };
+}
+
+async function handleGetArc(args) {
+  const arc = db.prepare('SELECT * FROM story_arcs WHERE id = ?').get(args.arc_id);
+  if (!arc) return { content: [{ type: 'text', text: 'Arc not found.' }] };
+  const nodes = db.prepare(`SELECT anl.*, n.title FROM arc_node_links anl JOIN timeline_nodes n ON n.id = anl.node_id WHERE anl.arc_id = ? ORDER BY anl.position`).all(args.arc_id);
+  const entities = db.prepare(`SELECT ael.*, e.name, e.entity_type FROM arc_entity_links ael JOIN entities e ON e.id = ael.entity_id WHERE ael.arc_id = ?`).all(args.arc_id);
+  let text = `## ${arc.name}\n**Status:** ${arc.status} | **Color:** ${arc.color}\n`;
+  if (arc.description) text += `\n${arc.description}\n`;
+  if (nodes.length) {
+    text += `\n### Events (${nodes.length})\n`;
+    for (const n of nodes) text += `${n.position ?? '-'}. **${n.title}** (\`${n.node_id}\`)${n.arc_label ? ` — *${n.arc_label}*` : ''}\n`;
+  }
+  if (entities.length) {
+    text += `\n### Participants (${entities.length})\n`;
+    for (const e of entities) text += `- **${e.name}** (${e.entity_type})${e.role ? ` — ${e.role}` : ''}\n`;
+  }
+  return { content: [{ type: 'text', text }] };
+}
+
+async function handleCreateArc(args) {
+  const { name, description, color, status } = args;
+  if (!name) return { content: [{ type: 'text', text: 'name is required.' }] };
+  const id = 'arc_' + require('crypto').randomUUID().replace(/-/g, '').slice(0, 12);
+  db.prepare(`INSERT INTO story_arcs (id, name, description, color, status) VALUES (?, ?, ?, ?, ?)`)
+    .run(id, name, description || null, color || '#c97b2a', status || 'active');
+  return { content: [{ type: 'text', text: `Created arc **${name}** (\`${id}\`)` }] };
+}
+
+async function handleUpdateArc(args) {
+  const { arc_id, name, description, color, status } = args;
+  const existing = db.prepare('SELECT * FROM story_arcs WHERE id = ?').get(arc_id);
+  if (!existing) return { content: [{ type: 'text', text: 'Arc not found.' }] };
+  db.prepare(`UPDATE story_arcs SET name = COALESCE(?, name), description = COALESCE(?, description),
+    color = COALESCE(?, color), status = COALESCE(?, status), updated_at = datetime('now') WHERE id = ?`)
+    .run(name || null, description !== undefined ? description : null, color || null, status || null, arc_id);
+  return { content: [{ type: 'text', text: `Updated arc \`${arc_id}\`.` }] };
+}
+
+async function handleAddArcEvent(args) {
+  const { arc_id, node_id, position, arc_label } = args;
+  if (!arc_id || !node_id) return { content: [{ type: 'text', text: 'arc_id and node_id required.' }] };
+  db.prepare(`INSERT OR IGNORE INTO arc_node_links (arc_id, node_id, position, arc_label) VALUES (?, ?, ?, ?)`)
+    .run(arc_id, node_id, position ?? 0, arc_label || null);
+  const node = db.prepare('SELECT title FROM timeline_nodes WHERE id = ?').get(node_id);
+  return { content: [{ type: 'text', text: `Added **${node?.title || node_id}** to arc${arc_label ? ` as *${arc_label}*` : ''}.` }] };
+}
+
+async function handleRemoveArcEvent(args) {
+  db.prepare('DELETE FROM arc_node_links WHERE arc_id = ? AND node_id = ?').run(args.arc_id, args.node_id);
+  return { content: [{ type: 'text', text: 'Removed event from arc.' }] };
 }
 
 // ── MCP server setup ──────────────────────────────────────────────────────────
@@ -1137,6 +1546,34 @@ mcpServer.setRequestHandler(CallToolRequestSchema, async (request) => {
       // Entity-Node links
       case 'link_entity_node':   return await handleLinkEntityNode(args);
       case 'unlink_entity_node': return await handleUnlinkEntityNode(args);
+
+      // Entity-Doc links
+      case 'link_entity_doc':   return await handleLinkEntityDoc(args);
+      case 'unlink_entity_doc': return await handleUnlinkEntityDoc(args);
+
+      // Doc-Node links
+      case 'link_doc_node':   return await handleLinkDocNode(args);
+      case 'unlink_doc_node': return await handleUnlinkDocNode(args);
+
+      // Backlinks
+      case 'get_backlinks': return await handleGetBacklinks(args);
+
+      // Folders
+      case 'list_folders':  return await handleListFolders(args || {});
+      case 'create_folder': return await handleCreateFolder(args);
+
+      // Relationships
+      case 'add_relationship':    return await handleAddRelationship(args);
+      case 'remove_relationship': return await handleRemoveRelationship(args);
+      case 'get_relationships':   return await handleGetRelationships(args);
+
+      // Story Arcs
+      case 'list_arcs':        return await handleListArcs();
+      case 'get_arc':          return await handleGetArc(args);
+      case 'create_arc':       return await handleCreateArc(args);
+      case 'update_arc':       return await handleUpdateArc(args);
+      case 'add_arc_event':    return await handleAddArcEvent(args);
+      case 'remove_arc_event': return await handleRemoveArcEvent(args);
 
       // Mentions
       case 'search_mentions': return await handleSearchMentions(args);
