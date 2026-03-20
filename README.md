@@ -1,5 +1,7 @@
 # World Timelines
 
+**[Try the live demo](https://demo.timeweft.app/)** — login with `demo` / `demo`
+
 A local web app + MCP server for building and managing timelines for creative worldbuilding projects. Track events, characters, factions, locations, and documents — all connected through a hierarchical, calendar-aware timeline.
 
 ## Features
