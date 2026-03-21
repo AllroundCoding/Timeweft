@@ -248,7 +248,7 @@ function buildGanttLaneRow(lane, yearMin, yearMax, ppy, h, canvasW, viewYearMin,
   return row;
 }
 
-function buildGantt(nodes) {
+function buildGantt(nodes, existingGantt) {
   // ── Coordinate system ─────────────────────────────────────────────────────
   let dataMin = -1000, dataMax = 2000;
   if (nodes.length) {
@@ -329,7 +329,10 @@ function buildGantt(nodes) {
   const lanes   = flattenLanes(nodes, ppy);
 
   // ── Build DOM ──────────────────────────────────────────────────────────────
-  const gantt = document.createElement('div');
+  // When existingGantt is provided, update it in-place so .gantt-timeline
+  // never leaves the DOM (preserves native scrollbar drag state).
+  const reusing = !!existingGantt;
+  const gantt = existingGantt || document.createElement('div');
   gantt.className = 'gantt';
 
   // Header: corner + ruler
@@ -344,17 +347,17 @@ function buildGantt(nodes) {
   rulerVP.appendChild(buildGanttRuler(yearMin, yearMax, ppy, canvasW, step));
   head.appendChild(corner);
   head.appendChild(rulerVP);
-  gantt.appendChild(head);
 
   // Body: labels sidebar + timeline
-  const body = document.createElement('div');
-  body.className = 'gantt-body';
-
   const labelsEl = document.createElement('div');
   labelsEl.className = 'gantt-labels';
 
-  const tlWrap = document.createElement('div');
+  const tlWrap = (reusing && gantt.querySelector('.gantt-timeline')) || document.createElement('div');
   tlWrap.className = 'gantt-timeline';
+  // Abort previous scroll/sync listeners before attaching new ones
+  if (tlWrap._scrollAC) tlWrap._scrollAC.abort();
+  tlWrap._scrollAC = new AbortController();
+  const _signal = tlWrap._scrollAC.signal;
 
   const track = document.createElement('div');
   track.className = 'gantt-track';
@@ -374,10 +377,23 @@ function buildGantt(nodes) {
     }
   }
 
-  tlWrap.appendChild(track);
-  body.appendChild(labelsEl);
-  body.appendChild(tlWrap);
-  gantt.appendChild(body);
+  if (reusing) {
+    // Atomic swap: replace track content without removing .gantt-timeline from DOM
+    tlWrap.replaceChildren(track);
+    // Replace header and labels in-place
+    const oldHead = gantt.querySelector('.gantt-head');
+    if (oldHead) oldHead.replaceWith(head);
+    const oldLabels = gantt.querySelector('.gantt-labels');
+    if (oldLabels) oldLabels.replaceWith(labelsEl);
+  } else {
+    tlWrap.appendChild(track);
+    const body = document.createElement('div');
+    body.className = 'gantt-body';
+    body.appendChild(labelsEl);
+    body.appendChild(tlWrap);
+    gantt.appendChild(head);
+    gantt.appendChild(body);
+  }
 
   // ── Scroll sync ────────────────────────────────────────────────────────────
   const defaultScroll = Math.max(0, ((DEFAULT_VIEW_START ?? dataMin) - yearMin) * ppy - CANVAS_PAD);
@@ -388,7 +404,7 @@ function buildGantt(nodes) {
     _syncing = true;
     tlWrap.scrollTop = labelsEl.scrollTop;
     _syncing = false;
-  }, { passive: true });
+  }, { passive: true, signal: _signal });
 
   const isWindowed = worldRange > maxYearRange;
 
@@ -425,7 +441,7 @@ function buildGantt(nodes) {
         requestAnimationFrame(() => { TL._edgeRenderPending = false; renderWorld(); });
       }
     }
-  }, { passive: true });
+  }, { passive: true, signal: _signal });
 
   // Scroll is applied synchronously by the caller after appending to the DOM.
   gantt._applyScroll = () => {

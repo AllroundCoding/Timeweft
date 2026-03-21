@@ -236,14 +236,6 @@ function _startDrag(e, row, parentSpan) {
   if (findNodeEl(e.target, row)) return;           // started on a node — skip
   if (document.body.classList.contains('share-no-edit-timeline')) return;
 
-  // Don't interfere with scrollbar dragging
-  const tlWrap = document.querySelector('.gantt-timeline');
-  if (tlWrap) {
-    const rect = tlWrap.getBoundingClientRect();
-    if (e.clientY > rect.bottom - 14) return;     // horizontal scrollbar zone
-    if (e.clientX > rect.right - 14) return;      // vertical scrollbar zone
-  }
-
   _drag.active   = true;
   _drag.didDrag  = false;
   _drag.row      = row;

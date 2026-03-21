@@ -12,18 +12,21 @@ function renderWorld() {
     requestAnimationFrame(renderWorld);
     return;
   }
-  // Scroll state is maintained by the scroll listener in buildGantt and
-  // applied synchronously after DOM append — no snapshot needed here.
-  const vp    = document.getElementById('tl-viewport');
-  root.innerHTML = '';
+  const vp = document.getElementById('tl-viewport');
+  const existingGantt = root.querySelector('.gantt');
   const nodes = TL.childCache['root'] || [];
   if (nodes.length === 0) {
     vp?.classList.remove('gantt-mode');
     root.innerHTML = '<div class="tl-empty">No timeline groups yet — click <strong>+ Add Group</strong> or right-click here to start.</div>';
   } else {
     vp?.classList.add('gantt-mode');
-    const gantt = buildGantt(nodes);
-    root.appendChild(gantt);
+    // Pass existing .gantt element so buildGantt can update in-place,
+    // keeping .gantt-timeline in the DOM (preserves native scrollbar drag).
+    const gantt = buildGantt(nodes, existingGantt);
+    if (!existingGantt) {
+      root.innerHTML = '';
+      root.appendChild(gantt);
+    }
     gantt._applyScroll();  // synchronous — no flash
     // Arc overlay (async, non-blocking — renders after data fetched)
     if (gantt._renderArcOverlay) gantt._renderArcOverlay();
