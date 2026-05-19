@@ -141,3 +141,5 @@ vite.config.ts.timestamp-*
 data/
 .claude/
 package-lock.json
+/.refact/
+/.idea/
