@@ -47,6 +47,7 @@ handful of reused mechanisms:
 | [10](10-persistence-lod-roadmap.md) | Persistence, LOD & roadmap | 🟡/⚪ |
 | [11](11-cultural-and-social-model.md) | Cultural & social model | 🟡 |
 | [12](12-goods-tastes-tech-conflict.md) | Goods, tastes, technology & conflict | ⚪ |
+| [13](13-world-generation-geography.md) | World generation & geography | ⚪ |
 
 See **[ROADMAP.md](ROADMAP.md)** for the broad-strokes build arc (the phases M0–M9). The
 granular task backlog lives in **Linear** (project *Timeweft*) — one issue per piece of work,

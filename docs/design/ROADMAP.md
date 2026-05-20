@@ -1,6 +1,6 @@
 # Roadmap
 
-The design docs (01–12) describe *what* the simulator is. This file is the **broad-strokes
+The design docs (01–13) describe *what* the simulator is. This file is the **broad-strokes
 arc** of how it gets built — the phases and their throughlines, not the task list.
 
 The granular, task-level backlog lives in **Linear** (project *Timeweft*), one issue per piece
@@ -46,5 +46,11 @@ Each phase builds on the last; the order is dependency-aware so prerequisites la
 
 M8–M9 build on **M6**'s scale-polymorphic kingdoms; **M7** (presentation) is an overlay that can
 land whenever there's enough to show. The numbering is dependency order, not strict sequence.
+
+Beneath all of this sits a **world-generation substrate** ([13](13-world-generation-geography.md)):
+geology that generates terrain, climate, and minerals — the root of "generate from materials" —
+landing around M6/M7 when the map outgrows hand-authored regions. Slow geology is frozen at
+worldgen; fast hazards (quakes, eruptions) run as emergent shocks, and the same engine could one
+day widen its timestep into deep-time, prehistoric ages.
 
 See the design docs for the systems behind each phase, and Linear for the work itself.
