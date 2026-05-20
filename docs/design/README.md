@@ -45,6 +45,7 @@ handful of reused mechanisms:
 | [08](08-direction-and-generation.md) | Story direction & generation | 🟢/🟡 |
 | [09](09-causality-editing-ripple.md) | Causality, editing & ripple | 🟡 |
 | [10](10-persistence-lod-roadmap.md) | Persistence, LOD & roadmap | 🟡/⚪ |
+| [11](11-cultural-and-social-model.md) | Cultural & social model | 🟡 |
 
 ## Status legend
 
