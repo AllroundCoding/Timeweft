@@ -20,7 +20,6 @@ class WorldSimulate extends Command
         $years = (int) $this->option('years');
         $seed = (string) $this->option('seed');
         $population = (int) $this->option('population');
-        $ticks = $years * TharadiCalendar::HOURS_PER_DAY * TharadiCalendar::DAYS_PER_YEAR;
 
         $rng = new Rng($seed);
         $world = World::seedTharadosVillage($rng, $population);
@@ -30,7 +29,12 @@ class WorldSimulate extends Command
         $this->line(sprintf('Founded %s; simulating %d years…', TharadiCalendar::fromTick(0), $years));
         $this->newLine();
 
-        $world->advance($ticks);
+        $ticksPerYear = TharadiCalendar::HOURS_PER_DAY * TharadiCalendar::DAYS_PER_YEAR;
+        $popSeries = [];
+        for ($y = 1; $y <= $years; $y++) {
+            $world->advance($ticksPerYear);
+            $popSeries[] = count($world->livingAgents());
+        }
 
         $this->comment('Chronicle:');
         foreach ($world->chronicle->all() as $entry) {
@@ -44,6 +48,15 @@ class WorldSimulate extends Command
         $living = $world->livingAgents();
         $this->comment('Population:');
         $this->line(sprintf('  founders %d  ·  born %d  ·  died %d  ·  living now %d', $foundingCount, $born, $died, count($living)));
+        $this->line(sprintf(
+            '  trajectory %s  Y1=%d … Y%d=%d  (peak %d, carrying capacity %d)',
+            $this->sparkline($popSeries),
+            $popSeries[0] ?? 0,
+            $years,
+            $popSeries[array_key_last($popSeries)] ?? 0,
+            $popSeries === [] ? 0 : max($popSeries),
+            $world->village->carryingCapacity,
+        ));
         $this->newLine();
 
         $this->comment('Milestones (story director):');
@@ -187,5 +200,21 @@ class WorldSimulate extends Command
         }
 
         return null;
+    }
+
+    /** @param list<int> $values */
+    private function sparkline(array $values): string
+    {
+        if ($values === []) {
+            return '';
+        }
+        $bars = ['▁', '▂', '▃', '▄', '▅', '▆', '▇', '█'];
+        $max = max($values);
+        $out = '';
+        foreach ($values as $v) {
+            $out .= $bars[$max > 0 ? (int) round($v / $max * (count($bars) - 1)) : 0];
+        }
+
+        return $out;
     }
 }

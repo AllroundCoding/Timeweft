@@ -48,7 +48,7 @@ final class World
             $agents[] = $world->species->birth($world->nextId++, $birthTick, $world->region, $rng, $world->names);
         }
 
-        $world->village = new Village('Sunwell Oasis', $world->region->name, $agents);
+        $world->village = new Village('Sunwell Oasis', $world->region->name, $agents, carryingCapacity: 22);
         $world->milestones[] = new Milestone(
             name: 'trading post on the caravan road',
             deadlineYear: 12,

@@ -18,6 +18,7 @@ final class EmergenceEngine
     private const PAIR_CHANCE_DAY = 0.02;
     private const BIRTH_CHANCE_DAY = 0.0025;
     private const BIRTH_SPACING_YEARS = 2;
+    private const FAMINE_SEVERITY = 2.0;
 
     public static function runDay(World $world, int $tick, TharadiDate $date): void
     {
@@ -61,6 +62,11 @@ final class EmergenceEngine
     {
         $ticksPerYear = TharadiCalendar::HOURS_PER_DAY * TharadiCalendar::DAYS_PER_YEAR;
 
+        // Density-dependent fertility: births slow as the population nears carrying capacity.
+        $population = count($world->livingAgents());
+        $capacity = $world->village->carryingCapacity;
+        $density = $capacity > 0 ? max(0.0, 1.0 - $population / $capacity) : 1.0;
+
         foreach ($world->livingAgents() as $mother) {
             if ($mother->sex !== 'f' || $mother->partnerId === null) {
                 continue;
@@ -72,7 +78,7 @@ final class EmergenceEngine
             if ($mother->lastBirthTick !== null && ($tick - $mother->lastBirthTick) < self::BIRTH_SPACING_YEARS * $ticksPerYear) {
                 continue;
             }
-            if (! $rng->chance(self::BIRTH_CHANCE_DAY)) {
+            if (! $rng->chance(self::BIRTH_CHANCE_DAY * $density)) {
                 continue;
             }
             $father = self::byId($world, $mother->partnerId);
@@ -85,9 +91,14 @@ final class EmergenceEngine
 
     private static function tryDeaths(World $world, int $tick, TharadiDate $date, Rng $rng): void
     {
+        // Overcrowding past carrying capacity raises mortality (famine) and pulls population back.
+        $population = count($world->livingAgents());
+        $capacity = $world->village->carryingCapacity;
+        $famine = $population > $capacity ? 1.0 + (($population - $capacity) / $capacity) * self::FAMINE_SEVERITY : 1.0;
+
         foreach ($world->livingAgents() as $agent) {
             $age = $agent->ageInYears($tick);
-            if (! $rng->chance(self::dailyMortality($age))) {
+            if (! $rng->chance(self::dailyMortality($age) * $famine)) {
                 continue;
             }
 

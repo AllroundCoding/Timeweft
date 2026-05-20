@@ -10,10 +10,15 @@ final class Village
     public ?float $lastReadiness = null;
     public int $underpreparedYears = 0;
 
-    /** @param list<Agent> $agents */
+    /**
+     * @param list<Agent> $agents
+     * @param int $carryingCapacity Max sustainable population. A fixed oasis ceiling
+     *   for now; later the output of the resource/trade system (and raised by imports).
+     */
     public function __construct(
         public readonly string $name,
         public readonly string $region,
         public array $agents = [],
+        public int $carryingCapacity = 40,
     ) {}
 }
