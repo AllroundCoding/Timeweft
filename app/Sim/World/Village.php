@@ -2,9 +2,13 @@
 
 namespace App\Sim\World;
 
+use App\Sim\Institutions\Institution;
+
 /** A settlement — the smallest place-scale container of agents (Phase 0). */
 final class Village
 {
+    /** The institution this settlement founds once its cooperation deficit persists. */
+    public ?Institution $institution = null;
     /** Culture-set baseline cooperation strength (0..1): communal high, selfish low. */
     public float $baselineCohesion = 0.85;
     /** Cooperation strength a large, anonymous settlement still retains (the decay floor). */

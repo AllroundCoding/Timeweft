@@ -89,7 +89,16 @@ class WorldSimulate extends Command
             '  baseline %.2f decays with scale → %.2f at %d souls (floor %.2f, group size %d)',
             $village->baselineCohesion, $cohesion, count($living), $village->cohesionFloor, $village->cohesiveGroupSize,
         ));
-        $this->line('  participation weight = cohesion × sociability (the "varying degrees"):');
+        if ($village->institution !== null) {
+            $inst = $village->institution;
+            $this->line(sprintf(
+                '  institution: %s (%s), founded Year %d — compels participation (mandate %d%%)',
+                $inst->name, $inst->type, TharadiCalendar::fromTick($inst->foundedTick)->year, (int) round($inst->mandate * 100),
+            ));
+        } else {
+            $this->line('  institution: none — organic cohesion still suffices');
+        }
+        $this->line('  participation weight = want-to (cohesion × sociability) lifted by the institution:');
         $adults = array_slice(
             array_values(array_filter($living, fn (Agent $a) => $a->ageInYears($world->tick) >= 16)),
             0,
@@ -98,7 +107,7 @@ class WorldSimulate extends Command
         foreach ($adults as $a) {
             $this->line(sprintf(
                 '    %-9s soc %2.0f → %.2f effort/day',
-                $a->name, $a->trait('sociability'), ProjectEngine::participationWeight($a, $cohesion),
+                $a->name, $a->trait('sociability'), ProjectEngine::participationWeight($a, $cohesion, $village->institution),
             ));
         }
         $this->newLine();
@@ -139,6 +148,12 @@ class WorldSimulate extends Command
                 'died' => $died,
                 'living' => count($living),
             ],
+            'institution' => $world->village->institution !== null ? [
+                'name' => $world->village->institution->name,
+                'type' => $world->village->institution->type,
+                'foundedYear' => TharadiCalendar::fromTick($world->village->institution->foundedTick)->year,
+                'mandate' => $world->village->institution->mandate,
+            ] : null,
             'milestones' => array_map(fn ($m) => [
                 'name' => $m->name,
                 'deadlineYear' => $m->deadlineYear,
