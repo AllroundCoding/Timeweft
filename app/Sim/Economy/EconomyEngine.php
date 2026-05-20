@@ -2,6 +2,9 @@
 
 namespace App\Sim\Economy;
 
+use App\Sim\Time\TharadiCalendar;
+use App\Sim\Time\TharadiDate;
+use App\Sim\World\RegionProfile;
 use App\Sim\World\World;
 
 /**
@@ -38,8 +41,29 @@ final class EconomyEngine
             : 0;
     }
 
-    public static function runDay(World $world, int $tick): void
+    /** The year-round average yield multiplier, weighted by how many months fall in each season. */
+    public static function averageYieldMultiplier(RegionProfile $region): float
     {
+        $sum = 0.0;
+        foreach (TharadiCalendar::MONTHS as $month) {
+            $sum += $region->yieldMultiplier($month['season']);
+        }
+
+        return $sum / count(TharadiCalendar::MONTHS);
+    }
+
+    public static function runDay(World $world, int $tick, TharadiDate $date): void
+    {
+        $village = $world->village;
+        $region = $world->region;
+
+        // Carrying capacity tracks the land's *average* annual yield — a lean desert
+        // (mostly Sandstorm) sustains fewer souls than its peak-season yield suggests.
+        $village->carryingCapacity = self::carryingCapacityFor(
+            $village->landYield * self::averageYieldMultiplier($region),
+            $village->technology,
+        );
+
         $living = $world->livingAgents();
         $population = count($living);
         if ($population === 0) {
@@ -53,10 +77,9 @@ final class EconomyEngine
             }
         }
 
-        // Labor produces, technology multiplies it, and the land × tech ceiling caps it.
-        $village = $world->village;
+        // Labor produces; technology multiplies it; the land × tech × season ceiling caps it.
         $tech = $village->technology;
-        $ceiling = $village->landYield * $tech;
+        $ceiling = $village->landYield * $tech * $region->yieldMultiplier($date->season);
         $granary = $village->stockpile;
         $granary->add('food', min($adults * self::FOOD_PER_ADULT * $tech, $ceiling));
         $granary->add('water', min($adults * self::WATER_PER_ADULT * $tech, $ceiling));

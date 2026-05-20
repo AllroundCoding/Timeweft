@@ -123,8 +123,9 @@ class WorldSimulate extends Command
         $this->comment('Economy — granary & carrying capacity:');
         $granary = $village->stockpile;
         $this->line(sprintf(
-            '  land yield %s × tech %.1f → carrying capacity %d (food ÷ %.0f per head)',
-            number_format($village->landYield), $village->technology, $village->carryingCapacity, EconomyEngine::FOOD_PER_CAPITA,
+            '  land yield %s × tech %.1f × avg season %.2f → carrying capacity %d (food ÷ %.0f per head)',
+            number_format($village->landYield), $village->technology,
+            EconomyEngine::averageYieldMultiplier($world->region), $village->carryingCapacity, EconomyEngine::FOOD_PER_CAPITA,
         ));
         $this->line(sprintf(
             '  granary: food %s · water %s',

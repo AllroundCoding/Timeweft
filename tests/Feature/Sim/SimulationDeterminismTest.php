@@ -66,9 +66,9 @@ class SimulationDeterminismTest extends TestCase
         $run = $this->simulate('vaeris', 8, 22);
 
         $this->assertSame(8, $run['founders']);
-        $this->assertSame(11, $run['born']);
-        $this->assertSame(2, $run['died']);
-        $this->assertSame(17, $run['living']);
+        $this->assertSame(7, $run['born']);
+        $this->assertSame(1, $run['died']);
+        $this->assertSame(14, $run['living']);
         $this->assertSame('Temple of Nara', $run['institution']);
     }
 
@@ -85,8 +85,8 @@ class SimulationDeterminismTest extends TestCase
             static fn (string $text): bool => str_contains($text, 'collapses'),
         ));
 
-        // First Temple in Year 9, then it ossifies and collapses, and a new one rises — rise & fall.
-        $this->assertStringContainsString('Year 9', $foundings[0]);
+        // First Temple in Year 11, then it ossifies and collapses, and a new one rises — rise & fall.
+        $this->assertStringContainsString('Year 11', $foundings[0]);
         $this->assertGreaterThanOrEqual(2, count($foundings));
         $this->assertNotEmpty($collapses);
     }

@@ -91,7 +91,7 @@ final class World
 
             // Economy, emergence, projects, and story-direction run once per in-world day.
             if ($date->hour === 8) {
-                EconomyEngine::runDay($this, $this->tick);
+                EconomyEngine::runDay($this, $this->tick, $date);
                 EmergenceEngine::runDay($this, $this->tick, $date);
                 ProjectEngine::runDay($this, $this->tick, $date);
                 InstitutionEngine::runDay($this, $this->tick, $date);

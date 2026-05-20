@@ -5,8 +5,10 @@ namespace Tests\Unit\Sim;
 use App\Sim\Economy\EconomyEngine;
 use App\Sim\Support\Rng;
 use App\Sim\Time\TharadiCalendar;
+use App\Sim\Time\TharadiDate;
 use App\Sim\World\Agent;
 use App\Sim\World\Need;
+use App\Sim\World\RegionProfile;
 use App\Sim\World\Village;
 use App\Sim\World\World;
 use PHPUnit\Framework\TestCase;
@@ -14,6 +16,10 @@ use PHPUnit\Framework\TestCase;
 class EconomyEngineTest extends TestCase
 {
     private const TICKS_PER_YEAR = TharadiCalendar::HOURS_PER_DAY * TharadiCalendar::DAYS_PER_YEAR;
+
+    private const OASIS_TICK = 0;                                   // Naralis (Oasis)
+
+    private const SANDSTORM_TICK = 60 * TharadiCalendar::HOURS_PER_DAY; // Kalimos (Sandstorm)
 
     /** @param array<string,Need> $needs */
     private function agent(int $id, int $birthTick, array $needs = []): Agent
@@ -24,9 +30,15 @@ class EconomyEngineTest extends TestCase
     private function worldWith(Agent ...$agents): World
     {
         $world = new World(new Rng('econ'));
+        $world->region = RegionProfile::tharados();
         $world->village = new Village('Testhold', 'Tharados', $agents);
 
         return $world;
+    }
+
+    private static function date(int $tick): TharadiDate
+    {
+        return TharadiCalendar::fromTick($tick);
     }
 
     public function test_adults_produce_a_surplus_into_the_granary(): void
@@ -36,9 +48,9 @@ class EconomyEngineTest extends TestCase
             $this->agent(2, -20 * self::TICKS_PER_YEAR),
         );
 
-        EconomyEngine::runDay($world, 0);
+        EconomyEngine::runDay($world, self::OASIS_TICK, self::date(self::OASIS_TICK));
 
-        // 2 adults × 4 produced − 2 mouths × 1 eaten = 6 left.
+        // 2 adults × 4 produced (well under the ceiling) − 2 mouths × 1 eaten = 6 left.
         $this->assertEqualsWithDelta(6.0, $world->village->stockpile->amount('food'), 1e-9);
         $this->assertEqualsWithDelta(6.0, $world->village->stockpile->amount('water'), 1e-9);
     }
@@ -67,20 +79,29 @@ class EconomyEngineTest extends TestCase
         $this->assertSame(40, $highTech->carryingCapacity);
     }
 
-    public function test_the_land_caps_the_harvest(): void
+    public function test_the_region_yields_less_in_the_sandstorm(): void
     {
-        // Three adults could produce 12 food, but a thin oasis yields only 10.
+        $region = RegionProfile::tharados();
+
+        $this->assertGreaterThan($region->yieldMultiplier('Sandstorm'), $region->yieldMultiplier('Oasis'));
+        // 2 Oasis months × 1.5 + 6 Sandstorm months × 0.5, over 8 months = 0.75.
+        $this->assertEqualsWithDelta(0.75, EconomyEngine::averageYieldMultiplier($region), 1e-9);
+    }
+
+    public function test_the_land_and_season_cap_the_harvest(): void
+    {
         $world = new World(new Rng('cap'));
+        $world->region = RegionProfile::tharados();
         $world->village = new Village('Smallhold', 'Tharados', [
             $this->agent(1, -20 * self::TICKS_PER_YEAR),
             $this->agent(2, -20 * self::TICKS_PER_YEAR),
             $this->agent(3, -20 * self::TICKS_PER_YEAR),
         ], landYield: 10.0);
 
-        EconomyEngine::runDay($world, 0);
+        // Sandstorm ceiling = 10 land × 0.5 season = 5; three adults could make 12 but get 5; eat 3 → 2.
+        EconomyEngine::runDay($world, self::SANDSTORM_TICK, self::date(self::SANDSTORM_TICK));
 
-        // Harvest capped at 10, three rations eaten → 7 left.
-        $this->assertEqualsWithDelta(7.0, $world->village->stockpile->amount('food'), 1e-9);
+        $this->assertEqualsWithDelta(2.0, $world->village->stockpile->amount('food'), 1e-9);
     }
 
     public function test_scarcity_drives_hunger_up_when_no_one_can_produce(): void
@@ -94,7 +115,7 @@ class EconomyEngineTest extends TestCase
             $this->agent(2, 0, ['hunger' => $hungerB]),
         );
 
-        EconomyEngine::runDay($world, 0);
+        EconomyEngine::runDay($world, self::OASIS_TICK, self::date(self::OASIS_TICK));
 
         $this->assertGreaterThan(0.0, $hungerA->value);
         $this->assertGreaterThan(0.0, $hungerB->value);
