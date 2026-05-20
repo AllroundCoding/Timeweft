@@ -3,11 +3,15 @@
 namespace App\Sim\World;
 
 use App\Sim\Culture\Culture;
+use App\Sim\Economy\Stockpile;
 use App\Sim\Institutions\Institution;
 
 /** A settlement — the smallest place-scale container of agents (Phase 0). */
 final class Village
 {
+    /** The communal granary the settlement produces into and consumes from. */
+    public Stockpile $stockpile;
+
     /** The institution this settlement founds once its cooperation deficit persists. */
     public ?Institution $institution = null;
 
@@ -41,6 +45,7 @@ final class Village
     ) {
         $this->culture = $culture ?? Culture::tharados();
         $this->baselineCohesion = $this->culture->baselineCohesion();
+        $this->stockpile = new Stockpile;
     }
 
     /**

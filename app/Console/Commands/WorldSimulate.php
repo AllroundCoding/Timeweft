@@ -118,6 +118,14 @@ class WorldSimulate extends Command
         }
         $this->newLine();
 
+        $this->comment('Economy — communal granary:');
+        $granary = $village->stockpile;
+        $this->line(sprintf(
+            '  food %s  ·  water %s  (adults produce 4/day each, everyone eats 1/day)',
+            number_format($granary->amount('food')), number_format($granary->amount('water')),
+        ));
+        $this->newLine();
+
         $this->inheritanceSpotlight($world, $all);
 
         $this->comment('Living roster:');
@@ -158,6 +166,7 @@ class WorldSimulate extends Command
                 'name' => $world->village->culture->name,
                 'vector' => $world->village->culture->vector(),
             ],
+            'granary' => $world->village->stockpile->all(),
             'institution' => $world->village->institution !== null ? [
                 'name' => $world->village->institution->name,
                 'type' => $world->village->institution->type,

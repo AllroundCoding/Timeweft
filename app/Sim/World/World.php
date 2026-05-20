@@ -8,6 +8,7 @@ use App\Sim\Chronicle\Chronicle;
 use App\Sim\Culture\Culture;
 use App\Sim\Direction\Milestone;
 use App\Sim\Direction\StoryDirector;
+use App\Sim\Economy\EconomyEngine;
 use App\Sim\Projects\Project;
 use App\Sim\Projects\ProjectEngine;
 use App\Sim\Support\Rng;
@@ -87,8 +88,9 @@ final class World
                 BehaviorEngine::applyEffects($agent, $activity, $seasonMultiplier);
             }
 
-            // Emergence, projects, and story-direction run once per in-world day.
+            // Economy, emergence, projects, and story-direction run once per in-world day.
             if ($date->hour === 8) {
+                EconomyEngine::runDay($this, $this->tick);
                 EmergenceEngine::runDay($this, $this->tick, $date);
                 ProjectEngine::runDay($this, $this->tick, $date);
                 foreach ($this->milestones as $milestone) {
