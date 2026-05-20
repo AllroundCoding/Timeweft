@@ -95,6 +95,7 @@ final class World
                 EmergenceEngine::runDay($this, $this->tick, $date);
                 ProjectEngine::runDay($this, $this->tick, $date);
                 InstitutionEngine::runDay($this, $this->tick, $date);
+                ShockEngine::runDay($this, $this->tick, $date);
                 foreach ($this->milestones as $milestone) {
                     StoryDirector::evaluate($this, $milestone, $this->tick, $date, $this->rng);
                 }

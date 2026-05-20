@@ -37,6 +37,9 @@ final class EconomyEngine
     /** How sharply mortality rises as the granary empties (the die-back of boom-bust). */
     private const STARVATION_SEVERITY = 5.0;
 
+    /** Days of food per head the granary can hold; beyond this, surplus spoils. */
+    private const STORAGE_DAYS = 30.0;
+
     /**
      * Carrying capacity = the population the land's yield can feed, multiplied by
      * technology — so a small but high-tech settlement (think the Netherlands)
@@ -98,6 +101,11 @@ final class EconomyEngine
         $granary = $village->stockpile;
         $granary->add('food', min($adults * self::FOOD_PER_ADULT * $tech, $ceiling));
         $granary->add('water', min($adults * self::WATER_PER_ADULT * $tech, $ceiling));
+
+        // Stores are finite: a granary can only hold so much before the surplus spoils.
+        $storageCap = self::STORAGE_DAYS * $population;
+        $granary->withdraw('food', max(0.0, $granary->amount('food') - $storageCap));
+        $granary->withdraw('water', max(0.0, $granary->amount('water') - $storageCap));
 
         $foodShort = $population * self::FOOD_PER_CAPITA - $granary->withdraw('food', $population * self::FOOD_PER_CAPITA);
         $waterShort = $population * self::WATER_PER_CAPITA - $granary->withdraw('water', $population * self::WATER_PER_CAPITA);

@@ -76,7 +76,10 @@ class SimulationDeterminismTest extends TestCase
 
     public function test_the_institution_rises_and_falls(): void
     {
-        $run = $this->simulate('vaeris', 8, 22);
+        // A larger, longer-lived settlement reliably outgrows its cohesion (a tiny village
+        // can stay cohesive and never need one), so the Temple emerges from the deficit,
+        // ossifies into collapse, and rises again — the rise & fall of civilizations.
+        $run = $this->simulate('vaeris', 16, 40);
 
         $foundings = array_filter(
             $run['chronicle'],
@@ -87,7 +90,6 @@ class SimulationDeterminismTest extends TestCase
             static fn (string $text): bool => str_contains($text, 'collapses'),
         );
 
-        // The Temple emerges from the deficit more than once and ossifies into collapse — rise & fall.
         $this->assertGreaterThanOrEqual(2, count($foundings));
         $this->assertGreaterThanOrEqual(1, count($collapses));
     }
