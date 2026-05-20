@@ -9,6 +9,7 @@ use App\Sim\Culture\Culture;
 use App\Sim\Direction\Milestone;
 use App\Sim\Direction\StoryDirector;
 use App\Sim\Economy\EconomyEngine;
+use App\Sim\Institutions\InstitutionEngine;
 use App\Sim\Projects\Project;
 use App\Sim\Projects\ProjectEngine;
 use App\Sim\Support\Rng;
@@ -93,6 +94,7 @@ final class World
                 EconomyEngine::runDay($this, $this->tick);
                 EmergenceEngine::runDay($this, $this->tick, $date);
                 ProjectEngine::runDay($this, $this->tick, $date);
+                InstitutionEngine::runDay($this, $this->tick, $date);
                 foreach ($this->milestones as $milestone) {
                     StoryDirector::evaluate($this, $milestone, $this->tick, $date, $this->rng);
                 }

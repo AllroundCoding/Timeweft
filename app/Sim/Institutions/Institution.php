@@ -12,6 +12,9 @@ use App\Sim\Culture\Culture;
  */
 final class Institution
 {
+    /** 0..1: how much of its mandate the institution still delivers; decays with age (ossification). */
+    public float $effectiveness = 1.0;
+
     public function __construct(
         public readonly string $name,
         public readonly string $type,
@@ -19,6 +22,17 @@ final class Institution
         /** 0..1: how strongly it compels participation beyond organic want-to. */
         public readonly float $mandate,
     ) {}
+
+    /** Ossify: the institution extracts the same but delivers less of its mandate over time. */
+    public function ossify(float $amount): void
+    {
+        $this->effectiveness = max(0.0, $this->effectiveness - $amount);
+    }
+
+    public function hasOssified(float $threshold): bool
+    {
+        return $this->effectiveness <= $threshold;
+    }
 
     /** The culture vector picks the archetype the deficit gives rise to. */
     public static function emergeFor(Culture $culture, int $foundedTick): self
@@ -38,6 +52,6 @@ final class Institution
      */
     public function liftedParticipation(float $wantTo): float
     {
-        return $wantTo + $this->mandate * (1.0 - $wantTo);
+        return $wantTo + $this->mandate * $this->effectiveness * (1.0 - $wantTo);
     }
 }

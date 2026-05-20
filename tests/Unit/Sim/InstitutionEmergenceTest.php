@@ -53,4 +53,27 @@ class InstitutionEmergenceTest extends TestCase
             $this->assertLessThanOrEqual(1.0, $lifted);
         }
     }
+
+    public function test_ossification_decays_effectiveness_and_its_lift(): void
+    {
+        $temple = Institution::emergeFor(Culture::tharados(), 0);
+        $freshLift = $temple->liftedParticipation(0.2); // 0.64 at full effectiveness
+
+        $temple->ossify(0.5);
+
+        $this->assertEqualsWithDelta(0.5, $temple->effectiveness, 1e-9);
+        // 0.2 + 0.55 × 0.5 × 0.8 = 0.42
+        $this->assertEqualsWithDelta(0.42, $temple->liftedParticipation(0.2), 1e-9);
+        $this->assertLessThan($freshLift, $temple->liftedParticipation(0.2));
+    }
+
+    public function test_has_ossified_once_effectiveness_reaches_the_threshold(): void
+    {
+        $temple = Institution::emergeFor(Culture::tharados(), 0);
+        $this->assertFalse($temple->hasOssified(0.4));
+
+        $temple->ossify(0.7); // effectiveness → 0.3
+
+        $this->assertTrue($temple->hasOssified(0.4));
+    }
 }

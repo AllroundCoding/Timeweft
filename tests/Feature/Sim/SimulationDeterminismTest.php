@@ -72,16 +72,22 @@ class SimulationDeterminismTest extends TestCase
         $this->assertSame('Temple of Nara', $run['institution']);
     }
 
-    public function test_the_temple_is_founded_in_year_nine(): void
+    public function test_the_institution_rises_falls_and_rises_again(): void
     {
         $run = $this->simulate('vaeris', 8, 22);
 
-        $founding = array_values(array_filter(
+        $foundings = array_values(array_filter(
             $run['chronicle'],
             static fn (string $text): bool => str_contains($text, 'founds the Temple of Nara'),
         ));
+        $collapses = array_values(array_filter(
+            $run['chronicle'],
+            static fn (string $text): bool => str_contains($text, 'collapses'),
+        ));
 
-        $this->assertCount(1, $founding);
-        $this->assertStringContainsString('Year 9', $founding[0]);
+        // First Temple in Year 9, then it ossifies and collapses, and a new one rises — rise & fall.
+        $this->assertStringContainsString('Year 9', $foundings[0]);
+        $this->assertGreaterThanOrEqual(2, count($foundings));
+        $this->assertNotEmpty($collapses);
     }
 }

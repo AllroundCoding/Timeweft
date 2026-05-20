@@ -99,8 +99,9 @@ class WorldSimulate extends Command
         if ($village->institution !== null) {
             $inst = $village->institution;
             $this->line(sprintf(
-                '  institution: %s (%s), founded Year %d — compels participation (mandate %d%%)',
-                $inst->name, $inst->type, TharadiCalendar::fromTick($inst->foundedTick)->year, (int) round($inst->mandate * 100),
+                '  institution: %s (%s), founded Year %d — mandate %d%%, effectiveness %d%% (ossifying)',
+                $inst->name, $inst->type, TharadiCalendar::fromTick($inst->foundedTick)->year,
+                (int) round($inst->mandate * 100), (int) round($inst->effectiveness * 100),
             ));
         } else {
             $this->line('  institution: none — organic cohesion still suffices');
