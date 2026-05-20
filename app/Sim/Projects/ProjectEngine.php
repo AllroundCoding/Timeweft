@@ -69,6 +69,8 @@ final class ProjectEngine
             name: 'Sandstorm preparation',
             deadlineTick: $tick + $daysUntilSandstorm * TharadiCalendar::HOURS_PER_DAY,
             requiredEffort: $population * self::REQUIRED_PER_CAPITA,
+            type: 'seasonal-preparation',
+            initiator: 'the coming Sandstorm',
         );
     }
 
