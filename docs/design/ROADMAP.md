@@ -1,6 +1,6 @@
 # Roadmap
 
-The design docs (01–11) describe *what* the simulator is. This file is the **broad-strokes
+The design docs (01–12) describe *what* the simulator is. This file is the **broad-strokes
 arc** of how it gets built — the phases and their throughlines, not the task list.
 
 The granular, task-level backlog lives in **Linear** (project *Timeweft*), one issue per piece
@@ -35,5 +35,16 @@ Each phase builds on the last; the order is dependency-aware so prerequisites la
   from a village to a civilization without simulating every soul.
 - **M7 · Presentation** — the visual phase: a narrative flavor layer and a timeline → 2D map
   renderer over the deterministic engine.
+- **M8 · Goods, tastes & trade** — produce and equipment become *items with stats*; regions
+  generate their own goods from material conditions; tastes (seeded from scarcity) turn trade
+  from moving-surplus into spice routes and luxury demand. Deepens M6's trade. See
+  [12](12-goods-tastes-tech-conflict.md).
+- **M9 · Technology & conflict** — the `technology` scalar becomes a tree of advances (the Boserup
+  ratchet); military items give a kingdom a *strength factor*; wars resolve by strength × a
+  counter-matrix, opening the **external** door to rise-and-fall alongside internal institutional
+  collapse. See [12](12-goods-tastes-tech-conflict.md).
+
+M8–M9 build on **M6**'s scale-polymorphic kingdoms; **M7** (presentation) is an overlay that can
+land whenever there's enough to show. The numbering is dependency order, not strict sequence.
 
 See the design docs for the systems behind each phase, and Linear for the work itself.
