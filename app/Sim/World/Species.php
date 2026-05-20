@@ -24,7 +24,9 @@ final class Species
             ->define(TraitDefinition::numeric('constitution', 40.0, 80.0, mutation: 5.0))
             ->define(TraitDefinition::numeric('sociability', 30.0, 90.0, mutation: 5.0))
             ->define(TraitDefinition::categorical('furColor'))
-            ->define(TraitDefinition::numeric('heatTolerance', 60.0, 95.0, mutation: 4.0));
+            ->define(TraitDefinition::numeric('heatTolerance', 60.0, 95.0, mutation: 4.0))
+            ->define(TraitDefinition::numeric('generosity', 30.0, 70.0, mutation: 5.0))
+            ->define(TraitDefinition::numeric('thrift', 30.0, 70.0, mutation: 5.0));
 
         return new self('Vulpini', $traits);
     }
