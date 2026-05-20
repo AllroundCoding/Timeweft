@@ -2,12 +2,13 @@
 
 namespace App\Sim\Institutions;
 
+use App\Sim\Culture\Culture;
+
 /**
  * A settlement-scale structure that emerges when organic cohesion can no longer
  * meet cooperation demand. It supplies the paid-to/forced-to participation that
  * want-to (cohesion × disposition) alone cannot — closing the cooperation deficit
- * (design doc 07). Culture picks the type; until the culture vector (doc 11) is
- * built, the region stands in for it.
+ * (design doc 07). The culture vector picks the type.
  */
 final class Institution
 {
@@ -19,16 +20,15 @@ final class Institution
         public readonly float $mandate,
     ) {}
 
-    /** Culture (region, for now) picks the archetype the deficit gives rise to. */
-    public static function emergeFor(string $region, int $foundedTick): self
+    /** The culture vector picks the archetype the deficit gives rise to. */
+    public static function emergeFor(Culture $culture, int $foundedTick): self
     {
-        // Tharados: a harsh desert breeds piety and tradition, so faith becomes the
-        // cooperation technology (Norenzayan's "Big Gods"). Other cultures will give
-        // rise to councils, guilds, or magistrates once the culture vector drives it.
-        return match ($region) {
-            'Tharados' => new self('Temple of Nara', 'temple', $foundedTick, mandate: 0.55),
-            default => new self('village council', 'council', $foundedTick, mandate: 0.40),
-        };
+        // A devout culture turns to faith as its cooperation technology (Norenzayan's
+        // "Big Gods"); a more secular one convenes a council. Later, hierarchy and the
+        // other dimensions will fan this out into guilds, magistrates, and emperors.
+        return $culture->piety >= 50.0
+            ? new self('Temple of Nara', 'temple', $foundedTick, mandate: 0.55)
+            : new self('village council', 'council', $foundedTick, mandate: 0.40);
     }
 
     /**

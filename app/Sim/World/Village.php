@@ -2,6 +2,7 @@
 
 namespace App\Sim\World;
 
+use App\Sim\Culture\Culture;
 use App\Sim\Institutions\Institution;
 
 /** A settlement — the smallest place-scale container of agents (Phase 0). */
@@ -9,26 +10,38 @@ final class Village
 {
     /** The institution this settlement founds once its cooperation deficit persists. */
     public ?Institution $institution = null;
-    /** Culture-set baseline cooperation strength (0..1): communal high, selfish low. */
-    public float $baselineCohesion = 0.85;
+
+    /** The culture of this settlement's people; sets the cohesion baseline and institution type. */
+    public readonly Culture $culture;
+
+    /** Culture-set baseline cooperation strength (0..1), derived from the culture's collectivism. */
+    public float $baselineCohesion;
+
     /** Cooperation strength a large, anonymous settlement still retains (the decay floor). */
     public float $cohesionFloor = 0.25;
+
     /** Settlement size at which "everyone knows everyone" starts to break down. */
     public int $cohesiveGroupSize = 15;
+
     public ?float $lastReadiness = null;
+
     public int $underpreparedYears = 0;
 
     /**
-     * @param list<Agent> $agents
-     * @param int $carryingCapacity Max sustainable population. A fixed oasis ceiling
-     *   for now; later the output of the resource/trade system (and raised by imports).
+     * @param  list<Agent>  $agents
+     * @param  int  $carryingCapacity  Max sustainable population. A fixed oasis ceiling
+     *                                 for now; later the output of the resource/trade system (and raised by imports).
      */
     public function __construct(
         public readonly string $name,
         public readonly string $region,
         public array $agents = [],
         public int $carryingCapacity = 40,
-    ) {}
+        ?Culture $culture = null,
+    ) {
+        $this->culture = $culture ?? Culture::tharados();
+        $this->baselineCohesion = $this->culture->baselineCohesion();
+    }
 
     /**
      * Organic cooperation strength, derived from settlement size: a tight village

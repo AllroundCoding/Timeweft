@@ -38,7 +38,7 @@ class WorldSimulate extends Command
 
         $this->comment('Chronicle:');
         foreach ($world->chronicle->all() as $entry) {
-            $this->line('  ' . $entry['text']);
+            $this->line('  '.$entry['text']);
         }
         $this->newLine();
 
@@ -82,11 +82,17 @@ class WorldSimulate extends Command
         $this->line(sprintf(
             '  cohesion %.2f  ·  latest readiness %s  ·  underprepared years %d',
             $cohesion,
-            $village->lastReadiness !== null ? ((int) round($village->lastReadiness * 100)) . '%' : 'n/a',
+            $village->lastReadiness !== null ? ((int) round($village->lastReadiness * 100)).'%' : 'n/a',
             $village->underpreparedYears,
         ));
+        $culture = $village->culture;
         $this->line(sprintf(
-            '  baseline %.2f decays with scale → %.2f at %d souls (floor %.2f, group size %d)',
+            '  culture: %s — collectivism %d · hierarchy %d · tradition %d · restraint %d · piety %d',
+            $culture->name, (int) $culture->collectivism, (int) $culture->hierarchy,
+            (int) $culture->tradition, (int) $culture->restraint, (int) $culture->piety,
+        ));
+        $this->line(sprintf(
+            '  baseline %.2f (from collectivism) decays with scale → %.2f at %d souls (floor %.2f, group size %d)',
             $village->baselineCohesion, $cohesion, count($living), $village->cohesionFloor, $village->cohesiveGroupSize,
         ));
         if ($village->institution !== null) {
@@ -118,7 +124,7 @@ class WorldSimulate extends Command
         foreach ($living as $a) {
             $partner = $a->partnerId !== null ? ($this->byId($all, $a->partnerId)?->name ?? '?') : '—';
             $origin = $a->parentIds !== []
-                ? 'child of ' . implode(' & ', array_map(fn ($id) => $this->byId($all, $id)?->name ?? '?', $a->parentIds))
+                ? 'child of '.implode(' & ', array_map(fn ($id) => $this->byId($all, $id)?->name ?? '?', $a->parentIds))
                 : 'founder';
             $this->line(sprintf(
                 '  #%-2d %-9s %s age %2d  ♥ %-9s  %-22s | agi %2.0f sen %2.0f heat %2.0f',
@@ -147,6 +153,10 @@ class WorldSimulate extends Command
                 'born' => $born,
                 'died' => $died,
                 'living' => count($living),
+            ],
+            'culture' => [
+                'name' => $world->village->culture->name,
+                'vector' => $world->village->culture->vector(),
             ],
             'institution' => $world->village->institution !== null ? [
                 'name' => $world->village->institution->name,

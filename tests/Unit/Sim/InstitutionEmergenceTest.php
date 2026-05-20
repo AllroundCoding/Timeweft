@@ -2,14 +2,20 @@
 
 namespace Tests\Unit\Sim;
 
+use App\Sim\Culture\Culture;
 use App\Sim\Institutions\Institution;
 use PHPUnit\Framework\TestCase;
 
 class InstitutionEmergenceTest extends TestCase
 {
-    public function test_tharados_culture_gives_rise_to_the_temple_of_nara(): void
+    private function culture(float $piety): Culture
     {
-        $institution = Institution::emergeFor('Tharados', 1234);
+        return new Culture('Test', collectivism: 60, hierarchy: 50, tradition: 50, longTermOrientation: 50, restraint: 50, achievement: 50, piety: $piety);
+    }
+
+    public function test_a_devout_culture_gives_rise_to_the_temple_of_nara(): void
+    {
+        $institution = Institution::emergeFor(Culture::tharados(), 1234);
 
         $this->assertSame('Temple of Nara', $institution->name);
         $this->assertSame('temple', $institution->type);
@@ -17,9 +23,9 @@ class InstitutionEmergenceTest extends TestCase
         $this->assertEqualsWithDelta(0.55, $institution->mandate, 1e-9);
     }
 
-    public function test_other_cultures_fall_back_to_a_council(): void
+    public function test_a_secular_culture_falls_back_to_a_council(): void
     {
-        $institution = Institution::emergeFor('Elenwood', 0);
+        $institution = Institution::emergeFor($this->culture(piety: 20), 0);
 
         $this->assertSame('council', $institution->type);
         $this->assertEqualsWithDelta(0.40, $institution->mandate, 1e-9);
@@ -27,7 +33,7 @@ class InstitutionEmergenceTest extends TestCase
 
     public function test_lifted_participation_fills_the_gap_toward_full_effort(): void
     {
-        $temple = Institution::emergeFor('Tharados', 0); // mandate 0.55
+        $temple = Institution::emergeFor(Culture::tharados(), 0); // mandate 0.55
 
         // want-to 0 → supplied entirely by the institution's mandate.
         $this->assertEqualsWithDelta(0.55, $temple->liftedParticipation(0.0), 1e-9);
@@ -39,7 +45,7 @@ class InstitutionEmergenceTest extends TestCase
 
     public function test_lift_never_lowers_participation_or_exceeds_one(): void
     {
-        $temple = Institution::emergeFor('Tharados', 0);
+        $temple = Institution::emergeFor(Culture::tharados(), 0);
 
         foreach ([0.0, 0.16, 0.33, 0.5, 0.85, 1.0] as $wantTo) {
             $lifted = $temple->liftedParticipation($wantTo);

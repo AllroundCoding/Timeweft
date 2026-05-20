@@ -90,7 +90,7 @@ final class ProjectEngine
             return;
         }
 
-        $institution = Institution::emergeFor($village->region, $tick);
+        $institution = Institution::emergeFor($village->culture, $tick);
         $village->institution = $institution;
         $world->chronicle->record($tick, sprintf(
             '%d %s, Year %d — after %d storms caught it short, %s founds the %s to compel the preparation cohesion alone could not muster.',
