@@ -47,6 +47,9 @@ handful of reused mechanisms:
 | [10](10-persistence-lod-roadmap.md) | Persistence, LOD & roadmap | 🟡/⚪ |
 | [11](11-cultural-and-social-model.md) | Cultural & social model | 🟡 |
 
+See **[ROADMAP.md](ROADMAP.md)** for the per-document task backlog and the dependency-aware
+build order — pick one task per session to keep scope tight.
+
 ## Status legend
 
 🟢 Built · 🟡 Designed · ⚪ Future
