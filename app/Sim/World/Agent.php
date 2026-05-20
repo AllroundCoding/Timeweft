@@ -10,6 +10,15 @@ final class Agent
     /** Current activity, set by the BehaviorEngine each tick. */
     public ?Activity $activity = null;
 
+    public ?int $partnerId = null;
+
+    /** @var array<int> [motherId, fatherId] */
+    public array $parentIds = [];
+
+    public bool $alive = true;
+    public ?int $deathTick = null;
+    public ?int $lastBirthTick = null;
+
     /**
      * @param array<string,float|string> $traits
      * @param array<string,Need> $needs
@@ -33,7 +42,8 @@ final class Agent
     public function ageInYears(int $nowTick): int
     {
         $ticksPerYear = TharadiCalendar::HOURS_PER_DAY * TharadiCalendar::DAYS_PER_YEAR;
+        $reference = $this->alive ? $nowTick : ($this->deathTick ?? $nowTick);
 
-        return intdiv($nowTick - $this->birthTick, $ticksPerYear);
+        return intdiv($reference - $this->birthTick, $ticksPerYear);
     }
 }

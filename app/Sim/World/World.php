@@ -16,6 +16,9 @@ final class World
     public int $tick = 0;
     public Village $village;
     public Chronicle $chronicle;
+    public Species $species;
+    public RegionProfile $region;
+    private TharadiNameGenerator $names;
     private int $nextId = 1;
     private ?string $lastFestivalKey = null;
 
@@ -27,18 +30,18 @@ final class World
     public static function seedTharadosVillage(Rng $rng, int $population = 5): self
     {
         $world = new self($rng);
-        $species = Species::vulpini();
-        $region = RegionProfile::tharados();
-        $names = new TharadiNameGenerator($rng);
+        $world->species = Species::vulpini();
+        $world->region = RegionProfile::tharados();
+        $world->names = new TharadiNameGenerator($rng);
         $ticksPerYear = TharadiCalendar::HOURS_PER_DAY * TharadiCalendar::DAYS_PER_YEAR;
 
         $agents = [];
         for ($i = 0; $i < $population; $i++) {
             $birthTick = -$rng->int(18, 50) * $ticksPerYear;
-            $agents[] = $species->birth($world->nextId++, $birthTick, $region, $rng, $names);
+            $agents[] = $world->species->birth($world->nextId++, $birthTick, $world->region, $rng, $world->names);
         }
 
-        $world->village = new Village('Sunwell Oasis', $region->name, $agents);
+        $world->village = new Village('Sunwell Oasis', $world->region->name, $agents);
 
         return $world;
     }
@@ -56,23 +59,51 @@ final class World
 
             $seasonMultiplier = $date->season === 'Sandstorm' ? 1.4 : 1.0;
 
-            foreach ($this->village->agents as $agent) {
+            foreach ($this->livingAgents() as $agent) {
                 $activity = BehaviorEngine::derive($agent, $date, $festival !== null);
                 $agent->activity = $activity;
                 BehaviorEngine::applyEffects($agent, $activity, $seasonMultiplier);
             }
+
+            // Emergence (pairing/birth/death) is evaluated once per in-world day.
+            if ($date->hour === 8) {
+                EmergenceEngine::runDay($this, $this->tick, $date);
+            }
         }
     }
 
+    public function spawnChild(Agent $mother, Agent $father, int $birthTick, TharadiDate $date): Agent
+    {
+        $child = $this->species->breed($this->nextId++, $mother, $father, $birthTick, $this->rng, $this->names);
+        $this->village->agents[] = $child;
+        $mother->lastBirthTick = $birthTick;
+
+        $this->chronicle->record($birthTick, sprintf(
+            '%d %s, Year %d — %s is born to %s and %s.',
+            $date->dayOfMonth, $date->monthName, $date->year, $child->name, $mother->name, $father->name,
+        ));
+
+        return $child;
+    }
+
+    /** @return list<Agent> */
+    public function livingAgents(): array
+    {
+        return array_values(array_filter($this->village->agents, fn (Agent $a) => $a->alive));
+    }
+
+    /**
+     * A recurring annual festival is routine, not a notable event — so it is
+     * recorded in the chronicle only the first time the tradition is observed.
+     */
     private function logFestivalOnce(TharadiDate $date, string $festival): void
     {
-        $key = "{$date->year}:{$date->monthIndex}:{$date->dayOfMonth}:{$festival}";
-        if ($key === $this->lastFestivalKey) {
+        if ($festival === $this->lastFestivalKey) {
             return;
         }
-        $this->lastFestivalKey = $key;
+        $this->lastFestivalKey = $festival;
         $this->chronicle->record($this->tick, sprintf(
-            '%d %s, Year %d — the village holds the %s.',
+            '%d %s, Year %d — the village first observes the %s.',
             $date->dayOfMonth, $date->monthName, $date->year, $festival,
         ));
     }
