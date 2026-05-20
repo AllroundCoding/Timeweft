@@ -25,10 +25,17 @@ final class EconomyEngine
 
     private const WATER_PER_CAPITA = 1.0;
 
-    /** Carrying capacity = the population the land's food yield can sustainably feed. */
-    public static function carryingCapacityFor(float $landYield): int
+    /**
+     * Carrying capacity = the population the land's yield can feed, multiplied by
+     * technology — so a small but high-tech settlement (think the Netherlands)
+     * sustains far more than its acreage alone would. Labor then realizes this
+     * ceiling in production: too few workers and the harvest falls short of it.
+     */
+    public static function carryingCapacityFor(float $landYield, float $technology = 1.0): int
     {
-        return self::FOOD_PER_CAPITA > 0.0 ? (int) floor($landYield / self::FOOD_PER_CAPITA) : 0;
+        return self::FOOD_PER_CAPITA > 0.0
+            ? (int) floor($landYield * $technology / self::FOOD_PER_CAPITA)
+            : 0;
     }
 
     public static function runDay(World $world, int $tick): void
@@ -46,11 +53,13 @@ final class EconomyEngine
             }
         }
 
-        // Labor produces, but the land caps the harvest — the Malthusian ceiling.
-        $yield = $world->village->landYield;
-        $granary = $world->village->stockpile;
-        $granary->add('food', min($adults * self::FOOD_PER_ADULT, $yield));
-        $granary->add('water', min($adults * self::WATER_PER_ADULT, $yield));
+        // Labor produces, technology multiplies it, and the land × tech ceiling caps it.
+        $village = $world->village;
+        $tech = $village->technology;
+        $ceiling = $village->landYield * $tech;
+        $granary = $village->stockpile;
+        $granary->add('food', min($adults * self::FOOD_PER_ADULT * $tech, $ceiling));
+        $granary->add('water', min($adults * self::WATER_PER_ADULT * $tech, $ceiling));
 
         $foodShort = $population * self::FOOD_PER_CAPITA - $granary->withdraw('food', $population * self::FOOD_PER_CAPITA);
         $waterShort = $population * self::WATER_PER_CAPITA - $granary->withdraw('water', $population * self::WATER_PER_CAPITA);

@@ -28,10 +28,13 @@ final class Village
     /** Settlement size at which "everyone knows everyone" starts to break down. */
     public int $cohesiveGroupSize = 15;
 
-    /** Food/day the settlement's land can sustainably yield; the ceiling on production. */
+    /** Food/day the settlement's land can sustainably yield; the base of the production ceiling. */
     public float $landYield;
 
-    /** Max sustainable population, computed from land yield ÷ the per-capita ration. */
+    /** Technology multiplier on land + labor output (Boserup intensification); 1.0 = baseline. */
+    public float $technology;
+
+    /** Max sustainable population, computed from land yield × technology ÷ the per-capita ration. */
     public int $carryingCapacity;
 
     public ?float $lastReadiness = null;
@@ -49,13 +52,15 @@ final class Village
         public readonly string $region,
         public array $agents = [],
         float $landYield = 40.0,
+        float $technology = 1.0,
         ?Culture $culture = null,
     ) {
         $this->landYield = $landYield;
+        $this->technology = $technology;
         $this->culture = $culture ?? Culture::tharados();
         $this->baselineCohesion = $this->culture->baselineCohesion();
         $this->stockpile = new Stockpile;
-        $this->carryingCapacity = EconomyEngine::carryingCapacityFor($landYield);
+        $this->carryingCapacity = EconomyEngine::carryingCapacityFor($landYield, $technology);
     }
 
     /**

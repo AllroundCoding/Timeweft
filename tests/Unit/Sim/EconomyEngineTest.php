@@ -57,6 +57,16 @@ class EconomyEngineTest extends TestCase
         $this->assertSame(22, $village->carryingCapacity);
     }
 
+    public function test_technology_multiplies_carrying_capacity(): void
+    {
+        // The Netherlands case: little land, but high technology feeds many.
+        $this->assertSame(44, EconomyEngine::carryingCapacityFor(22.0, 2.0));
+        $this->assertSame(30, EconomyEngine::carryingCapacityFor(10.0, 3.0));
+
+        $highTech = new Village('Polderhold', 'Tharados', landYield: 10.0, technology: 4.0);
+        $this->assertSame(40, $highTech->carryingCapacity);
+    }
+
     public function test_the_land_caps_the_harvest(): void
     {
         // Three adults could produce 12 food, but a thin oasis yields only 10.
