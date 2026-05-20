@@ -10,7 +10,7 @@ use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 
-#[Signature('world:simulate {--years=22 : In-world years to simulate} {--seed=vaeris : RNG seed for reproducible runs} {--population=8 : Number of founding villagers}')]
+#[Signature('world:simulate {--years=22 : In-world years to simulate} {--seed=vaeris : RNG seed for reproducible runs} {--population=8 : Number of founding villagers} {--json : Also write the chronicle + roster to storage/app/chronicle.json}')]
 #[Description('Run the headless world simulation and dump the resulting chronicle')]
 class WorldSimulate extends Command
 {
@@ -77,7 +77,51 @@ class WorldSimulate extends Command
             ));
         }
 
+        if ($this->option('json')) {
+            $this->writeJson($world, $seed, $years, $foundingCount, $born, $died, $living);
+        }
+
         return self::SUCCESS;
+    }
+
+    /** @param list<Agent> $living */
+    private function writeJson(World $world, string $seed, int $years, int $foundingCount, int $born, int $died, array $living): void
+    {
+        $payload = [
+            'world' => $world->village->name,
+            'region' => $world->village->region,
+            'seed' => $seed,
+            'years' => $years,
+            'population' => [
+                'founders' => $foundingCount,
+                'born' => $born,
+                'died' => $died,
+                'living' => count($living),
+            ],
+            'milestones' => array_map(fn ($m) => [
+                'name' => $m->name,
+                'deadlineYear' => $m->deadlineYear,
+                'prereqPopulation' => $m->prereqPopulation,
+                'achieved' => $m->achieved,
+                'achievedYear' => $m->achievedTick !== null ? TharadiCalendar::fromTick($m->achievedTick)->year : null,
+                'forced' => $m->wasForced,
+            ], $world->milestones),
+            'chronicle' => $world->chronicle->all(),
+            'roster' => array_map(fn (Agent $a) => [
+                'id' => $a->id,
+                'name' => $a->name,
+                'sex' => $a->sex,
+                'age' => $a->ageInYears($world->tick),
+                'partnerId' => $a->partnerId,
+                'parentIds' => $a->parentIds,
+                'traits' => $a->traits,
+                'needs' => array_map(fn ($n) => round($n->value, 1), $a->needs),
+            ], $living),
+        ];
+
+        $path = storage_path('app/chronicle.json');
+        file_put_contents($path, json_encode($payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+        $this->info("Chronicle written to {$path}");
     }
 
     /** @param list<Agent> $all */
