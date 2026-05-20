@@ -2,10 +2,14 @@
 
 namespace App\Sim\World;
 
+use App\Sim\Behavior\Activity;
 use App\Sim\Time\TharadiCalendar;
 
 final class Agent
 {
+    /** Current activity, set by the BehaviorEngine each tick. */
+    public ?Activity $activity = null;
+
     /**
      * @param array<string,float|string> $traits
      * @param array<string,Need> $needs
@@ -24,13 +28,6 @@ final class Agent
     public function trait(string $key): float|string|null
     {
         return $this->traits[$key] ?? null;
-    }
-
-    public function advanceNeeds(int $ticks = 1, float $multiplier = 1.0): void
-    {
-        foreach ($this->needs as $need) {
-            $need->advance($ticks, $multiplier);
-        }
     }
 
     public function ageInYears(int $nowTick): int
