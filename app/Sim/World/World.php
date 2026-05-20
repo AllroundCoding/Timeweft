@@ -7,6 +7,8 @@ use App\Sim\Behavior\FestivalCalendar;
 use App\Sim\Chronicle\Chronicle;
 use App\Sim\Direction\Milestone;
 use App\Sim\Direction\StoryDirector;
+use App\Sim\Projects\Project;
+use App\Sim\Projects\ProjectEngine;
 use App\Sim\Support\Rng;
 use App\Sim\Support\TharadiNameGenerator;
 use App\Sim\Time\TharadiCalendar;
@@ -22,6 +24,7 @@ final class World
     public RegionProfile $region;
     /** @var list<Milestone> */
     public array $milestones = [];
+    public ?Project $activeProject = null;
     private TharadiNameGenerator $names;
     private int $nextId = 1;
     private ?string $lastFestivalKey = null;
@@ -74,9 +77,10 @@ final class World
                 BehaviorEngine::applyEffects($agent, $activity, $seasonMultiplier);
             }
 
-            // Emergence and story-direction are evaluated once per in-world day.
+            // Emergence, projects, and story-direction run once per in-world day.
             if ($date->hour === 8) {
                 EmergenceEngine::runDay($this, $this->tick, $date);
+                ProjectEngine::runDay($this, $this->tick, $date);
                 foreach ($this->milestones as $milestone) {
                     StoryDirector::evaluate($this, $milestone, $this->tick, $date, $this->rng);
                 }

@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Sim\Projects\ProjectEngine;
 use App\Sim\Support\Rng;
 use App\Sim\Time\TharadiCalendar;
 use App\Sim\World\Agent;
@@ -59,6 +60,28 @@ class WorldSimulate extends Command
             } else {
                 $this->line(sprintf('  ✗ %s — unfulfilled (budget: by Year %d)', ucfirst($m->name), $m->deadlineYear));
             }
+        }
+        $this->newLine();
+
+        $this->comment('Cooperation — Sandstorm preparation:');
+        $village = $world->village;
+        $this->line(sprintf(
+            '  cohesion %.2f  ·  latest readiness %s  ·  underprepared years %d',
+            $village->cohesion,
+            $village->lastReadiness !== null ? ((int) round($village->lastReadiness * 100)) . '%' : 'n/a',
+            $village->underpreparedYears,
+        ));
+        $this->line('  participation weight = cohesion × sociability (the "varying degrees"):');
+        $adults = array_slice(
+            array_values(array_filter($living, fn (Agent $a) => $a->ageInYears($world->tick) >= 16)),
+            0,
+            6,
+        );
+        foreach ($adults as $a) {
+            $this->line(sprintf(
+                '    %-9s soc %2.0f → %.2f effort/day',
+                $a->name, $a->trait('sociability'), ProjectEngine::participationWeight($a, $village->cohesion),
+            ));
         }
         $this->newLine();
 
