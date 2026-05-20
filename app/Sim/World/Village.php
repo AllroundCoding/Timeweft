@@ -41,6 +41,12 @@ final class Village
 
     public int $underpreparedYears = 0;
 
+    /** Mortality multiplier from scarcity: 1.0 when fed, higher as the granary empties. */
+    public float $starvationFactor = 1.0;
+
+    /** Whether the settlement is currently gripped by famine (drives chronicle onset/recovery). */
+    public bool $inFamine = false;
+
     /**
      * @param  list<Agent>  $agents
      * @param  float  $landYield  Food/day the oasis can sustainably produce; sets the

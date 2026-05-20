@@ -31,6 +31,12 @@ final class EconomyEngine
     /** Money an adult earns per day from their labor. */
     private const WAGE_PER_ADULT = 1.0;
 
+    /** Below one day of food per head the granary is acutely empty — famine. */
+    private const SECURE_FOOD_DAYS = 1.0;
+
+    /** How sharply mortality rises as the granary empties (the die-back of boom-bust). */
+    private const STARVATION_SEVERITY = 5.0;
+
     /**
      * Carrying capacity = the population the land's yield can feed, multiplied by
      * technology — so a small but high-tech settlement (think the Netherlands)
@@ -100,6 +106,32 @@ final class EconomyEngine
             foreach ($living as $agent) {
                 ($agent->needs['hunger'] ?? null)?->advance();
             }
+        }
+
+        self::updateFoodSecurity($world, $tick, $date, $granary->amount('food') / $population);
+    }
+
+    /** A near-empty granary raises the starvation mortality factor and chronicles the famine. */
+    private static function updateFoodSecurity(World $world, int $tick, TharadiDate $date, float $foodPerCapita): void
+    {
+        $village = $world->village;
+
+        $village->starvationFactor = $foodPerCapita >= self::SECURE_FOOD_DAYS
+            ? 1.0
+            : 1.0 + (1.0 - $foodPerCapita / self::SECURE_FOOD_DAYS) * self::STARVATION_SEVERITY;
+
+        if ($village->starvationFactor > 1.0 && ! $village->inFamine) {
+            $village->inFamine = true;
+            $world->chronicle->record($tick, sprintf(
+                '%d %s, Year %d — famine grips %s as the granary runs dry.',
+                $date->dayOfMonth, $date->monthName, $date->year, $village->name,
+            ));
+        } elseif ($village->starvationFactor <= 1.0 && $village->inFamine) {
+            $village->inFamine = false;
+            $world->chronicle->record($tick, sprintf(
+                '%d %s, Year %d — the famine at %s breaks; the granary fills again.',
+                $date->dayOfMonth, $date->monthName, $date->year, $village->name,
+            ));
         }
     }
 }

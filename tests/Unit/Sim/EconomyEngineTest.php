@@ -122,6 +122,23 @@ class EconomyEngineTest extends TestCase
         $this->assertEqualsWithDelta(1.0, $world->village->stockpile->amount('money'), 1e-9);
     }
 
+    public function test_an_empty_granary_raises_the_starvation_factor_and_chronicles_famine(): void
+    {
+        // Three children (age 0): no producers, the granary stays empty, food per head ≈ 0.
+        $world = $this->worldWith(
+            $this->agent(1, 0),
+            $this->agent(2, 0),
+            $this->agent(3, 0),
+        );
+
+        EconomyEngine::runDay($world, self::OASIS_TICK, self::date(self::OASIS_TICK));
+
+        $this->assertGreaterThan(1.0, $world->village->starvationFactor);
+        $this->assertTrue($world->village->inFamine);
+        $famine = array_filter($world->chronicle->all(), static fn (array $e): bool => str_contains($e['text'], 'famine grips'));
+        $this->assertNotEmpty($famine);
+    }
+
     public function test_scarcity_drives_hunger_up_when_no_one_can_produce(): void
     {
         $hungerA = new Need('hunger', 0.0, 100.0 / 16.0);
