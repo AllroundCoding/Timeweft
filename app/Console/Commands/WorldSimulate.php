@@ -45,6 +45,23 @@ class WorldSimulate extends Command
         $this->line(sprintf('  founders %d  ·  born %d  ·  died %d  ·  living now %d', $foundingCount, $born, $died, count($living)));
         $this->newLine();
 
+        $this->comment('Milestones (story director):');
+        foreach ($world->milestones as $m) {
+            if ($m->achieved) {
+                $achievedDate = TharadiCalendar::fromTick((int) $m->achievedTick);
+                $this->line(sprintf(
+                    '  ✓ %s — Year %d %s (budget: by Year %d)',
+                    ucfirst($m->name),
+                    $achievedDate->year,
+                    $m->wasForced ? '[forced as the deadline arrived]' : '[emerged organically]',
+                    $m->deadlineYear,
+                ));
+            } else {
+                $this->line(sprintf('  ✗ %s — unfulfilled (budget: by Year %d)', ucfirst($m->name), $m->deadlineYear));
+            }
+        }
+        $this->newLine();
+
         $this->inheritanceSpotlight($world, $all);
 
         $this->comment('Living roster:');

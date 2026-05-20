@@ -5,6 +5,8 @@ namespace App\Sim\World;
 use App\Sim\Behavior\BehaviorEngine;
 use App\Sim\Behavior\FestivalCalendar;
 use App\Sim\Chronicle\Chronicle;
+use App\Sim\Direction\Milestone;
+use App\Sim\Direction\StoryDirector;
 use App\Sim\Support\Rng;
 use App\Sim\Support\TharadiNameGenerator;
 use App\Sim\Time\TharadiCalendar;
@@ -18,6 +20,8 @@ final class World
     public Chronicle $chronicle;
     public Species $species;
     public RegionProfile $region;
+    /** @var list<Milestone> */
+    public array $milestones = [];
     private TharadiNameGenerator $names;
     private int $nextId = 1;
     private ?string $lastFestivalKey = null;
@@ -42,6 +46,11 @@ final class World
         }
 
         $world->village = new Village('Sunwell Oasis', $world->region->name, $agents);
+        $world->milestones[] = new Milestone(
+            name: 'trading post on the caravan road',
+            deadlineYear: 12,
+            prereqPopulation: 12,
+        );
 
         return $world;
     }
@@ -65,9 +74,12 @@ final class World
                 BehaviorEngine::applyEffects($agent, $activity, $seasonMultiplier);
             }
 
-            // Emergence (pairing/birth/death) is evaluated once per in-world day.
+            // Emergence and story-direction are evaluated once per in-world day.
             if ($date->hour === 8) {
                 EmergenceEngine::runDay($this, $this->tick, $date);
+                foreach ($this->milestones as $milestone) {
+                    StoryDirector::evaluate($this, $milestone, $this->tick, $date, $this->rng);
+                }
             }
         }
     }
