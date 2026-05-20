@@ -47,8 +47,9 @@ handful of reused mechanisms:
 | [10](10-persistence-lod-roadmap.md) | Persistence, LOD & roadmap | 🟡/⚪ |
 | [11](11-cultural-and-social-model.md) | Cultural & social model | 🟡 |
 
-See **[ROADMAP.md](ROADMAP.md)** for the per-document task backlog and the dependency-aware
-build order — pick one task per session to keep scope tight.
+See **[ROADMAP.md](ROADMAP.md)** for the broad-strokes build arc (the phases M0–M7). The
+granular task backlog lives in **Linear** (project *Timeweft*) — one issue per piece of work,
+grouped by those milestones; pick one per session to keep scope tight.
 
 ## Status legend
 
