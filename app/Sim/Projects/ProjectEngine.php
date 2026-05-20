@@ -19,9 +19,16 @@ use App\Sim\World\World;
 final class ProjectEngine
 {
     private const ADULT_AGE = 16;
+
     private const REQUIRED_PER_CAPITA = 30.0;
+
     private const SANDSTORM_START_MONTH = 2; // Kalimos = first Sandstorm month
+
     private const DEFICIT_YEARS_TO_INSTITUTION = 3; // a deficit this persistent stops being a fluke
+
+    private const WAGE_FOR_PARTICIPATION = 2.0; // treasury money to hire one adult for a day
+
+    private const PAID_TO_STRENGTH = 0.12;      // hired effort is a modest supplement, not a deficit-eraser
 
     public static function runDay(World $world, int $tick, TharadiDate $date): void
     {
@@ -32,14 +39,18 @@ final class ProjectEngine
     }
 
     /**
-     * Per-adult effort: want-to (cohesion × sociability), lifted by any institution's
-     * paid-to/forced-to mandate toward full participation.
+     * Per-adult effort composed from three axes (design doc 07):
+     *   want-to   — culture × cohesion × sociability,
+     *   forced-to — the institution's mandate (× its effectiveness),
+     *   paid-to   — effort the settlement hires with money,
+     * each filling part of the gap left toward full participation.
      */
-    public static function participationWeight(Agent $agent, float $cohesion, ?Institution $institution = null): float
+    public static function participationWeight(Agent $agent, float $cohesion, ?Institution $institution = null, float $paidTo = 0.0): float
     {
         $wantTo = $cohesion * ((float) $agent->trait('sociability') / 100.0);
+        $withForced = $institution?->liftedParticipation($wantTo) ?? $wantTo;
 
-        return $institution?->liftedParticipation($wantTo) ?? $wantTo;
+        return min(1.0, $withForced + $paidTo * (1.0 - $withForced));
     }
 
     private static function maybeOpenSandstormPrep(World $world, int $tick, TharadiDate $date): void
@@ -68,13 +79,22 @@ final class ProjectEngine
             return;
         }
 
-        $cohesion = $world->village->cohesion(count($world->livingAgents()));
-        $institution = $world->village->institution;
+        $village = $world->village;
+        $cohesion = $village->cohesion(count($world->livingAgents()));
+        $institution = $village->institution;
         foreach ($world->livingAgents() as $agent) {
             if ($agent->ageInYears($tick) < self::ADULT_AGE) {
                 continue;
             }
-            $project->contribute(self::participationWeight($agent, $cohesion, $institution));
+
+            // paid-to: the settlement hires extra effort from its treasury while it can afford to.
+            $paidTo = 0.0;
+            if ($village->stockpile->has('money', self::WAGE_FOR_PARTICIPATION)) {
+                $village->stockpile->withdraw('money', self::WAGE_FOR_PARTICIPATION);
+                $paidTo = self::PAID_TO_STRENGTH;
+            }
+
+            $project->contribute(self::participationWeight($agent, $cohesion, $institution, $paidTo));
         }
     }
 
