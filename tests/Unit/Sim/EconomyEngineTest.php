@@ -43,6 +43,36 @@ class EconomyEngineTest extends TestCase
         $this->assertEqualsWithDelta(6.0, $world->village->stockpile->amount('water'), 1e-9);
     }
 
+    public function test_carrying_capacity_is_land_yield_over_the_ration(): void
+    {
+        $this->assertSame(22, EconomyEngine::carryingCapacityFor(22.0));
+        $this->assertSame(40, EconomyEngine::carryingCapacityFor(40.0));
+        $this->assertGreaterThan(EconomyEngine::carryingCapacityFor(10.0), EconomyEngine::carryingCapacityFor(30.0));
+    }
+
+    public function test_village_derives_its_carrying_capacity_from_land_yield(): void
+    {
+        $village = new Village('Sunwell Oasis', 'Tharados', landYield: 22.0);
+
+        $this->assertSame(22, $village->carryingCapacity);
+    }
+
+    public function test_the_land_caps_the_harvest(): void
+    {
+        // Three adults could produce 12 food, but a thin oasis yields only 10.
+        $world = new World(new Rng('cap'));
+        $world->village = new Village('Smallhold', 'Tharados', [
+            $this->agent(1, -20 * self::TICKS_PER_YEAR),
+            $this->agent(2, -20 * self::TICKS_PER_YEAR),
+            $this->agent(3, -20 * self::TICKS_PER_YEAR),
+        ], landYield: 10.0);
+
+        EconomyEngine::runDay($world, 0);
+
+        // Harvest capped at 10, three rations eaten → 7 left.
+        $this->assertEqualsWithDelta(7.0, $world->village->stockpile->amount('food'), 1e-9);
+    }
+
     public function test_scarcity_drives_hunger_up_when_no_one_can_produce(): void
     {
         $hungerA = new Need('hunger', 0.0, 100.0 / 16.0);

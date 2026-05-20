@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Sim\Economy\EconomyEngine;
 use App\Sim\Projects\ProjectEngine;
 use App\Sim\Support\Rng;
 use App\Sim\Time\TharadiCalendar;
@@ -118,10 +119,14 @@ class WorldSimulate extends Command
         }
         $this->newLine();
 
-        $this->comment('Economy — communal granary:');
+        $this->comment('Economy — granary & carrying capacity:');
         $granary = $village->stockpile;
         $this->line(sprintf(
-            '  food %s  ·  water %s  (adults produce 4/day each, everyone eats 1/day)',
+            '  land yield %s food/day → carrying capacity %d (yield ÷ %.0f per head)',
+            number_format($village->landYield), $village->carryingCapacity, EconomyEngine::FOOD_PER_CAPITA,
+        ));
+        $this->line(sprintf(
+            '  granary: food %s · water %s',
             number_format($granary->amount('food')), number_format($granary->amount('water')),
         ));
         $this->newLine();

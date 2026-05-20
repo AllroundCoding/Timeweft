@@ -3,6 +3,7 @@
 namespace App\Sim\World;
 
 use App\Sim\Culture\Culture;
+use App\Sim\Economy\EconomyEngine;
 use App\Sim\Economy\Stockpile;
 use App\Sim\Institutions\Institution;
 
@@ -27,25 +28,34 @@ final class Village
     /** Settlement size at which "everyone knows everyone" starts to break down. */
     public int $cohesiveGroupSize = 15;
 
+    /** Food/day the settlement's land can sustainably yield; the ceiling on production. */
+    public float $landYield;
+
+    /** Max sustainable population, computed from land yield ÷ the per-capita ration. */
+    public int $carryingCapacity;
+
     public ?float $lastReadiness = null;
 
     public int $underpreparedYears = 0;
 
     /**
      * @param  list<Agent>  $agents
-     * @param  int  $carryingCapacity  Max sustainable population. A fixed oasis ceiling
-     *                                 for now; later the output of the resource/trade system (and raised by imports).
+     * @param  float  $landYield  Food/day the oasis can sustainably produce; sets the
+     *                            carrying capacity. A fixed environmental ceiling for now;
+     *                            later it varies with season, shocks, and trade.
      */
     public function __construct(
         public readonly string $name,
         public readonly string $region,
         public array $agents = [],
-        public int $carryingCapacity = 40,
+        float $landYield = 40.0,
         ?Culture $culture = null,
     ) {
+        $this->landYield = $landYield;
         $this->culture = $culture ?? Culture::tharados();
         $this->baselineCohesion = $this->culture->baselineCohesion();
         $this->stockpile = new Stockpile;
+        $this->carryingCapacity = EconomyEngine::carryingCapacityFor($landYield);
     }
 
     /**

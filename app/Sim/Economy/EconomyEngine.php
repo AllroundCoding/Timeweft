@@ -20,9 +20,16 @@ final class EconomyEngine
 
     private const WATER_PER_ADULT = 4.0;
 
-    private const FOOD_PER_CAPITA = 1.0;
+    /** Per-head daily ration; the divisor that turns land yield into a carrying capacity. */
+    public const FOOD_PER_CAPITA = 1.0;
 
     private const WATER_PER_CAPITA = 1.0;
+
+    /** Carrying capacity = the population the land's food yield can sustainably feed. */
+    public static function carryingCapacityFor(float $landYield): int
+    {
+        return self::FOOD_PER_CAPITA > 0.0 ? (int) floor($landYield / self::FOOD_PER_CAPITA) : 0;
+    }
 
     public static function runDay(World $world, int $tick): void
     {
@@ -39,9 +46,11 @@ final class EconomyEngine
             }
         }
 
+        // Labor produces, but the land caps the harvest — the Malthusian ceiling.
+        $yield = $world->village->landYield;
         $granary = $world->village->stockpile;
-        $granary->add('food', $adults * self::FOOD_PER_ADULT);
-        $granary->add('water', $adults * self::WATER_PER_ADULT);
+        $granary->add('food', min($adults * self::FOOD_PER_ADULT, $yield));
+        $granary->add('water', min($adults * self::WATER_PER_ADULT, $yield));
 
         $foodShort = $population * self::FOOD_PER_CAPITA - $granary->withdraw('food', $population * self::FOOD_PER_CAPITA);
         $waterShort = $population * self::WATER_PER_CAPITA - $granary->withdraw('water', $population * self::WATER_PER_CAPITA);
