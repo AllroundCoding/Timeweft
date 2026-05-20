@@ -60,7 +60,7 @@ final class ProjectEngine
             return;
         }
 
-        $cohesion = $world->village->cohesion;
+        $cohesion = $world->village->cohesion(count($world->livingAgents()));
         foreach ($world->livingAgents() as $agent) {
             if ($agent->ageInYears($tick) < self::ADULT_AGE) {
                 continue;

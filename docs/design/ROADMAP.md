@@ -11,8 +11,8 @@ sprawling. Keep it in sync as things land.
 
 Tharadi calendar clock · composable species+region traits & needs · per-tick behavior
 (routine/season/festival) · emergent pairing/birth-with-inheritance/death · carrying-capacity
-logistic growth · collaborative projects v1 (Sandstorm prep) · story-director milestone ·
-`world:simulate` with `--json` chronicle. All seeded & reproducible.
+logistic growth · collaborative projects v1 (Sandstorm prep) · size-decaying cohesion ·
+story-director milestone · `world:simulate` with `--json` chronicle. All seeded & reproducible.
 
 ## Suggested build order (dependency-aware)
 
@@ -72,7 +72,7 @@ Per-file lists are below, but build in roughly this order so prerequisites land 
 
 ## 07 · Cooperation, Projects & Institutions
 - ✅ Projects v1 (Sandstorm prep) · cohesion × sociability participation
-- ⬜ Cohesion as a *computed* value (decays with size; per-edge between settlements) `[M]`
+- 🟡 Cohesion as a *computed* value — ✅ decays with settlement size; ⬜ per-edge between settlements `[M]` *(per-edge needs multi-settlement, 10)*
 - ⬜ Generalize Project (initiator, recruitment, types beyond storm-prep) `[M]`
 - ⬜ Three-axis participation: want-to / paid-to / forced-to `[M]`
 - ⬜ **Institution entity + emergence from a persistent cooperation deficit** `[L]` ← M2

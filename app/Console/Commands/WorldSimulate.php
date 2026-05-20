@@ -78,11 +78,16 @@ class WorldSimulate extends Command
 
         $this->comment('Cooperation — Sandstorm preparation:');
         $village = $world->village;
+        $cohesion = $village->cohesion(count($living));
         $this->line(sprintf(
             '  cohesion %.2f  ·  latest readiness %s  ·  underprepared years %d',
-            $village->cohesion,
+            $cohesion,
             $village->lastReadiness !== null ? ((int) round($village->lastReadiness * 100)) . '%' : 'n/a',
             $village->underpreparedYears,
+        ));
+        $this->line(sprintf(
+            '  baseline %.2f decays with scale → %.2f at %d souls (floor %.2f, group size %d)',
+            $village->baselineCohesion, $cohesion, count($living), $village->cohesionFloor, $village->cohesiveGroupSize,
         ));
         $this->line('  participation weight = cohesion × sociability (the "varying degrees"):');
         $adults = array_slice(
@@ -93,7 +98,7 @@ class WorldSimulate extends Command
         foreach ($adults as $a) {
             $this->line(sprintf(
                 '    %-9s soc %2.0f → %.2f effort/day',
-                $a->name, $a->trait('sociability'), ProjectEngine::participationWeight($a, $village->cohesion),
+                $a->name, $a->trait('sociability'), ProjectEngine::participationWeight($a, $cohesion),
             ));
         }
         $this->newLine();
