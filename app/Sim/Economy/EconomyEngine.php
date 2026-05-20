@@ -28,6 +28,9 @@ final class EconomyEngine
 
     private const WATER_PER_CAPITA = 1.0;
 
+    /** Money an adult earns per day from their labor. */
+    private const WAGE_PER_ADULT = 1.0;
+
     /**
      * Carrying capacity = the population the land's yield can feed, multiplied by
      * technology — so a small but high-tech settlement (think the Netherlands)
@@ -70,11 +73,17 @@ final class EconomyEngine
             return;
         }
 
+        // Wages: each adult earns, saves a thrift-proportional share, and the rest
+        // circulates into the communal treasury (which can later fund paid-to cooperation).
         $adults = 0;
         foreach ($living as $agent) {
-            if ($agent->ageInYears($tick) >= self::ADULT_AGE) {
-                $adults++;
+            if ($agent->ageInYears($tick) < self::ADULT_AGE) {
+                continue;
             }
+            $adults++;
+            $saved = self::WAGE_PER_ADULT * ((float) $agent->trait('thrift') / 100.0);
+            $agent->stockpile->add('money', $saved);
+            $world->village->stockpile->add('money', self::WAGE_PER_ADULT - $saved);
         }
 
         // Labor produces; technology multiplies it; the land × tech × season ceiling caps it.

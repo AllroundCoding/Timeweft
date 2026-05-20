@@ -128,8 +128,8 @@ class WorldSimulate extends Command
             EconomyEngine::averageYieldMultiplier($world->region), $village->carryingCapacity, EconomyEngine::FOOD_PER_CAPITA,
         ));
         $this->line(sprintf(
-            '  granary: food %s · water %s',
-            number_format($granary->amount('food')), number_format($granary->amount('water')),
+            '  granary: food %s · water %s · treasury %s money',
+            number_format($granary->amount('food')), number_format($granary->amount('water')), number_format($granary->amount('money')),
         ));
         $this->newLine();
 
@@ -198,6 +198,7 @@ class WorldSimulate extends Command
                 'parentIds' => $a->parentIds,
                 'traits' => $a->traits,
                 'needs' => array_map(fn ($n) => round($n->value, 1), $a->needs),
+                'money' => round($a->stockpile->amount('money'), 1),
             ], $living),
         ];
 

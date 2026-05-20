@@ -104,6 +104,24 @@ class EconomyEngineTest extends TestCase
         $this->assertEqualsWithDelta(2.0, $world->village->stockpile->amount('food'), 1e-9);
     }
 
+    public function test_thrifty_agents_save_more_and_feed_the_treasury_less(): void
+    {
+        $saver = $this->agent(1, -20 * self::TICKS_PER_YEAR, []);
+        $saver->traits['thrift'] = 80.0;
+        $spender = $this->agent(2, -20 * self::TICKS_PER_YEAR, []);
+        $spender->traits['thrift'] = 20.0;
+
+        $world = $this->worldWith($saver, $spender);
+        EconomyEngine::runDay($world, self::OASIS_TICK, self::date(self::OASIS_TICK));
+
+        // wage 1.0/day: saver keeps 0.8, spender keeps 0.2.
+        $this->assertEqualsWithDelta(0.8, $saver->stockpile->amount('money'), 1e-9);
+        $this->assertEqualsWithDelta(0.2, $spender->stockpile->amount('money'), 1e-9);
+        $this->assertGreaterThan($spender->stockpile->amount('money'), $saver->stockpile->amount('money'));
+        // The spent remainder (0.2 + 0.8) circulates into the communal treasury.
+        $this->assertEqualsWithDelta(1.0, $world->village->stockpile->amount('money'), 1e-9);
+    }
+
     public function test_scarcity_drives_hunger_up_when_no_one_can_produce(): void
     {
         $hungerA = new Need('hunger', 0.0, 100.0 / 16.0);
