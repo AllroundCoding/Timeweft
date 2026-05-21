@@ -161,6 +161,13 @@ class WorldSimulate extends Command
         foreach ($world->goods->all() as $good) {
             $this->line(sprintf('    %-10s %2.0f · %2.0f · %2.0f', $good->name, $good->nutrition, $good->value, $good->perishability));
         }
+        $this->line('  kitchen (recipe → meal nutrition; synergy makes a balanced meal beat its raw parts):');
+        foreach ($world->recipes->all() as $recipe) {
+            $this->line(sprintf(
+                '    %-24s %s → %.0f',
+                $recipe->name, implode(' + ', array_keys($recipe->ingredients)), $recipe->meal($world->goods)->nutrition,
+            ));
+        }
         $this->newLine();
 
         $this->inheritanceSpotlight($world, $all);
