@@ -58,6 +58,14 @@ class WorldSimulate extends Command
             $popSeries === [] ? 0 : max($popSeries),
             $world->village->carryingCapacity,
         ));
+        if ($living !== []) {
+            $sickness = array_map(fn (Agent $a) => ($a->needs['sickness'] ?? null)?->value ?? 0.0, $living);
+            $ill = count(array_filter($sickness, fn (float $s) => $s >= 40.0));
+            $this->line(sprintf(
+                '  health: avg sickness %.0f/100  ·  %d gravely ill (crowding, famine, frailty, plague)',
+                array_sum($sickness) / count($sickness), $ill,
+            ));
+        }
         $this->newLine();
 
         $this->comment('Milestones (story director):');

@@ -19,6 +19,8 @@ final class ShockEngine
 
     private const RAID_CASUALTY_RATE = 0.15;
 
+    private const PLAGUE_SICKNESS = 35.0; // sickness a plague inflicts on every soul at once
+
     public static function runDay(World $world, int $tick, TharadiDate $date): void
     {
         if ($date->monthIndex !== 0 || $date->dayOfMonth !== 1) {
@@ -30,11 +32,31 @@ final class ShockEngine
             return;
         }
 
-        if ($rng->chance(0.5)) {
-            self::applyFamine($world, $tick, $date);
-        } else {
-            self::applyRaid($world, $tick, $date, $rng);
+        match ($rng->int(1, 3)) {
+            1 => self::applyFamine($world, $tick, $date),
+            2 => self::applyRaid($world, $tick, $date, $rng),
+            default => self::applyPlague($world, $tick, $date),
+        };
+    }
+
+    public static function applyPlague(World $world, int $tick, TharadiDate $date): void
+    {
+        $struck = 0;
+        foreach ($world->livingAgents() as $agent) {
+            $sickness = $agent->needs['sickness'] ?? null;
+            if ($sickness !== null) {
+                $sickness->value = min(100.0, $sickness->value + self::PLAGUE_SICKNESS);
+                $struck++;
+            }
         }
+        if ($struck === 0) {
+            return;
+        }
+
+        $world->chronicle->record($tick, sprintf(
+            '%d %s, Year %d — a plague sweeps through %s; the sick fill its homes.',
+            $date->dayOfMonth, $date->monthName, $date->year, $world->village->name,
+        ));
     }
 
     public static function applyFamine(World $world, int $tick, TharadiDate $date): void
