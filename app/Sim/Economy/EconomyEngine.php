@@ -46,6 +46,15 @@ final class EconomyEngine
     /** Days of stored food per head that count as enough surplus to spare for innovation. */
     private const INNOVATION_SURPLUS_DAYS = 5.0;
 
+    /** How fast overshoot (population past K) exhausts the land each year, per unit of overshoot. */
+    private const DEGRADE_RATE = 0.15;
+
+    /** How fast land left fallow (worked below K) heals back toward its pristine yield each year. */
+    private const RECOVERY_RATE = 0.05;
+
+    /** The most the land can be exhausted to — a fraction of its pristine yield. */
+    private const LAND_FLOOR = 0.3;
+
     /** Per-adult daily yield of each basket good (before tech × season); the real diet behind the calories. */
     private const BASKET_YIELD = ['grain' => 3.0, 'dates' => 1.5, 'goat meat' => 1.5];
 
@@ -202,14 +211,48 @@ final class EconomyEngine
         return $adults > 0 ? ($sum / $adults) / 100.0 : 0.5;
     }
 
+    /**
+     * Land degradation (Diamond / Tainter overshoot): pushing population past K over-works the land
+     * and its yield erodes; working below K lets it lie fallow and heal back toward its pristine base.
+     * This is the *organic* fall — overshoot scars the land, K drops, the die-back deepens, and only
+     * once pressure eases does the land (and the ceiling) recover. Run once a year; deterministic.
+     */
+    public static function degradeLand(World $world): void
+    {
+        $village = $world->village;
+        $population = count($world->livingAgents());
+        if ($population === 0) {
+            return;
+        }
+
+        $pressure = $village->carryingCapacity > 0 ? $population / $village->carryingCapacity : 0.0;
+        $floor = self::LAND_FLOOR * $village->baseLandYield;
+
+        $village->landYield = max($floor, min(
+            $village->baseLandYield,
+            $village->landYield + self::landYieldChange($village->landYield, $village->baseLandYield, $pressure),
+        ));
+    }
+
+    /** Signed yearly change in land yield: negative when overshoot exhausts the land, positive as fallow heals it. */
+    public static function landYieldChange(float $landYield, float $baseLandYield, float $pressure): float
+    {
+        if ($pressure > 1.0) {
+            return -self::DEGRADE_RATE * ($pressure - 1.0) * $baseLandYield;
+        }
+
+        return self::RECOVERY_RATE * ($baseLandYield - $landYield);
+    }
+
     public static function runDay(World $world, int $tick, TharadiDate $date): void
     {
         $village = $world->village;
         $region = $world->region;
 
-        // Boserupian intensification: once a year, sustained pressure + surplus + openness lift technology.
+        // Once a year: tech ratchets the ceiling up (Boserup), overuse erodes the land beneath it (overshoot).
         if ($date->monthIndex === 0 && $date->dayOfMonth === 1) {
             self::advanceTechnology($world, $tick);
+            self::degradeLand($world);
         }
 
         // Carrying capacity tracks the land's *average* annual yield — a lean desert

@@ -29,8 +29,11 @@ final class Village
     /** Settlement size at which "everyone knows everyone" starts to break down. */
     public int $cohesiveGroupSize = 15;
 
-    /** Food/day the settlement's land can sustainably yield; the base of the production ceiling. */
+    /** Food/day the settlement's land can sustainably yield; the base of the production ceiling. Erodes with overuse. */
     public float $landYield;
+
+    /** The land's pristine, un-degraded yield — the ceiling recovery (fallow) heals back toward. */
+    public readonly float $baseLandYield;
 
     /** Technology multiplier on land + labor output (Boserup intensification); 1.0 = baseline. */
     public float $technology;
@@ -69,6 +72,7 @@ final class Village
         ?Culture $culture = null,
     ) {
         $this->landYield = $landYield;
+        $this->baseLandYield = $landYield;
         $this->technology = $technology;
         $this->culture = $culture ?? Culture::tharados();
         $this->baselineCohesion = $this->culture->baselineCohesion();
