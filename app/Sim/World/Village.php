@@ -16,8 +16,8 @@ final class Village
     /** The institution this settlement founds once its cooperation deficit persists. */
     public ?Institution $institution = null;
 
-    /** The culture of this settlement's people; sets the cohesion baseline and institution type. */
-    public readonly Culture $culture;
+    /** The culture of this settlement's people; sets the cohesion baseline and institution type. Drifts with material security. */
+    public Culture $culture;
 
     /** Culture-set baseline cooperation strength (0..1), derived from the culture's collectivism. */
     public float $baselineCohesion;

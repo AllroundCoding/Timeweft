@@ -85,6 +85,23 @@ final class Culture
         );
     }
 
+    /** Drift each dimension a fraction of the way toward a target culture (Inglehart drift over time). */
+    public function driftedToward(self $target, float $rate): self
+    {
+        $step = static fn (float $from, float $to): float => $from + ($to - $from) * $rate;
+
+        return new self(
+            name: $this->name,
+            collectivism: $step($this->collectivism, $target->collectivism),
+            hierarchy: $step($this->hierarchy, $target->hierarchy),
+            tradition: $step($this->tradition, $target->tradition),
+            longTermOrientation: $step($this->longTermOrientation, $target->longTermOrientation),
+            restraint: $step($this->restraint, $target->restraint),
+            achievement: $step($this->achievement, $target->achievement),
+            piety: $step($this->piety, $target->piety),
+        );
+    }
+
     /** Organic cooperation baseline (0..1) that the culture's collectivism sets. */
     public function baselineCohesion(): float
     {
