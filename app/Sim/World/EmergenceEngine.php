@@ -25,6 +25,8 @@ final class EmergenceEngine
 
     private const FAMINE_SEVERITY = 2.0;
 
+    private const SICKNESS_SEVERITY = 3.0;
+
     public static function runDay(World $world, int $tick, TharadiDate $date): void
     {
         self::tryPairing($world, $tick, $date, $world->rng);
@@ -105,7 +107,10 @@ final class EmergenceEngine
 
         foreach ($world->livingAgents() as $agent) {
             $age = $agent->ageInYears($tick);
-            if (! $rng->chance(self::dailyMortality($age) * $famine * $starvation)) {
+            // Ill health compounds mortality — the sicker an agent, the likelier the end.
+            $sickness = ($agent->needs['sickness'] ?? null)?->value ?? 0.0;
+            $illness = 1.0 + ($sickness / 100.0) * self::SICKNESS_SEVERITY;
+            if (! $rng->chance(self::dailyMortality($age) * $famine * $starvation * $illness)) {
                 continue;
             }
 

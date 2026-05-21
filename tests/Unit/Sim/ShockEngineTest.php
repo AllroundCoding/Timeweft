@@ -7,6 +7,7 @@ use App\Sim\Support\Rng;
 use App\Sim\Time\TharadiCalendar;
 use App\Sim\Time\TharadiDate;
 use App\Sim\World\Agent;
+use App\Sim\World\Need;
 use App\Sim\World\ShockEngine;
 use App\Sim\World\Village;
 use App\Sim\World\World;
@@ -40,6 +41,23 @@ class ShockEngineTest extends TestCase
         $this->assertLessThan($before, count($world->livingAgents()));
         $raid = array_filter($world->chronicle->all(), static fn (array $e): bool => str_contains($e['text'], 'raiders strike'));
         $this->assertNotEmpty($raid);
+    }
+
+    public function test_a_plague_makes_everyone_sick(): void
+    {
+        $world = new World(new Rng('plague'));
+        $world->village = new Village('Plaguehold', 'Tharados', [
+            new Agent(1, 'A', 'Vulpini', 'Tharados', 'f', -20 * self::TICKS_PER_YEAR, ['agility' => 50.0], ['sickness' => new Need('sickness', 0.0, 0.0)]),
+            new Agent(2, 'B', 'Vulpini', 'Tharados', 'm', -30 * self::TICKS_PER_YEAR, ['agility' => 50.0], ['sickness' => new Need('sickness', 0.0, 0.0)]),
+        ]);
+
+        ShockEngine::applyPlague($world, 0, self::date());
+
+        foreach ($world->livingAgents() as $agent) {
+            $this->assertGreaterThan(0.0, $agent->needs['sickness']->value);
+        }
+        $plague = array_filter($world->chronicle->all(), static fn (array $e): bool => str_contains($e['text'], 'plague'));
+        $this->assertNotEmpty($plague);
     }
 
     public function test_a_famine_ruins_the_stores(): void

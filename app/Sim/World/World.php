@@ -101,6 +101,7 @@ final class World
             if ($date->hour === 8) {
                 EconomyEngine::runDay($this, $this->tick, $date);
                 CultureEngine::runDay($this, $this->tick, $date);
+                HealthEngine::runDay($this, $this->tick);
                 EmergenceEngine::runDay($this, $this->tick, $date);
                 ProjectEngine::runDay($this, $this->tick, $date);
                 InstitutionEngine::runDay($this, $this->tick, $date);

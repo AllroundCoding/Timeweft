@@ -93,6 +93,8 @@ final class Species
         return [
             'hunger' => new Need('hunger', $rng->float(0, 20), 100.0 / 16.0),
             'energy' => new Need('energy', $rng->float(0, 15), 100.0 / 18.0),
+            // Sickness is driven by conditions (HealthEngine) and shocks, not a self-rise, so 0/tick.
+            'sickness' => new Need('sickness', 0.0, 0.0),
         ];
     }
 }
