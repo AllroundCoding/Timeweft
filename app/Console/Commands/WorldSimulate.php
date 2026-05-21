@@ -165,6 +165,10 @@ class WorldSimulate extends Command
             number_format($granary->amount('food')), number_format($granary->amount('water')), number_format($granary->amount('money')),
         ));
         $this->line(sprintf(
+            '  this year\'s harvest %.0f%% (ordinary good/lean swing; the granary & mutual aid buffer it, apart from rare shocks)',
+            $village->harvestQuality * 100,
+        ));
+        $this->line(sprintf(
             '  larder: grain %s · dates %s · goat meat %s (the real foodstuffs; perishables spoil)',
             number_format($granary->amount('grain')), number_format($granary->amount('dates')), number_format($granary->amount('goat meat')),
         ));

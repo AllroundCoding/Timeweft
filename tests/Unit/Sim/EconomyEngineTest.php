@@ -18,7 +18,7 @@ class EconomyEngineTest extends TestCase
 {
     private const TICKS_PER_YEAR = TharadiCalendar::HOURS_PER_DAY * TharadiCalendar::DAYS_PER_YEAR;
 
-    private const OASIS_TICK = 0;                                   // Naralis (Oasis)
+    private const OASIS_TICK = 5 * TharadiCalendar::HOURS_PER_DAY;  // Naralis (Oasis), mid-month — not a year-turn, so the annual mechanics (harvest, tech, land) stay out of the daily-math tests
 
     private const SANDSTORM_TICK = 60 * TharadiCalendar::HOURS_PER_DAY; // Kalimos (Sandstorm)
 
