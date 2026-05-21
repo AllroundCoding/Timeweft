@@ -149,6 +149,10 @@ class WorldSimulate extends Command
             '  granary: food %s · water %s · treasury %s money',
             number_format($granary->amount('food')), number_format($granary->amount('water')), number_format($granary->amount('money')),
         ));
+        $this->line('  goods catalog (what the oasis can yield — nutrition · value · perishability):');
+        foreach ($world->goods->all() as $good) {
+            $this->line(sprintf('    %-10s %2.0f · %2.0f · %2.0f', $good->name, $good->nutrition, $good->value, $good->perishability));
+        }
         $this->newLine();
 
         $this->inheritanceSpotlight($world, $all);
@@ -192,6 +196,10 @@ class WorldSimulate extends Command
                 'vector' => $world->village->culture->vector(),
             ],
             'granary' => $world->village->stockpile->all(),
+            'goods' => array_map(
+                fn ($g) => ['nutrition' => $g->nutrition, 'value' => $g->value, 'perishability' => $g->perishability],
+                $world->goods->all(),
+            ),
             'institution' => $world->village->institution !== null ? [
                 'name' => $world->village->institution->name,
                 'type' => $world->village->institution->type,

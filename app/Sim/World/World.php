@@ -10,6 +10,7 @@ use App\Sim\Culture\CultureEngine;
 use App\Sim\Direction\Milestone;
 use App\Sim\Direction\StoryDirector;
 use App\Sim\Economy\EconomyEngine;
+use App\Sim\Economy\GoodRegistry;
 use App\Sim\Institutions\InstitutionEngine;
 use App\Sim\Projects\Project;
 use App\Sim\Projects\ProjectEngine;
@@ -30,6 +31,9 @@ final class World
     public Species $species;
 
     public RegionProfile $region;
+
+    /** The goods this world knows — each a name → stat vector (nutrition, value, perishability). */
+    public GoodRegistry $goods;
 
     /** @var list<Milestone> */
     public array $milestones = [];
@@ -52,6 +56,7 @@ final class World
         $world = new self($rng);
         $world->species = Species::vulpini();
         $world->region = RegionProfile::tharados();
+        $world->goods = GoodRegistry::tharados();
         $world->names = new TharadiNameGenerator($rng);
         // Culture is generated from the region's materials first, so it can shape the founders it births.
         $culture = Culture::fromMaterialConditions('Tharadi', $world->region->scarcity(), $world->region->seasonalVolatility());
