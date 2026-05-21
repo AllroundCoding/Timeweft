@@ -168,6 +168,10 @@ class WorldSimulate extends Command
                 $recipe->name, implode(' + ', array_keys($recipe->ingredients)), $recipe->meal($world->goods)->nutrition,
             ));
         }
+        $this->line(sprintf(
+            '  diet quality %.0f%% in season (perishable foods spoil in the lean Sandstorm → a varied diet keeps people well)',
+            $village->dietQuality * 100,
+        ));
         $this->newLine();
 
         $this->inheritanceSpotlight($world, $all);

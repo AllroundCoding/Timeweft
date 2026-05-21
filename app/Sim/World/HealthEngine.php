@@ -39,6 +39,9 @@ final class HealthEngine
         $scarcity = max(0.0, $village->starvationFactor - 1.0);
         $environmental = self::BASE_EXPOSURE + $crowding * self::CROWDING_FACTOR + $scarcity * self::SCARCITY_FACTOR;
 
+        // A varied, nourishing diet helps the body recover; a monotonous lean-season diet doesn't.
+        $recovery = self::RECOVERY * (0.5 + 0.5 * $village->dietQuality);
+
         foreach ($living as $agent) {
             $sickness = $agent->needs['sickness'] ?? null;
             if ($sickness === null) {
@@ -46,7 +49,7 @@ final class HealthEngine
             }
 
             $frailty = max(0, $agent->ageInYears($tick) - self::FRAILTY_AGE) * self::FRAILTY_PER_YEAR;
-            $delta = $environmental + $frailty - self::RECOVERY;
+            $delta = $environmental + $frailty - $recovery;
             $sickness->value = max(0.0, min(100.0, $sickness->value + $delta));
         }
     }
