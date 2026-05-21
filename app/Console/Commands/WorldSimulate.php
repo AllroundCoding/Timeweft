@@ -103,6 +103,13 @@ class WorldSimulate extends Command
             (int) $faith->loyalty, (int) $faith->authority, (int) $faith->sanctity,
             (int) $faith->care, (int) $faith->fairness, (int) $faith->liberty, $faith->binding,
         ));
+        if ($living !== []) {
+            $adherence = array_map(fn ($a) => $faith->adherenceOf($a), $living);
+            $this->line(sprintf(
+                '    └ lived adherence ranges %.2f–%.2f (the devout vs the nominal believer)',
+                min($adherence), max($adherence),
+            ));
+        }
         $this->line(sprintf(
             '  baseline %.2f (from collectivism) decays with scale → %.2f at %d souls (floor %.2f, group size %d)',
             $village->baselineCohesion, $cohesion, count($living), $village->cohesionFloor, $village->cohesiveGroupSize,

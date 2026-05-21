@@ -2,6 +2,8 @@
 
 namespace App\Sim\Culture;
 
+use App\Sim\World\Agent;
+
 /**
  * A faith expressed as a weighting (0..100) over Haidt's six Moral Foundations — care, fairness,
  * loyalty, authority, sanctity, liberty. Its tenets and taboos are simply the foundations it
@@ -69,5 +71,35 @@ final class Faith
         arsort($vector);
 
         return array_slice(array_keys($vector), 0, max(1, $top));
+    }
+
+    /** The nudge this faith's tenets apply to a disposition, before per-agent adherence. */
+    public function dispositionModifier(string $key): float
+    {
+        return match ($key) {
+            'thrift' => ($this->sanctity - 50.0) * 0.4,                          // asceticism / purity → discipline
+            'generosity' => (($this->care + $this->loyalty) / 2.0 - 50.0) * 0.4, // compassion + in-group → giving
+            default => 0.0,
+        };
+    }
+
+    /**
+     * How devoutly a specific agent actually lives the faith (0..1): the culture's piety (the
+     * professed ceiling), moderated by the individual's conscientiousness and agreeableness (≈
+     * generosity). This is why professed belief and lived practice diverge — the nominal believer
+     * binds near 0 even where the culture is pious.
+     */
+    public function adherenceOf(Agent $agent): float
+    {
+        $conscientiousness = (float) ($agent->trait('conscientiousness') ?? 50.0);
+        $agreeableness = (float) ($agent->trait('generosity') ?? 50.0);
+
+        return $this->binding * (($conscientiousness + $agreeableness) / 200.0);
+    }
+
+    /** A disposition as this agent actually lives it: base trait shaped by the faith × how much they follow it. */
+    public function shape(Agent $agent, string $key, float $base): float
+    {
+        return max(0.0, min(100.0, $base + $this->dispositionModifier($key) * $this->adherenceOf($agent)));
     }
 }

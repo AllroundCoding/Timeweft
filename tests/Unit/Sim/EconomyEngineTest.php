@@ -2,6 +2,7 @@
 
 namespace Tests\Unit\Sim;
 
+use App\Sim\Culture\Culture;
 use App\Sim\Economy\EconomyEngine;
 use App\Sim\Support\Rng;
 use App\Sim\Time\TharadiCalendar;
@@ -112,6 +113,9 @@ class EconomyEngineTest extends TestCase
         $spender->traits['thrift'] = 20.0;
 
         $world = $this->worldWith($saver, $spender);
+        // A faith-neutral culture (sanctity 50) so this isolates the thrift mechanic; the faith's
+        // effect on thrift is covered in FaithTest.
+        $world->village->culture = new Culture('Plain', collectivism: 50, hierarchy: 50, tradition: 50, longTermOrientation: 50, restraint: 50, achievement: 50, piety: 50);
         EconomyEngine::runDay($world, self::OASIS_TICK, self::date(self::OASIS_TICK));
 
         // wage 1.0/day: saver keeps 0.8, spender keeps 0.2.
