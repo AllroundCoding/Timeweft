@@ -3,6 +3,7 @@
 namespace App\Sim\World;
 
 use App\Sim\Behavior\Activity;
+use App\Sim\Economy\Stockpile;
 use App\Sim\Time\TharadiCalendar;
 
 final class Agent
@@ -16,12 +17,14 @@ final class Agent
     public array $parentIds = [];
 
     public bool $alive = true;
+
     public ?int $deathTick = null;
+
     public ?int $lastBirthTick = null;
 
     /**
-     * @param array<string,float|string> $traits
-     * @param array<string,Need> $needs
+     * @param  array<string,float|string>  $traits
+     * @param  array<string,Need>  $needs
      */
     public function __construct(
         public readonly int $id,
@@ -32,6 +35,7 @@ final class Agent
         public readonly int $birthTick,
         public array $traits,
         public array $needs,
+        public Stockpile $stockpile = new Stockpile,
     ) {}
 
     public function trait(string $key): float|string|null

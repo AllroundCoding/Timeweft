@@ -1,4 +1,4 @@
-# 07 · Cooperation, Projects & Institutions  🟢 projects v1 built · 🟡 institutions designed
+# 07 · Cooperation, Projects & Institutions  🟢 projects v1 + institution emergence built · 🟡 upkeep/collapse designed
 
 ## Projects — bottom-up steering  🟢
 
@@ -22,7 +22,7 @@ villages high, rivals near zero). Three axes of *why anyone helps*:
 
 `want-to (culture × cohesion)  ·  paid-to (money)  ·  forced-to (force / fear)`
 
-## Institutions emerge from the cohesion gap  🟡
+## Institutions emerge from the cohesion gap  🟢 emergence built
 
 As a settlement grows, organic cooperation can't meet demand — Sunwell already shows this
 (chronic storm-underpreparedness as it outgrows its adult workforce). A persistent
@@ -30,6 +30,12 @@ As a settlement grows, organic cooperation can't meet demand — Sunwell already
 supplies the paid-to/forced-to cooperation organic cohesion no longer can. Culture picks the
 *type* → cultural divergence (Tharados → Ra'an's priesthood + emperor; communal Elenwood →
 councils).
+
+Built: after a few storms catch Sunwell short, it founds the **Temple of Nara** (Tharados'
+desert piety → faith as cooperation technology), which lifts each adult's participation toward
+full effort — relieving the deficit until further growth outpaces it again. Culture-by-region
+stands in for the culture vector (11) until that lands; the institution's *type* is picked from
+the region.
 
 ## Complexity ratchet → rise & fall  🟡
 
@@ -41,4 +47,4 @@ higher-cohesion units → cycle restarts. Rise-and-fall of civilizations, for fr
 Repeated, improving projects also crystallize into institutions ("do better next time" =
 cultural/tech accumulation) — the micro-mechanism that grows individuals → tribes → kingdoms.
 
-**Code:** `app/Sim/Projects/{Project, ProjectEngine}`, `Village.cohesion`.
+**Code:** `app/Sim/Projects/{Project, ProjectEngine}`, `app/Sim/Institutions/Institution`, `Village.cohesion()`.

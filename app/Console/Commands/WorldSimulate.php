@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Sim\Economy\EconomyEngine;
 use App\Sim\Projects\ProjectEngine;
 use App\Sim\Support\Rng;
 use App\Sim\Time\TharadiCalendar;
@@ -38,7 +39,7 @@ class WorldSimulate extends Command
 
         $this->comment('Chronicle:');
         foreach ($world->chronicle->all() as $entry) {
-            $this->line('  ' . $entry['text']);
+            $this->line('  '.$entry['text']);
         }
         $this->newLine();
 
@@ -78,13 +79,34 @@ class WorldSimulate extends Command
 
         $this->comment('Cooperation — Sandstorm preparation:');
         $village = $world->village;
+        $cohesion = $village->cohesion(count($living));
         $this->line(sprintf(
             '  cohesion %.2f  ·  latest readiness %s  ·  underprepared years %d',
-            $village->cohesion,
-            $village->lastReadiness !== null ? ((int) round($village->lastReadiness * 100)) . '%' : 'n/a',
+            $cohesion,
+            $village->lastReadiness !== null ? ((int) round($village->lastReadiness * 100)).'%' : 'n/a',
             $village->underpreparedYears,
         ));
-        $this->line('  participation weight = cohesion × sociability (the "varying degrees"):');
+        $culture = $village->culture;
+        $this->line(sprintf(
+            '  culture: %s — collectivism %d · hierarchy %d · tradition %d · restraint %d · piety %d',
+            $culture->name, (int) $culture->collectivism, (int) $culture->hierarchy,
+            (int) $culture->tradition, (int) $culture->restraint, (int) $culture->piety,
+        ));
+        $this->line(sprintf(
+            '  baseline %.2f (from collectivism) decays with scale → %.2f at %d souls (floor %.2f, group size %d)',
+            $village->baselineCohesion, $cohesion, count($living), $village->cohesionFloor, $village->cohesiveGroupSize,
+        ));
+        if ($village->institution !== null) {
+            $inst = $village->institution;
+            $this->line(sprintf(
+                '  institution: %s (%s), founded Year %d — mandate %d%%, effectiveness %d%% (ossifying)',
+                $inst->name, $inst->type, TharadiCalendar::fromTick($inst->foundedTick)->year,
+                (int) round($inst->mandate * 100), (int) round($inst->effectiveness * 100),
+            ));
+        } else {
+            $this->line('  institution: none — organic cohesion still suffices');
+        }
+        $this->line('  participation = want-to (cohesion × sociability) + forced-to (institution) + paid-to (treasury):');
         $adults = array_slice(
             array_values(array_filter($living, fn (Agent $a) => $a->ageInYears($world->tick) >= 16)),
             0,
@@ -93,9 +115,22 @@ class WorldSimulate extends Command
         foreach ($adults as $a) {
             $this->line(sprintf(
                 '    %-9s soc %2.0f → %.2f effort/day',
-                $a->name, $a->trait('sociability'), ProjectEngine::participationWeight($a, $village->cohesion),
+                $a->name, $a->trait('sociability'), ProjectEngine::participationWeight($a, $cohesion, $village->institution),
             ));
         }
+        $this->newLine();
+
+        $this->comment('Economy — granary & carrying capacity:');
+        $granary = $village->stockpile;
+        $this->line(sprintf(
+            '  land yield %s × tech %.1f × avg season %.2f → carrying capacity %d (food ÷ %.0f per head)',
+            number_format($village->landYield), $village->technology,
+            EconomyEngine::averageYieldMultiplier($world->region), $village->carryingCapacity, EconomyEngine::FOOD_PER_CAPITA,
+        ));
+        $this->line(sprintf(
+            '  granary: food %s · water %s · treasury %s money',
+            number_format($granary->amount('food')), number_format($granary->amount('water')), number_format($granary->amount('money')),
+        ));
         $this->newLine();
 
         $this->inheritanceSpotlight($world, $all);
@@ -104,7 +139,7 @@ class WorldSimulate extends Command
         foreach ($living as $a) {
             $partner = $a->partnerId !== null ? ($this->byId($all, $a->partnerId)?->name ?? '?') : '—';
             $origin = $a->parentIds !== []
-                ? 'child of ' . implode(' & ', array_map(fn ($id) => $this->byId($all, $id)?->name ?? '?', $a->parentIds))
+                ? 'child of '.implode(' & ', array_map(fn ($id) => $this->byId($all, $id)?->name ?? '?', $a->parentIds))
                 : 'founder';
             $this->line(sprintf(
                 '  #%-2d %-9s %s age %2d  ♥ %-9s  %-22s | agi %2.0f sen %2.0f heat %2.0f',
@@ -134,6 +169,17 @@ class WorldSimulate extends Command
                 'died' => $died,
                 'living' => count($living),
             ],
+            'culture' => [
+                'name' => $world->village->culture->name,
+                'vector' => $world->village->culture->vector(),
+            ],
+            'granary' => $world->village->stockpile->all(),
+            'institution' => $world->village->institution !== null ? [
+                'name' => $world->village->institution->name,
+                'type' => $world->village->institution->type,
+                'foundedYear' => TharadiCalendar::fromTick($world->village->institution->foundedTick)->year,
+                'mandate' => $world->village->institution->mandate,
+            ] : null,
             'milestones' => array_map(fn ($m) => [
                 'name' => $m->name,
                 'deadlineYear' => $m->deadlineYear,
@@ -152,6 +198,7 @@ class WorldSimulate extends Command
                 'parentIds' => $a->parentIds,
                 'traits' => $a->traits,
                 'needs' => array_map(fn ($n) => round($n->value, 1), $a->needs),
+                'money' => round($a->stockpile->amount('money'), 1),
             ], $living),
         ];
 

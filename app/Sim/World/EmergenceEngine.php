@@ -14,10 +14,15 @@ use App\Sim\Time\TharadiDate;
 final class EmergenceEngine
 {
     private const ADULT_AGE = 16;
+
     private const FERTILE_MAX = 45;
+
     private const PAIR_CHANCE_DAY = 0.02;
+
     private const BIRTH_CHANCE_DAY = 0.0025;
+
     private const BIRTH_SPACING_YEARS = 2;
+
     private const FAMINE_SEVERITY = 2.0;
 
     public static function runDay(World $world, int $tick, TharadiDate $date): void
@@ -95,10 +100,12 @@ final class EmergenceEngine
         $population = count($world->livingAgents());
         $capacity = $world->village->carryingCapacity;
         $famine = $population > $capacity ? 1.0 + (($population - $capacity) / $capacity) * self::FAMINE_SEVERITY : 1.0;
+        // A near-empty granary compounds it (scarcity-driven die-back).
+        $starvation = $world->village->starvationFactor;
 
         foreach ($world->livingAgents() as $agent) {
             $age = $agent->ageInYears($tick);
-            if (! $rng->chance(self::dailyMortality($age) * $famine)) {
+            if (! $rng->chance(self::dailyMortality($age) * $famine * $starvation)) {
                 continue;
             }
 

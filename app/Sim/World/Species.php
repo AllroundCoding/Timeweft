@@ -4,28 +4,34 @@ namespace App\Sim\World;
 
 use App\Sim\Support\Rng;
 use App\Sim\Support\TharadiNameGenerator;
+use App\Sim\Traits\TraitDefinition;
+use App\Sim\Traits\TraitRegistry;
 
-/** A species template: base trait ranges that a region then nudges. */
+/** A species template: a typed trait registry that a region then nudges. */
 final class Species
 {
-    /** @param array<string,array{0:float,1:float}> $traitRanges trait => [min, max] */
     public function __construct(
         public readonly string $name,
-        public readonly array $traitRanges,
+        public readonly TraitRegistry $traits,
     ) {}
 
     public static function vulpini(): self
     {
-        return new self('Vulpini', [
-            'agility' => [60.0, 90.0],
-            'senses' => [60.0, 92.0],
-            'dexterity' => [55.0, 85.0],
-            'constitution' => [40.0, 80.0],
-            'sociability' => [30.0, 90.0],
-        ]);
+        $traits = (new TraitRegistry)
+            ->define(TraitDefinition::numeric('agility', 60.0, 90.0, mutation: 5.0))
+            ->define(TraitDefinition::numeric('senses', 60.0, 92.0, mutation: 5.0))
+            ->define(TraitDefinition::numeric('dexterity', 55.0, 85.0, mutation: 5.0))
+            ->define(TraitDefinition::numeric('constitution', 40.0, 80.0, mutation: 5.0))
+            ->define(TraitDefinition::numeric('sociability', 30.0, 90.0, mutation: 5.0))
+            ->define(TraitDefinition::categorical('furColor'))
+            ->define(TraitDefinition::numeric('heatTolerance', 60.0, 95.0, mutation: 4.0))
+            ->define(TraitDefinition::numeric('generosity', 30.0, 70.0, mutation: 5.0))
+            ->define(TraitDefinition::numeric('thrift', 30.0, 70.0, mutation: 5.0));
+
+        return new self('Vulpini', $traits);
     }
 
-    /** Generate a fresh founder/agent from species ranges + region modifiers. */
+    /** Generate a fresh founder/agent from the registry + region modifiers. */
     public function birth(
         int $id,
         int $birthTick,
@@ -33,13 +39,7 @@ final class Species
         Rng $rng,
         TharadiNameGenerator $names,
     ): Agent {
-        $traits = [];
-        foreach ($this->traitRanges as $key => [$min, $max]) {
-            $value = $rng->float($min, $max) + $region->traitModifier($key);
-            $traits[$key] = round(max(0.0, min(100.0, $value)), 1);
-        }
-        $traits['furColor'] = $rng->pick($region->furPalette);
-        $traits = array_merge($traits, $region->extraTraits($rng));
+        $traits = $this->traits->generate($region, $rng);
 
         return new Agent(
             id: $id,
@@ -53,7 +53,7 @@ final class Species
         );
     }
 
-    /** Produce a child whose traits are inherited from both parents plus mutation. */
+    /** Produce a child whose traits are inherited from both parents per the registry. */
     public function breed(
         int $id,
         Agent $mother,
@@ -62,15 +62,7 @@ final class Species
         Rng $rng,
         TharadiNameGenerator $names,
     ): Agent {
-        $traits = [];
-        foreach ($this->traitRanges as $key => [$min, $max]) {
-            $average = ((float) $mother->trait($key) + (float) $father->trait($key)) / 2.0;
-            $mutated = $average + $rng->float(-5.0, 5.0);
-            $traits[$key] = round(max(0.0, min(100.0, $mutated)), 1);
-        }
-        $traits['furColor'] = $rng->chance(0.5) ? $mother->trait('furColor') : $father->trait('furColor');
-        $heat = ((float) $mother->trait('heatTolerance') + (float) $father->trait('heatTolerance')) / 2.0 + $rng->float(-4.0, 4.0);
-        $traits['heatTolerance'] = round(max(0.0, min(100.0, $heat)), 1);
+        $traits = $this->traits->inherit($mother, $father, $rng);
 
         $child = new Agent(
             id: $id,

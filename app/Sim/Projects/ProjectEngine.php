@@ -2,6 +2,7 @@
 
 namespace App\Sim\Projects;
 
+use App\Sim\Institutions\Institution;
 use App\Sim\Time\TharadiCalendar;
 use App\Sim\Time\TharadiDate;
 use App\Sim\World\Agent;
@@ -18,20 +19,38 @@ use App\Sim\World\World;
 final class ProjectEngine
 {
     private const ADULT_AGE = 16;
+
     private const REQUIRED_PER_CAPITA = 30.0;
+
     private const SANDSTORM_START_MONTH = 2; // Kalimos = first Sandstorm month
+
+    private const DEFICIT_YEARS_TO_INSTITUTION = 3; // a deficit this persistent stops being a fluke
+
+    private const WAGE_FOR_PARTICIPATION = 2.0; // treasury money to hire one adult for a day
+
+    private const PAID_TO_STRENGTH = 0.12;      // hired effort is a modest supplement, not a deficit-eraser
 
     public static function runDay(World $world, int $tick, TharadiDate $date): void
     {
         self::maybeOpenSandstormPrep($world, $tick, $date);
         self::contributeDaily($world, $tick);
         self::resolveDue($world, $tick, $date);
+        self::maybeFoundInstitution($world, $tick, $date);
     }
 
-    /** want-to: cohesion (culture × social proximity) scaled by individual sociability. */
-    public static function participationWeight(Agent $agent, float $cohesion): float
+    /**
+     * Per-adult effort composed from three axes (design doc 07):
+     *   want-to   — culture × cohesion × sociability,
+     *   forced-to — the institution's mandate (× its effectiveness),
+     *   paid-to   — effort the settlement hires with money,
+     * each filling part of the gap left toward full participation.
+     */
+    public static function participationWeight(Agent $agent, float $cohesion, ?Institution $institution = null, float $paidTo = 0.0): float
     {
-        return $cohesion * ((float) $agent->trait('sociability') / 100.0);
+        $wantTo = $cohesion * ((float) $agent->trait('sociability') / 100.0);
+        $withForced = $institution?->liftedParticipation($wantTo) ?? $wantTo;
+
+        return min(1.0, $withForced + $paidTo * (1.0 - $withForced));
     }
 
     private static function maybeOpenSandstormPrep(World $world, int $tick, TharadiDate $date): void
@@ -50,6 +69,8 @@ final class ProjectEngine
             name: 'Sandstorm preparation',
             deadlineTick: $tick + $daysUntilSandstorm * TharadiCalendar::HOURS_PER_DAY,
             requiredEffort: $population * self::REQUIRED_PER_CAPITA,
+            type: 'seasonal-preparation',
+            initiator: 'the coming Sandstorm',
         );
     }
 
@@ -60,13 +81,43 @@ final class ProjectEngine
             return;
         }
 
-        $cohesion = $world->village->cohesion;
+        $village = $world->village;
+        $cohesion = $village->cohesion(count($world->livingAgents()));
+        $institution = $village->institution;
         foreach ($world->livingAgents() as $agent) {
             if ($agent->ageInYears($tick) < self::ADULT_AGE) {
                 continue;
             }
-            $project->contribute(self::participationWeight($agent, $cohesion));
+
+            // paid-to: the settlement hires extra effort from its treasury while it can afford to.
+            $paidTo = 0.0;
+            if ($village->stockpile->has('money', self::WAGE_FOR_PARTICIPATION)) {
+                $village->stockpile->withdraw('money', self::WAGE_FOR_PARTICIPATION);
+                $paidTo = self::PAID_TO_STRENGTH;
+            }
+
+            $project->contribute(self::participationWeight($agent, $cohesion, $institution, $paidTo));
         }
+    }
+
+    /**
+     * Relief half of the loop: when storm-underpreparedness has persisted long enough
+     * to count as a chronic cooperation deficit (not a one-off bad year), the settlement
+     * founds the institution its culture calls for to compel the missing cooperation.
+     */
+    private static function maybeFoundInstitution(World $world, int $tick, TharadiDate $date): void
+    {
+        $village = $world->village;
+        if ($village->institution !== null || $village->underpreparedYears < self::DEFICIT_YEARS_TO_INSTITUTION) {
+            return;
+        }
+
+        $institution = Institution::emergeFor($village->culture, $tick);
+        $village->institution = $institution;
+        $world->chronicle->record($tick, sprintf(
+            '%d %s, Year %d — after %d storms caught it short, %s founds the %s to compel the preparation cohesion alone could not muster.',
+            $date->dayOfMonth, $date->monthName, $date->year, $village->underpreparedYears, $village->name, $institution->name,
+        ));
     }
 
     private static function resolveDue(World $world, int $tick, TharadiDate $date): void

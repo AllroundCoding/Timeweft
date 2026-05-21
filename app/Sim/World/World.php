@@ -5,8 +5,11 @@ namespace App\Sim\World;
 use App\Sim\Behavior\BehaviorEngine;
 use App\Sim\Behavior\FestivalCalendar;
 use App\Sim\Chronicle\Chronicle;
+use App\Sim\Culture\Culture;
 use App\Sim\Direction\Milestone;
 use App\Sim\Direction\StoryDirector;
+use App\Sim\Economy\EconomyEngine;
+use App\Sim\Institutions\InstitutionEngine;
 use App\Sim\Projects\Project;
 use App\Sim\Projects\ProjectEngine;
 use App\Sim\Support\Rng;
@@ -18,20 +21,29 @@ use App\Sim\Time\TharadiDate;
 final class World
 {
     public int $tick = 0;
+
     public Village $village;
+
     public Chronicle $chronicle;
+
     public Species $species;
+
     public RegionProfile $region;
+
     /** @var list<Milestone> */
     public array $milestones = [];
+
     public ?Project $activeProject = null;
+
     private TharadiNameGenerator $names;
+
     private int $nextId = 1;
+
     private ?string $lastFestivalKey = null;
 
     public function __construct(public readonly Rng $rng)
     {
-        $this->chronicle = new Chronicle();
+        $this->chronicle = new Chronicle;
     }
 
     public static function seedTharadosVillage(Rng $rng, int $population = 5): self
@@ -48,7 +60,7 @@ final class World
             $agents[] = $world->species->birth($world->nextId++, $birthTick, $world->region, $rng, $world->names);
         }
 
-        $world->village = new Village('Sunwell Oasis', $world->region->name, $agents, carryingCapacity: 22);
+        $world->village = new Village('Sunwell Oasis', $world->region->name, $agents, landYield: 22.0, culture: Culture::tharados());
         $world->milestones[] = new Milestone(
             name: 'trading post on the caravan road',
             deadlineYear: 12,
@@ -77,10 +89,13 @@ final class World
                 BehaviorEngine::applyEffects($agent, $activity, $seasonMultiplier);
             }
 
-            // Emergence, projects, and story-direction run once per in-world day.
+            // Economy, emergence, projects, and story-direction run once per in-world day.
             if ($date->hour === 8) {
+                EconomyEngine::runDay($this, $this->tick, $date);
                 EmergenceEngine::runDay($this, $this->tick, $date);
                 ProjectEngine::runDay($this, $this->tick, $date);
+                InstitutionEngine::runDay($this, $this->tick, $date);
+                ShockEngine::runDay($this, $this->tick, $date);
                 foreach ($this->milestones as $milestone) {
                     StoryDirector::evaluate($this, $milestone, $this->tick, $date, $this->rng);
                 }

@@ -2,16 +2,24 @@
 
 namespace App\Sim\Projects;
 
-/** A collective endeavor a group works toward by a deadline (projects v1). */
+/**
+ * A collective endeavor a group works toward by a deadline. Each project has a
+ * type and an initiator (an agent, a need, or a cultural norm), so the engine can
+ * run many kinds of communal work — not just the recurring storm preparation —
+ * through one path.
+ */
 final class Project
 {
     public float $effort = 0.0;
+
     public bool $resolved = false;
 
     public function __construct(
         public readonly string $name,
         public readonly int $deadlineTick,
         public readonly float $requiredEffort,
+        public readonly string $type = 'general',
+        public readonly string $initiator = 'the community',
     ) {}
 
     public function contribute(float $amount): void
