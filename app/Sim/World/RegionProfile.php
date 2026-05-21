@@ -2,6 +2,8 @@
 
 namespace App\Sim\World;
 
+use App\Sim\Time\TharadiCalendar;
+
 /** Regional flavor layered on top of a species' trait registry: numeric nudges + categorical vocabularies. */
 final class RegionProfile
 {
@@ -40,6 +42,39 @@ final class RegionProfile
     public function yieldMultiplier(string $season): float
     {
         return $this->yieldBySeason[$season] ?? 1.0;
+    }
+
+    /** Year-round average yield multiplier, weighted by how many months fall in each season. */
+    public function averageYield(): float
+    {
+        $sum = 0.0;
+        foreach (TharadiCalendar::MONTHS as $month) {
+            $sum += $this->yieldMultiplier($month['season']);
+        }
+
+        return $sum / count(TharadiCalendar::MONTHS);
+    }
+
+    /** How lean the land is: 0 (abundant) .. 1 (harsh), from its average yield. */
+    public function scarcity(): float
+    {
+        $abundance = max(0.0, min(1.0, $this->averageYield() - 0.5));
+
+        return 1.0 - $abundance;
+    }
+
+    /** How much yield swings across the year: 0 (stable) .. 1 (wild), from the spread of seasonal yields. */
+    public function seasonalVolatility(): float
+    {
+        $values = array_values($this->yieldBySeason);
+        if ($values === []) {
+            return 0.0;
+        }
+
+        $max = max($values);
+        $min = min($values);
+
+        return ($max + $min) > 0.0 ? ($max - $min) / ($max + $min) : 0.0;
     }
 
     public function traitModifier(string $key): float
