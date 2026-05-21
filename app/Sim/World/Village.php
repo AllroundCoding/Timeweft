@@ -3,6 +3,7 @@
 namespace App\Sim\World;
 
 use App\Sim\Culture\Culture;
+use App\Sim\Culture\Faith;
 use App\Sim\Economy\EconomyEngine;
 use App\Sim\Economy\Stockpile;
 use App\Sim\Institutions\Institution;
@@ -75,6 +76,12 @@ final class Village
      * As scale grows the gap between this and demand becomes the cooperation deficit
      * that institutions later step in to fill (design doc 07).
      */
+    /** The settlement's faith, derived from its current culture (so it tracks cultural drift). */
+    public function faith(): Faith
+    {
+        return Faith::fromCulture('the Way of Nara', $this->culture);
+    }
+
     public function cohesion(int $populationSize): float
     {
         $scale = max(0, $populationSize) / $this->cohesiveGroupSize;
