@@ -4,6 +4,7 @@ namespace App\Sim\Economy;
 
 use App\Sim\Time\TharadiDate;
 use App\Sim\World\RegionProfile;
+use App\Sim\World\Village;
 use App\Sim\World\World;
 
 /**
@@ -38,6 +39,12 @@ final class EconomyEngine
 
     /** Days of food per head the granary can hold; beyond this, surplus spoils. */
     private const STORAGE_DAYS = 30.0;
+
+    /** Boserup intensification: how fast sustained pressure × surplus × openness ratchets technology up. */
+    private const INNOVATION_RATE = 0.08;
+
+    /** Days of stored food per head that count as enough surplus to spare for innovation. */
+    private const INNOVATION_SURPLUS_DAYS = 5.0;
 
     /** Per-adult daily yield of each basket good (before tech × season); the real diet behind the calories. */
     private const BASKET_YIELD = ['grain' => 3.0, 'dates' => 1.5, 'goat meat' => 1.5];
@@ -140,10 +147,70 @@ final class EconomyEngine
         return $adults > 0 ? ($sum / $adults) / 100.0 : 0.5;
     }
 
+    /**
+     * Boserup's intensification ratchet (design doc 12): the spur to innovate is weak far below
+     * carrying capacity and strong as population presses against (or past) it — but only a settlement
+     * with surplus to spare and the cultural openness to try will act on it. Technology, once won,
+     * sticks (monotonic). Run once a year; deterministic (no RNG).
+     */
+    public static function advanceTechnology(World $world, int $tick): void
+    {
+        $village = $world->village;
+        $population = count($world->livingAgents());
+        if ($population === 0) {
+            return;
+        }
+
+        $pressure = $village->carryingCapacity > 0 ? $population / $village->carryingCapacity : 0.0;
+        $surplus = self::innovationSurplus($village, $population);
+        $openness = self::settlementOpenness($world, $tick);
+
+        $village->technology += self::technologyGrowth($pressure, $surplus, $openness);
+    }
+
+    /** The yearly technology gain from Boserupian pressure × surplus × openness; never negative (knowledge sticks). */
+    public static function technologyGrowth(float $pressure, float $surplus, float $openness): float
+    {
+        $spur = max(0.0, $pressure) ** 2; // little incentive far below K, a sharp one near or past it
+        $surplus = max(0.0, min(1.0, $surplus));
+        $openness = max(0.0, min(1.0, $openness));
+
+        return self::INNOVATION_RATE * $spur * $surplus * $openness;
+    }
+
+    /** Days of stored food per head, normalized 0..1 — the slack a settlement can spare to intensify. */
+    private static function innovationSurplus(Village $village, int $population): float
+    {
+        $foodPerCapita = $village->stockpile->amount('food') / $population;
+
+        return max(0.0, min(1.0, $foodPerCapita / self::INNOVATION_SURPLUS_DAYS));
+    }
+
+    /** The settlement's average openness 0..1 — its propensity to try the new (consumes the inert openness trait). */
+    private static function settlementOpenness(World $world, int $tick): float
+    {
+        $sum = 0.0;
+        $adults = 0;
+        foreach ($world->livingAgents() as $agent) {
+            if ($agent->ageInYears($tick) < self::ADULT_AGE) {
+                continue;
+            }
+            $adults++;
+            $sum += (float) ($agent->trait('openness') ?? 50.0);
+        }
+
+        return $adults > 0 ? ($sum / $adults) / 100.0 : 0.5;
+    }
+
     public static function runDay(World $world, int $tick, TharadiDate $date): void
     {
         $village = $world->village;
         $region = $world->region;
+
+        // Boserupian intensification: once a year, sustained pressure + surplus + openness lift technology.
+        if ($date->monthIndex === 0 && $date->dayOfMonth === 1) {
+            self::advanceTechnology($world, $tick);
+        }
 
         // Carrying capacity tracks the land's *average* annual yield — a lean desert
         // (mostly Sandstorm) sustains fewer souls than its peak-season yield suggests.
