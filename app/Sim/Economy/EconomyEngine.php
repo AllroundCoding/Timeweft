@@ -39,6 +39,9 @@ final class EconomyEngine
     /** Days of food per head the granary can hold; beyond this, surplus spoils. */
     private const STORAGE_DAYS = 30.0;
 
+    /** A good counts toward the diet (vs. mere hydration) only above this nutrition. */
+    private const EDIBLE_NUTRITION = 20.0;
+
     /**
      * Carrying capacity = the population the land's yield can feed, multiplied by
      * technology — so a small but high-tech settlement (think the Netherlands)
@@ -58,6 +61,28 @@ final class EconomyEngine
         return $region->averageYield();
     }
 
+    /**
+     * Diet quality 0..1: the share of the edible basket's nutrition that keeps in this season. In a
+     * lean season fresh, perishable foods (meat, fruit) spoil and the diet narrows to hardy staples,
+     * so the people eat poorly even when fed; an abundant season feeds the full varied basket.
+     */
+    public static function dietQualityFor(GoodRegistry $goods, float $keepThreshold): float
+    {
+        $available = 0.0;
+        $full = 0.0;
+        foreach ($goods->all() as $good) {
+            if ($good->nutrition < self::EDIBLE_NUTRITION) {
+                continue; // water and the like hydrate but aren't the diet
+            }
+            $full += $good->nutrition;
+            if ($good->perishability <= $keepThreshold) {
+                $available += $good->nutrition;
+            }
+        }
+
+        return $full > 0.0 ? $available / $full : 1.0;
+    }
+
     public static function runDay(World $world, int $tick, TharadiDate $date): void
     {
         $village = $world->village;
@@ -69,6 +94,11 @@ final class EconomyEngine
             $village->landYield * self::averageYieldMultiplier($region),
             $village->technology,
         );
+
+        // What's in season shapes the diet: in the lean Sandstorm, perishable foods spoil.
+        if (isset($world->goods)) {
+            $village->dietQuality = self::dietQualityFor($world->goods, $region->yieldMultiplier($date->season) * 100.0);
+        }
 
         $living = $world->livingAgents();
         $population = count($living);

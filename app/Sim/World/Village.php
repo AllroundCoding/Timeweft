@@ -48,6 +48,9 @@ final class Village
     /** Whether the settlement is currently gripped by famine (drives chronicle onset/recovery). */
     public bool $inFamine = false;
 
+    /** Diet quality 0..1 — the variety/nutrition of foods in season; a varied diet keeps people well. */
+    public float $dietQuality = 1.0;
+
     /**
      * @param  list<Agent>  $agents
      * @param  float  $landYield  Food/day the oasis can sustainably produce; sets the
