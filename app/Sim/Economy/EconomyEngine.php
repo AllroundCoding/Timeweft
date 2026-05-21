@@ -76,17 +76,20 @@ final class EconomyEngine
             return;
         }
 
-        // Wages: each adult earns, saves a thrift-proportional share, and the rest
-        // circulates into the communal treasury (which can later fund paid-to cooperation).
+        // Wages: each adult earns, saves a thrift-proportional share, and the rest circulates into
+        // the communal treasury. Thrift is the agent's trait as the faith shapes it — an ascetic,
+        // sanctity-weighted faith makes the devout save more (and the nominal believer barely).
+        $faith = $village->faith();
         $adults = 0;
         foreach ($living as $agent) {
             if ($agent->ageInYears($tick) < self::ADULT_AGE) {
                 continue;
             }
             $adults++;
-            $saved = self::WAGE_PER_ADULT * ((float) $agent->trait('thrift') / 100.0);
+            $thrift = $faith->shape($agent, 'thrift', (float) $agent->trait('thrift'));
+            $saved = self::WAGE_PER_ADULT * ($thrift / 100.0);
             $agent->stockpile->add('money', $saved);
-            $world->village->stockpile->add('money', self::WAGE_PER_ADULT - $saved);
+            $village->stockpile->add('money', self::WAGE_PER_ADULT - $saved);
         }
 
         // Labor produces; technology multiplies it; the land × tech × season ceiling caps it.

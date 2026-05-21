@@ -4,6 +4,7 @@ namespace Tests\Unit\Sim;
 
 use App\Sim\Culture\Culture;
 use App\Sim\Culture\Faith;
+use App\Sim\World\Agent;
 use App\Sim\World\Village;
 use PHPUnit\Framework\TestCase;
 
@@ -51,5 +52,33 @@ class FaithTest extends TestCase
         $this->assertSame('the Way of Nara', $faith->name);
         // The Tharadi (collectivism 85, tradition/piety 80) hold a binding, sanctity-heavy faith.
         $this->assertGreaterThan($faith->liberty, $faith->sanctity);
+    }
+
+    private function agent(float $conscientiousness, float $agreeableness): Agent
+    {
+        return new Agent(1, 'A', 'Vulpini', 'Tharados', 'f', 0, ['thrift' => 50.0, 'conscientiousness' => $conscientiousness, 'generosity' => $agreeableness], []);
+    }
+
+    public function test_a_devout_individual_adheres_more_than_a_nominal_one(): void
+    {
+        $faith = Faith::fromCulture('Pious', $this->culture(piety: 90));
+
+        $devout = $faith->adherenceOf($this->agent(conscientiousness: 90, agreeableness: 90));
+        $nominal = $faith->adherenceOf($this->agent(conscientiousness: 10, agreeableness: 10));
+
+        // Same pious culture, opposite practice — belief and behavior diverge.
+        $this->assertGreaterThan($nominal, $devout);
+        $this->assertLessThan(0.2, $nominal); // the believer who doesn't practice barely binds
+    }
+
+    public function test_a_sanctity_faith_makes_the_devout_thriftier(): void
+    {
+        // A sanctity-weighted, pious faith raises restraint (thrift) — more so the more one follows it.
+        $faith = Faith::fromCulture('Ascetic', $this->culture(tradition: 90, piety: 90));
+        $devout = $this->agent(conscientiousness: 90, agreeableness: 90);
+        $nominal = $this->agent(conscientiousness: 10, agreeableness: 10);
+
+        $this->assertGreaterThan(50.0, $faith->shape($devout, 'thrift', 50.0));            // faith lifts it
+        $this->assertGreaterThan($faith->shape($nominal, 'thrift', 50.0), $faith->shape($devout, 'thrift', 50.0));
     }
 }
