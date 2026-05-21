@@ -119,6 +119,27 @@ final class EconomyEngine
         return $best > 0.0 ? min(1.0, $nutrition / $population / $best) : 1.0;
     }
 
+    /**
+     * The settlement's mutual aid 0..1 — its average (faith-shaped) generosity. A generous,
+     * collectivist village shares the shortfall in a famine and loses fewer souls; a stingy one
+     * hoards and the vulnerable die. Sahlins' reciprocity (doc 11).
+     */
+    public static function mutualAid(World $world, int $tick): float
+    {
+        $faith = $world->village->faith();
+        $sum = 0.0;
+        $adults = 0;
+        foreach ($world->livingAgents() as $agent) {
+            if ($agent->ageInYears($tick) < self::ADULT_AGE) {
+                continue;
+            }
+            $adults++;
+            $sum += $faith->shape($agent, 'generosity', (float) ($agent->trait('generosity') ?? 50.0));
+        }
+
+        return $adults > 0 ? ($sum / $adults) / 100.0 : 0.5;
+    }
+
     public static function runDay(World $world, int $tick, TharadiDate $date): void
     {
         $village = $world->village;
@@ -180,6 +201,7 @@ final class EconomyEngine
             }
         }
 
+        $village->mutualAid = self::mutualAid($world, $tick);
         self::updateFoodSecurity($world, $tick, $date, $granary->amount('food') / $population);
     }
 

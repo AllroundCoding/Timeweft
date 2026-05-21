@@ -65,6 +65,10 @@ class WorldSimulate extends Command
                 '  health: avg sickness %.0f/100  ·  %d gravely ill (crowding, famine, frailty, plague)',
                 array_sum($sickness) / count($sickness), $ill,
             ));
+            $this->line(sprintf(
+                '  mutual aid %.0f%% (generosity shares a famine\'s shortfall → fewer of the vulnerable lost)',
+                $world->village->mutualAid * 100,
+            ));
         }
         $this->newLine();
 

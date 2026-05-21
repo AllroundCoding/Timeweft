@@ -27,6 +27,8 @@ final class EmergenceEngine
 
     private const SICKNESS_SEVERITY = 3.0;
 
+    private const AID_STRENGTH = 0.6; // how far mutual aid buffers the famine die-back
+
     public static function runDay(World $world, int $tick, TharadiDate $date): void
     {
         self::tryPairing($world, $tick, $date, $world->rng);
@@ -102,8 +104,9 @@ final class EmergenceEngine
         $population = count($world->livingAgents());
         $capacity = $world->village->carryingCapacity;
         $famine = $population > $capacity ? 1.0 + (($population - $capacity) / $capacity) * self::FAMINE_SEVERITY : 1.0;
-        // A near-empty granary compounds it (scarcity-driven die-back).
-        $starvation = $world->village->starvationFactor;
+        // A near-empty granary compounds it (scarcity-driven die-back) — but a settlement that
+        // shares (mutual aid) spreads the shortfall and loses fewer of its vulnerable.
+        $starvation = self::starvationWithAid($world->village->starvationFactor, $world->village->mutualAid);
 
         foreach ($world->livingAgents() as $agent) {
             $age = $agent->ageInYears($tick);
@@ -128,6 +131,12 @@ final class EmergenceEngine
                 $date->dayOfMonth, $date->monthName, $date->year, $agent->name, $age,
             ));
         }
+    }
+
+    /** Mutual aid spreads a famine's shortfall, so sharing settlements convert less of it into death. */
+    public static function starvationWithAid(float $starvation, float $mutualAid): float
+    {
+        return 1.0 + ($starvation - 1.0) * max(0.0, 1.0 - $mutualAid * self::AID_STRENGTH);
     }
 
     /** Gompertz-ish daily mortality, rising with age. */
