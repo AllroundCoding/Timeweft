@@ -57,6 +57,9 @@ final class Village
     /** Mutual aid 0..1 — the settlement's propensity to share in scarcity; buffers the famine die-back. */
     public float $mutualAid = 0.5;
 
+    /** This year's harvest multiplier on production — 1.0 average, &gt;1 a bumper year, &lt;1 a lean one. */
+    public float $harvestQuality = 1.0;
+
     /**
      * @param  list<Agent>  $agents
      * @param  float  $landYield  Food/day the oasis can sustainably produce; sets the

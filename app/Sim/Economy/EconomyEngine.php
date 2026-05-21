@@ -55,6 +55,12 @@ final class EconomyEngine
     /** The most the land can be exhausted to — a fraction of its pristine yield. */
     private const LAND_FLOOR = 0.3;
 
+    /** How wide ordinary good/bad harvest years swing production, scaled by the region's volatility. */
+    private const HARVEST_SWING = 0.5;
+
+    /** The leanest an ordinary (non-catastrophic) harvest can fall to. */
+    private const HARVEST_FLOOR = 0.2;
+
     /** Per-adult daily yield of each basket good (before tech × season); the real diet behind the calories. */
     private const BASKET_YIELD = ['grain' => 3.0, 'dates' => 1.5, 'goat meat' => 1.5];
 
@@ -244,15 +250,35 @@ final class EconomyEngine
         return self::RECOVERY_RATE * ($baseLandYield - $landYield);
     }
 
+    /**
+     * Roll this year's harvest (design doc 06): ordinary years swing good or lean around the average,
+     * the spread set by the region's volatility — the everyday risk granaries and mutual aid exist to
+     * buffer, distinct from the rare catastrophic shock. Drawn from an independent sub-stream so the
+     * added randomness never perturbs the seeded births and deaths. Deterministic for a given seed.
+     */
+    public static function rollHarvest(World $world, TharadiDate $date): void
+    {
+        $roll = $world->rng->fork('harvest/'.$date->year)->float(-1.0, 1.0);
+        $world->village->harvestQuality = self::harvestQuality($roll, $world->region->seasonalVolatility());
+    }
+
+    /** Map a roll in [-1,1] and the region's volatility to a harvest multiplier around 1.0 (floored). */
+    public static function harvestQuality(float $roll, float $volatility): float
+    {
+        return max(self::HARVEST_FLOOR, 1.0 + $roll * $volatility * self::HARVEST_SWING);
+    }
+
     public static function runDay(World $world, int $tick, TharadiDate $date): void
     {
         $village = $world->village;
         $region = $world->region;
 
-        // Once a year: tech ratchets the ceiling up (Boserup), overuse erodes the land beneath it (overshoot).
+        // Once a year: tech ratchets the ceiling up (Boserup), overuse erodes the land beneath it
+        // (overshoot), and the harvest is rolled good or lean for the year ahead.
         if ($date->monthIndex === 0 && $date->dayOfMonth === 1) {
             self::advanceTechnology($world, $tick);
             self::degradeLand($world);
+            self::rollHarvest($world, $date);
         }
 
         // Carrying capacity tracks the land's *average* annual yield — a lean desert
@@ -284,12 +310,14 @@ final class EconomyEngine
             $village->stockpile->add('money', self::WAGE_PER_ADULT - $saved);
         }
 
-        // Labor produces; technology multiplies it; the land × tech × season ceiling caps it.
+        // Labor produces; technology multiplies it; the land × tech × season ceiling caps it; then the
+        // year's harvest scales the take — a bumper year overflows the average, a lean year falls short.
         $tech = $village->technology;
+        $harvest = $village->harvestQuality;
         $ceiling = $village->landYield * $tech * $region->yieldMultiplier($date->season);
         $granary = $village->stockpile;
-        $granary->add('food', min($adults * self::FOOD_PER_ADULT * $tech, $ceiling));
-        $granary->add('water', min($adults * self::WATER_PER_ADULT * $tech, $ceiling));
+        $granary->add('food', min($adults * self::FOOD_PER_ADULT * $tech, $ceiling) * $harvest);
+        $granary->add('water', min($adults * self::WATER_PER_ADULT * $tech, $ceiling) * $harvest);
 
         // Stores are finite: a granary can only hold so much before the surplus spoils.
         $storageCap = self::STORAGE_DAYS * $population;
@@ -298,7 +326,7 @@ final class EconomyEngine
 
         // The diet: real foodstuffs produced and spoiled, then cooked into the meals people eat.
         if (isset($world->goods, $world->recipes)) {
-            self::produceBasket($world, $adults, $population, $tech, $region->yieldMultiplier($date->season));
+            self::produceBasket($world, $adults, $population, $tech, $region->yieldMultiplier($date->season) * $harvest);
             $village->dietQuality = self::cookedDietQuality($world, $population);
         }
 

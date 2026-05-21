@@ -14,10 +14,22 @@ final class Rng
 {
     private Randomizer $r;
 
+    private readonly int $seed;
+
     public function __construct(int|string $seed)
     {
-        $intSeed = is_int($seed) ? $seed : (int) crc32($seed);
-        $this->r = new Randomizer(new Mt19937($intSeed));
+        $this->seed = is_int($seed) ? $seed : (int) crc32($seed);
+        $this->r = new Randomizer(new Mt19937($this->seed));
+    }
+
+    /**
+     * An independent deterministic sub-stream, salted off this one's seed. Sampling the fork never
+     * advances this generator, so a new RNG consumer can be added without perturbing existing streams
+     * (e.g. yearly harvest variance must not shift the seeded births and deaths).
+     */
+    public function fork(int|string $salt): self
+    {
+        return new self((int) crc32($this->seed.'/'.$salt));
     }
 
     public function int(int $min, int $max): int
@@ -37,7 +49,8 @@ final class Rng
 
     /**
      * @template T
-     * @param array<int,T> $items
+     *
+     * @param  array<int,T>  $items
      * @return T
      */
     public function pick(array $items)
