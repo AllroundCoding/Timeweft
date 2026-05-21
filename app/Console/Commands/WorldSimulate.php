@@ -157,6 +157,10 @@ class WorldSimulate extends Command
             '  granary: food %s · water %s · treasury %s money',
             number_format($granary->amount('food')), number_format($granary->amount('water')), number_format($granary->amount('money')),
         ));
+        $this->line(sprintf(
+            '  larder: grain %s · dates %s · goat meat %s (the real foodstuffs; perishables spoil)',
+            number_format($granary->amount('grain')), number_format($granary->amount('dates')), number_format($granary->amount('goat meat')),
+        ));
         $this->line('  goods catalog (what the oasis can yield — nutrition · value · perishability):');
         foreach ($world->goods->all() as $good) {
             $this->line(sprintf('    %-10s %2.0f · %2.0f · %2.0f', $good->name, $good->nutrition, $good->value, $good->perishability));
@@ -169,7 +173,7 @@ class WorldSimulate extends Command
             ));
         }
         $this->line(sprintf(
-            '  diet quality %.0f%% in season (perishable foods spoil in the lean Sandstorm → a varied diet keeps people well)',
+            '  diet quality %.0f%% (meals cooked from the larder; when the meat spoils the table falls from stew to bare grain)',
             $village->dietQuality * 100,
         ));
         $this->newLine();
