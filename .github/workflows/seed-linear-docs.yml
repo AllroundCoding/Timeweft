@@ -1,0 +1,32 @@
+name: Seed Linear docs from repo
+
+# One-time bootstrap (and occasional force-push): create/refresh the Linear Documents from the
+# repo's design docs. Run this once to make Linear canonical, then let the daily
+# "Sync design docs from Linear" workflow pull edits back. Manual only — it writes to Linear.
+#
+# Requires repo secret LINEAR_API_KEY.
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry-run:
+        description: 'Report what would change without writing to Linear'
+        type: boolean
+        default: false
+
+jobs:
+  seed:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+
+      - run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Push design docs to Linear
+        run: php artisan docs:push-linear ${{ inputs.dry-run && '--dry-run' || '' }}
+        env:
+          LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
