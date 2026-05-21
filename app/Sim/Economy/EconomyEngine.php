@@ -39,8 +39,14 @@ final class EconomyEngine
     /** Days of food per head the granary can hold; beyond this, surplus spoils. */
     private const STORAGE_DAYS = 30.0;
 
-    /** A good counts toward the diet (vs. mere hydration) only above this nutrition. */
-    private const EDIBLE_NUTRITION = 20.0;
+    /** Per-adult daily yield of each basket good (before tech × season); the real diet behind the calories. */
+    private const BASKET_YIELD = ['grain' => 3.0, 'dates' => 1.5, 'goat meat' => 1.5];
+
+    /** Fraction of a good's perishability that spoils per day (meat rots, grain keeps). */
+    private const SPOIL_RATE = 0.4;
+
+    /** Nutrition of eating raw, uncooked scraps when no meal can be cooked. */
+    private const RAW_SCRAP_NUTRITION = 25.0;
 
     /**
      * Carrying capacity = the population the land's yield can feed, multiplied by
@@ -62,25 +68,55 @@ final class EconomyEngine
     }
 
     /**
-     * Diet quality 0..1: the share of the edible basket's nutrition that keeps in this season. In a
-     * lean season fresh, perishable foods (meat, fruit) spoil and the diet narrows to hardy staples,
-     * so the people eat poorly even when fed; an abundant season feeds the full varied basket.
+     * Produce the day's basket of foodstuffs from the settlement's labor, spoil the perishables
+     * (meat rots, grain keeps), and cap the stores. The real diet behind the abstract food calories.
      */
-    public static function dietQualityFor(GoodRegistry $goods, float $keepThreshold): float
+    private static function produceBasket(World $world, int $adults, int $population, float $tech, float $seasonMult): void
     {
-        $available = 0.0;
-        $full = 0.0;
-        foreach ($goods->all() as $good) {
-            if ($good->nutrition < self::EDIBLE_NUTRITION) {
-                continue; // water and the like hydrate but aren't the diet
+        $granary = $world->village->stockpile;
+        $cap = self::STORAGE_DAYS * $population;
+
+        foreach (self::BASKET_YIELD as $name => $perAdult) {
+            $granary->add($name, $adults * $perAdult * $tech * $seasonMult);
+            $good = $world->goods->get($name);
+            if ($good !== null) {
+                $granary->withdraw($name, $granary->amount($name) * ($good->perishability / 100.0) * self::SPOIL_RATE);
             }
-            $full += $good->nutrition;
-            if ($good->perishability <= $keepThreshold) {
-                $available += $good->nutrition;
-            }
+            $granary->withdraw($name, max(0.0, $granary->amount($name) - $cap));
+        }
+    }
+
+    /**
+     * Cook the day's meals from the stores — richest recipe first — feed the people, and rate the
+     * diet 0..1 against the best meal possible. What can't be cooked is eaten raw (poor nutrition),
+     * so a lean season where the meat has spoiled drops the diet from hearty stew to bare grain.
+     */
+    public static function cookedDietQuality(World $world, int $population): float
+    {
+        if ($population <= 0) {
+            return 1.0;
         }
 
-        return $full > 0.0 ? $available / $full : 1.0;
+        $granary = $world->village->stockpile;
+        $goods = $world->goods;
+        $recipes = $world->recipes->all();
+        usort($recipes, fn (Recipe $a, Recipe $b): int => $b->meal($goods)->nutrition <=> $a->meal($goods)->nutrition);
+        $best = $recipes !== [] ? $recipes[0]->meal($goods)->nutrition : 1.0;
+
+        $fed = 0;
+        $nutrition = 0.0;
+        foreach ($recipes as $recipe) {
+            while ($fed < $population && ($meal = $recipe->cook($granary, $goods)) !== null) {
+                $fed++;
+                $nutrition += $meal->nutrition;
+            }
+            if ($fed >= $population) {
+                break;
+            }
+        }
+        $nutrition += ($population - $fed) * self::RAW_SCRAP_NUTRITION;
+
+        return $best > 0.0 ? min(1.0, $nutrition / $population / $best) : 1.0;
     }
 
     public static function runDay(World $world, int $tick, TharadiDate $date): void
@@ -94,11 +130,6 @@ final class EconomyEngine
             $village->landYield * self::averageYieldMultiplier($region),
             $village->technology,
         );
-
-        // What's in season shapes the diet: in the lean Sandstorm, perishable foods spoil.
-        if (isset($world->goods)) {
-            $village->dietQuality = self::dietQualityFor($world->goods, $region->yieldMultiplier($date->season) * 100.0);
-        }
 
         $living = $world->livingAgents();
         $population = count($living);
@@ -133,6 +164,12 @@ final class EconomyEngine
         $storageCap = self::STORAGE_DAYS * $population;
         $granary->withdraw('food', max(0.0, $granary->amount('food') - $storageCap));
         $granary->withdraw('water', max(0.0, $granary->amount('water') - $storageCap));
+
+        // The diet: real foodstuffs produced and spoiled, then cooked into the meals people eat.
+        if (isset($world->goods, $world->recipes)) {
+            self::produceBasket($world, $adults, $population, $tech, $region->yieldMultiplier($date->season));
+            $village->dietQuality = self::cookedDietQuality($world, $population);
+        }
 
         $foodShort = $population * self::FOOD_PER_CAPITA - $granary->withdraw('food', $population * self::FOOD_PER_CAPITA);
         $waterShort = $population * self::WATER_PER_CAPITA - $granary->withdraw('water', $population * self::WATER_PER_CAPITA);

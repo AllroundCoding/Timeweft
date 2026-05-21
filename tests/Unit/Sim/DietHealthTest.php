@@ -4,6 +4,8 @@ namespace Tests\Unit\Sim;
 
 use App\Sim\Economy\EconomyEngine;
 use App\Sim\Economy\GoodRegistry;
+use App\Sim\Economy\RecipeBook;
+use App\Sim\Economy\Stockpile;
 use App\Sim\Support\Rng;
 use App\Sim\Time\TharadiCalendar;
 use App\Sim\World\Agent;
@@ -18,17 +20,29 @@ class DietHealthTest extends TestCase
 {
     private const TICKS_PER_YEAR = TharadiCalendar::HOURS_PER_DAY * TharadiCalendar::DAYS_PER_YEAR;
 
-    public function test_a_lean_season_narrows_the_diet(): void
+    /** @param array<string,float> $stocks */
+    private function larder(array $stocks): World
     {
-        $goods = GoodRegistry::tharados();
+        $world = new World(new Rng('larder'));
+        $world->goods = GoodRegistry::tharados();
+        $world->recipes = RecipeBook::tharados();
+        $world->village = new Village('Larderhold', 'Tharados', [], landYield: 40.0);
+        $world->village->stockpile = new Stockpile($stocks);
 
-        // Oasis keeps everything (threshold 150); the Sandstorm (threshold 50) spoils the meat.
-        $oasis = EconomyEngine::dietQualityFor($goods, 150.0);
-        $sandstorm = EconomyEngine::dietQualityFor($goods, 50.0);
+        return $world;
+    }
 
-        $this->assertEqualsWithDelta(1.0, $oasis, 1e-9);
-        $this->assertLessThan($oasis, $sandstorm);
-        $this->assertGreaterThan(0.0, $sandstorm);
+    public function test_a_full_larder_feeds_a_better_diet_than_a_bare_one(): void
+    {
+        // A stocked larder cooks the hearty stew for everyone; a grain-only larder can cook nothing.
+        $full = $this->larder(['grain' => 100.0, 'dates' => 100.0, 'goat meat' => 100.0]);
+        $bare = $this->larder(['grain' => 100.0]);
+
+        $this->assertEqualsWithDelta(1.0, EconomyEngine::cookedDietQuality($full, 5), 1e-9);
+        $this->assertLessThan(
+            EconomyEngine::cookedDietQuality($full, 5),
+            EconomyEngine::cookedDietQuality($bare, 5),
+        );
     }
 
     public function test_a_poor_diet_slows_recovery_so_the_frail_sicken(): void
