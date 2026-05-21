@@ -1,0 +1,45 @@
+name: Sync design docs from Linear
+
+# Linear is the source of truth for the design docs (docs/design/). This job pulls the
+# project's Linear Documents back into the repo and opens a PR when anything changed, so the
+# codebase always carries a versioned reference copy.
+#
+# Requires repo secret LINEAR_API_KEY, and "Allow GitHub Actions to create and approve pull
+# requests" enabled under Settings → Actions → General.
+
+on:
+  workflow_dispatch: {}
+  schedule:
+    - cron: '0 6 * * *' # daily at 06:00 UTC
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+
+      - run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Pull design docs from Linear
+        run: php artisan docs:pull-linear
+        env:
+          LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
+
+      - name: Open a PR if the docs changed
+        uses: peter-evans/create-pull-request@v6
+        with:
+          branch: chore/sync-design-docs
+          title: 'docs: sync design docs from Linear'
+          commit-message: 'docs: sync design docs from Linear'
+          body: |
+            Automated pull of the design docs edited in Linear (Linear is canonical).
+            Review and merge to update the repo's reference copy.
+          labels: documentation

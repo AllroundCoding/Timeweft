@@ -35,4 +35,10 @@ return [
         ],
     ],
 
+    'linear' => [
+        // Personal API key (GitHub Actions secret) used by `docs:pull-linear` to sync design docs.
+        'key' => env('LINEAR_API_KEY'),
+        'project_id' => env('LINEAR_PROJECT_ID', '1dadabd7-ee65-4587-a6b1-53fbb447d1cd'),
+    ],
+
 ];
