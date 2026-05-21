@@ -96,6 +96,13 @@ class WorldSimulate extends Command
             '    └ generated from materials (structural scarcity %.2f · volatility %.2f), then drifts with material security',
             $world->region->scarcity(), $world->region->seasonalVolatility(),
         ));
+        $faith = $village->faith();
+        $this->line(sprintf(
+            '  faith: %s — tenets %s (loyalty %d · authority %d · sanctity %d · care %d · fairness %d · liberty %d), binds at %.2f',
+            $faith->name, implode(' & ', $faith->tenets()),
+            (int) $faith->loyalty, (int) $faith->authority, (int) $faith->sanctity,
+            (int) $faith->care, (int) $faith->fairness, (int) $faith->liberty, $faith->binding,
+        ));
         $this->line(sprintf(
             '  baseline %.2f (from collectivism) decays with scale → %.2f at %d souls (floor %.2f, group size %d)',
             $village->baselineCohesion, $cohesion, count($living), $village->cohesionFloor, $village->cohesiveGroupSize,
