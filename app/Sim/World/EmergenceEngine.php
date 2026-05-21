@@ -29,6 +29,12 @@ final class EmergenceEngine
 
     private const AID_STRENGTH = 0.6; // how far mutual aid buffers the famine die-back
 
+    private const INFANT_MORTALITY = 0.0008; // daily death risk at birth, fading through childhood
+
+    private const CHILD_MORTALITY_DECAY = 3.0; // years over which the infant risk fades
+
+    private const MATERNAL_MORTALITY = 0.02; // base risk a healthy, well-fed mother dies in childbirth
+
     public static function runDay(World $world, int $tick, TharadiDate $date): void
     {
         self::tryPairing($world, $tick, $date, $world->rng);
@@ -95,6 +101,24 @@ final class EmergenceEngine
                 continue;
             }
             $world->spawnChild($mother, $father, $tick, $date);
+
+            // Childbirth is perilous: a frail, ill-fed mother may not survive the birth she just gave.
+            $sickness = ($mother->needs['sickness'] ?? null)?->value ?? 0.0;
+            if ($rng->chance(self::maternalMortalityRisk($sickness, $world->village->dietQuality))) {
+                $mother->alive = false;
+                $mother->deathTick = $tick;
+                if ($mother->partnerId !== null) {
+                    $partner = self::byId($world, $mother->partnerId);
+                    if ($partner !== null) {
+                        $partner->partnerId = null;
+                    }
+                    $mother->partnerId = null;
+                }
+                $world->chronicle->record($tick, sprintf(
+                    '%d %s, Year %d — %s dies in childbirth.',
+                    $date->dayOfMonth, $date->monthName, $date->year, $mother->name,
+                ));
+            }
         }
     }
 
@@ -139,10 +163,28 @@ final class EmergenceEngine
         return 1.0 + ($starvation - 1.0) * max(0.0, 1.0 - $mutualAid * self::AID_STRENGTH);
     }
 
-    /** Gompertz-ish daily mortality, rising with age. */
-    private static function dailyMortality(int $age): float
+    /**
+     * U-shaped daily mortality: a steep infant/child risk that fades through the early years, plus the
+     * Gompertz-ish rise of old age — so the young and the old die, and the middle years are the safe ones.
+     */
+    public static function dailyMortality(int $age): float
     {
-        return min(0.02, 0.00002 * exp(($age - 40) / 10.0));
+        $infancy = self::INFANT_MORTALITY * exp(-max(0, $age) / self::CHILD_MORTALITY_DECAY);
+        $senescence = 0.00002 * exp(($age - 40) / 10.0);
+
+        return min(0.02, $infancy + $senescence);
+    }
+
+    /**
+     * A mother's risk of dying in childbirth — lowest when she is healthy and well-fed, rising several
+     * times higher when sickness and a poor diet have left her frail. Every birth carries it (doc 05).
+     */
+    public static function maternalMortalityRisk(float $sickness, float $dietQuality): float
+    {
+        $health = max(0.0, min(1.0, 1.0 - $sickness / 100.0));
+        $diet = max(0.0, min(1.0, $dietQuality));
+
+        return self::MATERNAL_MORTALITY * (2.0 - $health) / (0.5 + 0.5 * $diet);
     }
 
     private static function areKin(Agent $a, Agent $b): bool
