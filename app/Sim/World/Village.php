@@ -51,6 +51,9 @@ final class Village
     /** Diet quality 0..1 — the variety/nutrition of foods in season; a varied diet keeps people well. */
     public float $dietQuality = 1.0;
 
+    /** Mutual aid 0..1 — the settlement's propensity to share in scarcity; buffers the famine die-back. */
+    public float $mutualAid = 0.5;
+
     /**
      * @param  list<Agent>  $agents
      * @param  float  $landYield  Food/day the oasis can sustainably produce; sets the
