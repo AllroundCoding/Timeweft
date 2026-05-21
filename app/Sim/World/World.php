@@ -52,15 +52,16 @@ final class World
         $world->species = Species::vulpini();
         $world->region = RegionProfile::tharados();
         $world->names = new TharadiNameGenerator($rng);
+        // Culture is generated from the region's materials first, so it can shape the founders it births.
+        $culture = Culture::fromMaterialConditions('Tharadi', $world->region->scarcity(), $world->region->seasonalVolatility());
         $ticksPerYear = TharadiCalendar::HOURS_PER_DAY * TharadiCalendar::DAYS_PER_YEAR;
 
         $agents = [];
         for ($i = 0; $i < $population; $i++) {
             $birthTick = -$rng->int(18, 50) * $ticksPerYear;
-            $agents[] = $world->species->birth($world->nextId++, $birthTick, $world->region, $rng, $world->names);
+            $agents[] = $world->species->birth($world->nextId++, $birthTick, $world->region, $culture, $rng, $world->names);
         }
 
-        $culture = Culture::fromMaterialConditions('Tharadi', $world->region->scarcity(), $world->region->seasonalVolatility());
         $world->village = new Village('Sunwell Oasis', $world->region->name, $agents, landYield: 22.0, culture: $culture);
         $world->milestones[] = new Milestone(
             name: 'trading post on the caravan road',

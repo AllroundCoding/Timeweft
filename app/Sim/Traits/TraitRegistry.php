@@ -2,6 +2,7 @@
 
 namespace App\Sim\Traits;
 
+use App\Sim\Culture\Culture;
 use App\Sim\Support\Rng;
 use App\Sim\World\Agent;
 use App\Sim\World\RegionProfile;
@@ -35,17 +36,18 @@ final class TraitRegistry
     }
 
     /**
-     * A fresh trait bag for a newborn: numeric traits drawn in range and nudged by
-     * region modifiers, categorical traits picked from the region's options.
+     * A fresh trait bag for a newborn: numeric traits drawn in range and nudged by both
+     * region (physical) and culture (dispositional) modifiers; categorical traits picked
+     * from the region's options.
      *
      * @return array<string,float|string>
      */
-    public function generate(RegionProfile $region, Rng $rng): array
+    public function generate(RegionProfile $region, Culture $culture, Rng $rng): array
     {
         $traits = [];
         foreach ($this->definitions as $def) {
             $traits[$def->key] = $def->type === TraitType::Numeric
-                ? self::bounded($rng->float($def->min, $def->max) + $region->traitModifier($def->key))
+                ? self::bounded($rng->float($def->min, $def->max) + $region->traitModifier($def->key) + $culture->traitModifier($def->key))
                 : $rng->pick($region->optionsFor($def->key));
         }
 
