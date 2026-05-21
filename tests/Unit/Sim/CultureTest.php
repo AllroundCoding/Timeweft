@@ -52,6 +52,18 @@ class CultureTest extends TestCase
         $this->assertEqualsWithDelta(0.0, RegionProfile::tharados()->traitModifier('thrift'), 1e-9);
     }
 
+    public function test_culture_nudges_personality_means(): void
+    {
+        $traditional = new Culture('Trad', collectivism: 50, hierarchy: 50, tradition: 90, longTermOrientation: 50, restraint: 50, achievement: 50, piety: 50);
+        $modern = new Culture('Modern', collectivism: 50, hierarchy: 50, tradition: 10, longTermOrientation: 90, restraint: 50, achievement: 50, piety: 50);
+
+        // Tradition resists novelty (lower openness) and feeds anxiety (higher neuroticism).
+        $this->assertLessThan($modern->traitModifier('openness'), $traditional->traitModifier('openness'));
+        $this->assertGreaterThan($modern->traitModifier('neuroticism'), $traditional->traitModifier('neuroticism'));
+        // A long planning horizon breeds conscientiousness.
+        $this->assertGreaterThan(0.0, $modern->traitModifier('conscientiousness'));
+    }
+
     public function test_an_ancestral_culture_biases_a_derived_one(): void
     {
         // Same materials, but an individualist ancestor pulls the derived culture away from pure derivation.

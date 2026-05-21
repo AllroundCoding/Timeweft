@@ -17,8 +17,19 @@ class ParticipationTest extends TestCase
 
     public function test_want_to_is_cohesion_times_sociability(): void
     {
-        // cohesion 0.5 × sociability 50/100 = 0.25
+        // cohesion 0.5 × sociability 50/100 × conscientiousness factor 1.0 (default midpoint) = 0.25
         $this->assertEqualsWithDelta(0.25, ProjectEngine::participationWeight($this->agent(50.0), 0.5), 1e-9);
+    }
+
+    public function test_conscientiousness_lifts_contribution(): void
+    {
+        $diligent = new Agent(1, 'A', 'Vulpini', 'Tharados', 'f', 0, ['sociability' => 50.0, 'conscientiousness' => 90.0], []);
+        $lax = new Agent(2, 'B', 'Vulpini', 'Tharados', 'f', 0, ['sociability' => 50.0, 'conscientiousness' => 10.0], []);
+
+        $this->assertGreaterThan(
+            ProjectEngine::participationWeight($lax, 0.5),
+            ProjectEngine::participationWeight($diligent, 0.5),
+        );
     }
 
     public function test_paid_to_fills_part_of_the_gap_toward_full(): void

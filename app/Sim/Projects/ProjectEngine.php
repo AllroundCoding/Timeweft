@@ -40,14 +40,17 @@ final class ProjectEngine
 
     /**
      * Per-adult effort composed from three axes (design doc 07):
-     *   want-to   — culture × cohesion × sociability,
+     *   want-to   — cohesion × sociability (extraversion) × conscientiousness (the diligence to
+     *               actually show up and contribute),
      *   forced-to — the institution's mandate (× its effectiveness),
      *   paid-to   — effort the settlement hires with money,
      * each filling part of the gap left toward full participation.
      */
     public static function participationWeight(Agent $agent, float $cohesion, ?Institution $institution = null, float $paidTo = 0.0): float
     {
-        $wantTo = $cohesion * ((float) $agent->trait('sociability') / 100.0);
+        $conscientiousness = (float) ($agent->trait('conscientiousness') ?? 50.0);
+        $contribution = 0.75 + $conscientiousness / 200.0; // ~1.0 at the midpoint, ±25% across the range
+        $wantTo = $cohesion * ((float) $agent->trait('sociability') / 100.0) * $contribution;
         $withForced = $institution?->liftedParticipation($wantTo) ?? $wantTo;
 
         return min(1.0, $withForced + $paidTo * (1.0 - $withForced));

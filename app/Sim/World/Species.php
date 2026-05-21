@@ -27,7 +27,13 @@ final class Species
             ->define(TraitDefinition::categorical('furColor'))
             ->define(TraitDefinition::numeric('heatTolerance', 60.0, 95.0, mutation: 4.0))
             ->define(TraitDefinition::numeric('generosity', 30.0, 70.0, mutation: 5.0))
-            ->define(TraitDefinition::numeric('thrift', 30.0, 70.0, mutation: 5.0));
+            ->define(TraitDefinition::numeric('thrift', 30.0, 70.0, mutation: 5.0))
+            // The Big Five personal layer (OCEAN) — extraversion is `sociability`, agreeableness
+            // is `generosity`; these are the remaining three. Culture sets the mean, the
+            // individual varies around it (design doc 11).
+            ->define(TraitDefinition::numeric('openness', 30.0, 70.0, mutation: 6.0))
+            ->define(TraitDefinition::numeric('conscientiousness', 30.0, 70.0, mutation: 6.0))
+            ->define(TraitDefinition::numeric('neuroticism', 30.0, 70.0, mutation: 6.0));
 
         return new self('Vulpini', $traits);
     }
