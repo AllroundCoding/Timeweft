@@ -38,6 +38,20 @@ class CultureTest extends TestCase
         $this->assertEquals($derived->vector(), Culture::tharados()->vector());
     }
 
+    public function test_culture_nudges_dispositions_thrift_from_restraint(): void
+    {
+        $ascetic = new Culture('Ascetic', collectivism: 50, hierarchy: 50, tradition: 50, longTermOrientation: 50, restraint: 90, achievement: 50, piety: 50);
+        $indulgent = new Culture('Indulgent', collectivism: 50, hierarchy: 50, tradition: 50, longTermOrientation: 50, restraint: 10, achievement: 50, piety: 50);
+
+        $this->assertGreaterThan(0.0, $ascetic->traitModifier('thrift'));
+        $this->assertLessThan(0.0, $indulgent->traitModifier('thrift'));
+        $this->assertSame(0.0, $ascetic->traitModifier('agility')); // culture only nudges dispositions
+
+        // The Tharadi culture supplies the +15 thrift nudge the region used to hand-set.
+        $this->assertEqualsWithDelta(15.0, Culture::tharados()->traitModifier('thrift'), 1e-9);
+        $this->assertEqualsWithDelta(0.0, RegionProfile::tharados()->traitModifier('thrift'), 1e-9);
+    }
+
     public function test_an_ancestral_culture_biases_a_derived_one(): void
     {
         // Same materials, but an individualist ancestor pulls the derived culture away from pure derivation.

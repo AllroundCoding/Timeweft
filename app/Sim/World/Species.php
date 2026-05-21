@@ -2,6 +2,7 @@
 
 namespace App\Sim\World;
 
+use App\Sim\Culture\Culture;
 use App\Sim\Support\Rng;
 use App\Sim\Support\TharadiNameGenerator;
 use App\Sim\Traits\TraitDefinition;
@@ -31,15 +32,16 @@ final class Species
         return new self('Vulpini', $traits);
     }
 
-    /** Generate a fresh founder/agent from the registry + region modifiers. */
+    /** Generate a fresh founder/agent from the registry + region (physical) and culture (dispositional) modifiers. */
     public function birth(
         int $id,
         int $birthTick,
         RegionProfile $region,
+        Culture $culture,
         Rng $rng,
         TharadiNameGenerator $names,
     ): Agent {
-        $traits = $this->traits->generate($region, $rng);
+        $traits = $this->traits->generate($region, $culture, $rng);
 
         return new Agent(
             id: $id,

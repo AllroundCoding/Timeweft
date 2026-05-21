@@ -26,7 +26,6 @@ final class RegionProfile
             traitModifiers: [
                 'constitution' => 8.0,  // resilient desert dwellers
                 'senses' => 4.0,        // attuned to the open desert
-                'thrift' => 15.0,       // scarcity breeds restraint and saving
             ],
             categoricalOptions: [
                 'furColor' => ['sandy', 'golden', 'pale tan', 'dust-grey', 'ochre'],

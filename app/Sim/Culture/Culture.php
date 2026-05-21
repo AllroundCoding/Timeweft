@@ -91,6 +91,20 @@ final class Culture
         return $this->collectivism / 100.0;
     }
 
+    /**
+     * The dispositional nudge a culture applies to a matching agent trait at birth — the
+     * cultural half of who someone becomes (the region supplies the physical half). Restraint
+     * (consumption discipline) breeds thrift; collectivism (in-group reciprocity) breeds generosity.
+     */
+    public function traitModifier(string $key): float
+    {
+        return match ($key) {
+            'thrift' => ($this->restraint - 50.0) * 0.6,
+            'generosity' => ($this->collectivism - 50.0) * 0.4,
+            default => 0.0,
+        };
+    }
+
     /** @return array<string,float> */
     public function vector(): array
     {
