@@ -93,7 +93,7 @@ class WorldSimulate extends Command
             (int) $culture->tradition, (int) $culture->restraint, (int) $culture->piety,
         ));
         $this->line(sprintf(
-            '    └ generated from materials: scarcity %.2f · volatility %.2f (Cultural Materialism)',
+            '    └ generated from materials (structural scarcity %.2f · volatility %.2f), then drifts with material security',
             $world->region->scarcity(), $world->region->seasonalVolatility(),
         ));
         $this->line(sprintf(

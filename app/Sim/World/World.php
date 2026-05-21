@@ -6,6 +6,7 @@ use App\Sim\Behavior\BehaviorEngine;
 use App\Sim\Behavior\FestivalCalendar;
 use App\Sim\Chronicle\Chronicle;
 use App\Sim\Culture\Culture;
+use App\Sim\Culture\CultureEngine;
 use App\Sim\Direction\Milestone;
 use App\Sim\Direction\StoryDirector;
 use App\Sim\Economy\EconomyEngine;
@@ -94,6 +95,7 @@ final class World
             // Economy, emergence, projects, and story-direction run once per in-world day.
             if ($date->hour === 8) {
                 EconomyEngine::runDay($this, $this->tick, $date);
+                CultureEngine::runDay($this, $this->tick, $date);
                 EmergenceEngine::runDay($this, $this->tick, $date);
                 ProjectEngine::runDay($this, $this->tick, $date);
                 InstitutionEngine::runDay($this, $this->tick, $date);
