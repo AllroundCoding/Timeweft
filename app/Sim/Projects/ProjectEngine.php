@@ -2,6 +2,7 @@
 
 namespace App\Sim\Projects;
 
+use App\Sim\Culture\Faith;
 use App\Sim\Institutions\Institution;
 use App\Sim\Time\TharadiCalendar;
 use App\Sim\Time\TharadiDate;
@@ -30,6 +31,8 @@ final class ProjectEngine
 
     private const PAID_TO_STRENGTH = 0.12;      // hired effort is a modest supplement, not a deficit-eraser
 
+    private const FAITH_STRENGTH = 0.12;        // how far devout faith lifts cooperation (eases, never erases, the deficit)
+
     public static function runDay(World $world, int $tick, TharadiDate $date): void
     {
         self::maybeOpenSandstormPrep($world, $tick, $date);
@@ -39,19 +42,22 @@ final class ProjectEngine
     }
 
     /**
-     * Per-adult effort composed from three axes (design doc 07):
-     *   want-to   — cohesion × sociability (extraversion) × conscientiousness (the diligence to
-     *               actually show up and contribute),
+     * Per-adult effort, each axis filling part of the gap left toward full participation (doc 07):
+     *   want-to   — cohesion × sociability (extraversion) × conscientiousness (the diligence to show up),
+     *   faith     — the devout pitch in for the in-group unbidden (Big Gods, doc 11), per-agent adherence,
      *   forced-to — the institution's mandate (× its effectiveness),
-     *   paid-to   — effort the settlement hires with money,
-     * each filling part of the gap left toward full participation.
+     *   paid-to   — effort the settlement hires with money.
      */
-    public static function participationWeight(Agent $agent, float $cohesion, ?Institution $institution = null, float $paidTo = 0.0): float
+    public static function participationWeight(Agent $agent, float $cohesion, ?Institution $institution = null, float $paidTo = 0.0, ?Faith $faith = null): float
     {
         $conscientiousness = (float) ($agent->trait('conscientiousness') ?? 50.0);
         $contribution = 0.75 + $conscientiousness / 200.0; // ~1.0 at the midpoint, ±25% across the range
         $wantTo = $cohesion * ((float) $agent->trait('sociability') / 100.0) * $contribution;
-        $withForced = $institution?->liftedParticipation($wantTo) ?? $wantTo;
+
+        $faithPull = $faith !== null ? $faith->cooperativePull() * $faith->adherenceOf($agent) * self::FAITH_STRENGTH : 0.0;
+        $withFaith = $wantTo + $faithPull * (1.0 - $wantTo);
+
+        $withForced = $institution?->liftedParticipation($withFaith) ?? $withFaith;
 
         return min(1.0, $withForced + $paidTo * (1.0 - $withForced));
     }
@@ -87,6 +93,7 @@ final class ProjectEngine
         $village = $world->village;
         $cohesion = $village->cohesion(count($world->livingAgents()));
         $institution = $village->institution;
+        $faith = $village->faith();
         foreach ($world->livingAgents() as $agent) {
             if ($agent->ageInYears($tick) < self::ADULT_AGE) {
                 continue;
@@ -99,7 +106,7 @@ final class ProjectEngine
                 $paidTo = self::PAID_TO_STRENGTH;
             }
 
-            $project->contribute(self::participationWeight($agent, $cohesion, $institution, $paidTo));
+            $project->contribute(self::participationWeight($agent, $cohesion, $institution, $paidTo, $faith));
         }
     }
 

@@ -3,6 +3,7 @@
 namespace Tests\Unit\Sim;
 
 use App\Sim\Culture\Culture;
+use App\Sim\Culture\Faith;
 use App\Sim\Institutions\Institution;
 use App\Sim\Projects\ProjectEngine;
 use App\Sim\World\Agent;
@@ -19,6 +20,21 @@ class ParticipationTest extends TestCase
     {
         // cohesion 0.5 × sociability 50/100 × conscientiousness factor 1.0 (default midpoint) = 0.25
         $this->assertEqualsWithDelta(0.25, ProjectEngine::participationWeight($this->agent(50.0), 0.5), 1e-9);
+    }
+
+    public function test_a_binding_faith_lifts_the_devout_toward_cooperation(): void
+    {
+        $faith = Faith::fromCulture('Pious', new Culture('C', collectivism: 90, hierarchy: 80, tradition: 80, longTermOrientation: 50, restraint: 50, achievement: 50, piety: 90));
+        $devout = new Agent(1, 'A', 'Vulpini', 'Tharados', 'f', 0, ['sociability' => 50.0, 'conscientiousness' => 90.0, 'generosity' => 90.0], []);
+        $nominal = new Agent(2, 'B', 'Vulpini', 'Tharados', 'm', 0, ['sociability' => 50.0, 'conscientiousness' => 10.0, 'generosity' => 10.0], []);
+
+        $withoutFaith = ProjectEngine::participationWeight($devout, 0.5);
+        $devoutWithFaith = ProjectEngine::participationWeight($devout, 0.5, null, 0.0, $faith);
+        $nominalWithFaith = ProjectEngine::participationWeight($nominal, 0.5, null, 0.0, $faith);
+
+        // The same faith lifts the devout, but barely touches the nominal believer.
+        $this->assertGreaterThan($withoutFaith, $devoutWithFaith);
+        $this->assertGreaterThan($nominalWithFaith, $devoutWithFaith);
     }
 
     public function test_conscientiousness_lifts_contribution(): void
