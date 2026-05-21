@@ -35,17 +35,22 @@ Each phase builds on the last; the order is dependency-aware so prerequisites la
   from a village to a civilization without simulating every soul.
 - **M7 · Presentation** — the visual phase: a narrative flavor layer and a timeline → 2D map
   renderer over the deterministic engine.
-- **M8 · Goods, tastes & trade** — produce and equipment become *items with stats*; regions
+- **M8 · Culture & social model** — the deep cultural/social layer ([11](11-cultural-and-social-model.md))
+  off the minimal culture vector: apply culture broadly, generate it from material conditions, drift
+  it with prosperity, plus the personal (Big Five) and faith (Moral Foundations → tenets) layers. A
+  thematic bucket whose pieces interleave with the economy rather than strictly following M7.
+- **M9 · Goods, tastes & trade** — produce and equipment become *items with stats*; regions
   generate their own goods from material conditions; tastes (seeded from scarcity) turn trade
   from moving-surplus into spice routes and luxury demand. Deepens M6's trade. See
   [12](12-goods-tastes-tech-conflict.md).
-- **M9 · Technology & conflict** — the `technology` scalar becomes a tree of advances (the Boserup
+- **M10 · Technology & conflict** — the `technology` scalar becomes a tree of advances (the Boserup
   ratchet); military items give a kingdom a *strength factor*; wars resolve by strength × a
   counter-matrix, opening the **external** door to rise-and-fall alongside internal institutional
   collapse. See [12](12-goods-tastes-tech-conflict.md).
 
-M8–M9 build on **M6**'s scale-polymorphic kingdoms; **M7** (presentation) is an overlay that can
-land whenever there's enough to show. The numbering is dependency order, not strict sequence.
+M9–M10 build on **M6**'s scale-polymorphic kingdoms; **M7** (presentation) and **M8** (culture) are
+overlays that can interleave whenever there's enough to support them. The numbering is dependency
+order, not strict sequence.
 
 Beneath all of this sits a **world-generation substrate** ([13](13-world-generation-geography.md)):
 geology that generates terrain, climate, and minerals — the root of "generate from materials" —

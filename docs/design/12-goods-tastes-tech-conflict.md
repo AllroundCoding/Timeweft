@@ -84,11 +84,12 @@ Resisting a bespoke 4X engine is the whole discipline. Every piece is reused mac
 
 ## Milestones
 
-- **M8 · Goods, tastes & trade** — itemized goods, regional generation, tastes, nutrition/cuisine,
+- **M9 · Goods, tastes & trade** — itemized goods, regional generation, tastes, nutrition/cuisine,
   deepened trade + pricing.
-- **M9 · Technology & conflict** — tech tree, military items, kingdom strength, war resolution.
+- **M10 · Technology & conflict** — tech tree, military items, kingdom strength, war resolution.
 
-Both depend on **M6 · Scale** (kingdoms as agents) landing first.
+Both depend on **M6 · Scale** (kingdoms as agents) landing first, and follow the culture layer
+(**M8**, doc 11) that gives tastes their vector.
 
 ## Status
 

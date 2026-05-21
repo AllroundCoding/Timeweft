@@ -67,7 +67,7 @@ how to run live.
 - **Procedural vs authored** — full procedural plates, or author a few plate seeds and *derive*
   terrain/climate/minerals? *Lean: author the seeds, derive the rest* — controllable yet generative.
 - **Where it slots** — worldgen feeds M6 (a real multi-settlement map) and M7 (the 2D map), and
-  supplies M8 (products) and M9 (metals + defensible terrain). Likely its own substrate phase
+  supplies M9 (products) and M10 (metals + defensible terrain). Likely its own substrate phase
   ahead of M6.
 
 ## Status
