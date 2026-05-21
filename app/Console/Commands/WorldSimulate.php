@@ -132,7 +132,7 @@ class WorldSimulate extends Command
         } else {
             $this->line('  institution: none — organic cohesion still suffices');
         }
-        $this->line('  participation = want-to (cohesion × sociability) + forced-to (institution) + paid-to (treasury):');
+        $this->line('  participation = want-to (cohesion × sociability) + faith + forced-to (institution) + paid-to (treasury):');
         $adults = array_slice(
             array_values(array_filter($living, fn (Agent $a) => $a->ageInYears($world->tick) >= 16)),
             0,
@@ -141,7 +141,7 @@ class WorldSimulate extends Command
         foreach ($adults as $a) {
             $this->line(sprintf(
                 '    %-9s soc %2.0f → %.2f effort/day',
-                $a->name, $a->trait('sociability'), ProjectEngine::participationWeight($a, $cohesion, $village->institution),
+                $a->name, $a->trait('sociability'), ProjectEngine::participationWeight($a, $cohesion, $village->institution, 0.0, $village->faith()),
             ));
         }
         $this->newLine();

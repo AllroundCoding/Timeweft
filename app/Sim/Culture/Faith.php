@@ -102,4 +102,14 @@ final class Faith
     {
         return max(0.0, min(100.0, $base + $this->dispositionModifier($key) * $this->adherenceOf($agent)));
     }
+
+    /**
+     * How strongly this faith pulls its followers toward in-group cooperation (0..1) — the binding
+     * foundations loyalty + authority. Norenzayan's "Big Gods as a cooperation technology": the
+     * devout pitch in for the community even unbidden.
+     */
+    public function cooperativePull(): float
+    {
+        return ($this->loyalty + $this->authority) / 200.0;
+    }
 }
