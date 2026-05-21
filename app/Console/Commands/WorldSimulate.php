@@ -93,6 +93,10 @@ class WorldSimulate extends Command
             (int) $culture->tradition, (int) $culture->restraint, (int) $culture->piety,
         ));
         $this->line(sprintf(
+            '    └ generated from materials: scarcity %.2f · volatility %.2f (Cultural Materialism)',
+            $world->region->scarcity(), $world->region->seasonalVolatility(),
+        ));
+        $this->line(sprintf(
             '  baseline %.2f (from collectivism) decays with scale → %.2f at %d souls (floor %.2f, group size %d)',
             $village->baselineCohesion, $cohesion, count($living), $village->cohesionFloor, $village->cohesiveGroupSize,
         ));

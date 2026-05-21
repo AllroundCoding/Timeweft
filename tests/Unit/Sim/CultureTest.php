@@ -3,11 +3,53 @@
 namespace Tests\Unit\Sim;
 
 use App\Sim\Culture\Culture;
+use App\Sim\World\RegionProfile;
 use App\Sim\World\Village;
 use PHPUnit\Framework\TestCase;
 
 class CultureTest extends TestCase
 {
+    public function test_a_harsh_land_breeds_restraint_collectivism_and_piety(): void
+    {
+        $harsh = Culture::fromMaterialConditions('Harsh', scarcity: 1.0, volatility: 0.5);
+        $abundant = Culture::fromMaterialConditions('Lush', scarcity: 0.0, volatility: 0.0);
+
+        $this->assertGreaterThan($abundant->restraint, $harsh->restraint);
+        $this->assertGreaterThan($abundant->collectivism, $harsh->collectivism);
+        $this->assertGreaterThan($abundant->piety, $harsh->piety);
+        // Abundance breeds achievement/competition over communal welfare.
+        $this->assertGreaterThan($harsh->achievement, $abundant->achievement);
+        // Volatility breeds long-term orientation (plan/save for the lean season).
+        $this->assertGreaterThan(
+            Culture::fromMaterialConditions('Stable', 0.5, 0.0)->longTermOrientation,
+            Culture::fromMaterialConditions('Swingy', 0.5, 1.0)->longTermOrientation,
+        );
+    }
+
+    public function test_the_tharadi_culture_is_derived_from_its_region(): void
+    {
+        $region = RegionProfile::tharados();
+        $derived = Culture::fromMaterialConditions('Tharadi', $region->scarcity(), $region->seasonalVolatility());
+
+        // The Tharados desert (scarcity 0.75, volatility 0.5) reproduces the historical hand-tuned vector.
+        $this->assertEqualsWithDelta(85.0, $derived->collectivism, 1e-9);
+        $this->assertEqualsWithDelta(80.0, $derived->tradition, 1e-9);
+        $this->assertEqualsWithDelta(75.0, $derived->restraint, 1e-9);
+        $this->assertEquals($derived->vector(), Culture::tharados()->vector());
+    }
+
+    public function test_an_ancestral_culture_biases_a_derived_one(): void
+    {
+        // Same materials, but an individualist ancestor pulls the derived culture away from pure derivation.
+        $ancestor = new Culture('Trader', collectivism: 30, hierarchy: 30, tradition: 20, longTermOrientation: 30, restraint: 20, achievement: 80, piety: 20);
+        $pure = Culture::fromMaterialConditions('Colony', scarcity: 1.0, volatility: 0.5);
+        $inherited = Culture::fromMaterialConditions('Colony', scarcity: 1.0, volatility: 0.5, ancestral: $ancestor);
+
+        // Inheritance drags collectivism down toward the trader ancestor (the two-way street).
+        $this->assertLessThan($pure->collectivism, $inherited->collectivism);
+        $this->assertGreaterThan($ancestor->collectivism, $inherited->collectivism);
+    }
+
     public function test_baseline_cohesion_derives_from_collectivism(): void
     {
         $communal = new Culture('Communal', collectivism: 90, hierarchy: 50, tradition: 50, longTermOrientation: 50, restraint: 50, achievement: 50, piety: 50);

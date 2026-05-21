@@ -2,7 +2,6 @@
 
 namespace App\Sim\Economy;
 
-use App\Sim\Time\TharadiCalendar;
 use App\Sim\Time\TharadiDate;
 use App\Sim\World\RegionProfile;
 use App\Sim\World\World;
@@ -53,15 +52,10 @@ final class EconomyEngine
             : 0;
     }
 
-    /** The year-round average yield multiplier, weighted by how many months fall in each season. */
+    /** The year-round average yield multiplier (the region owns the season weighting). */
     public static function averageYieldMultiplier(RegionProfile $region): float
     {
-        $sum = 0.0;
-        foreach (TharadiCalendar::MONTHS as $month) {
-            $sum += $region->yieldMultiplier($month['season']);
-        }
-
-        return $sum / count(TharadiCalendar::MONTHS);
+        return $region->averageYield();
     }
 
     public static function runDay(World $world, int $tick, TharadiDate $date): void
