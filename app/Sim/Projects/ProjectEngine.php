@@ -124,10 +124,11 @@ final class ProjectEngine
 
         $institution = Institution::emergeFor($village->culture, $tick);
         $village->institution = $institution;
-        $world->chronicle->record($tick, sprintf(
+        $event = $world->chronicle->record($tick, sprintf(
             '%d %s, Year %d — after %d storms caught it short, %s founds the %s to compel the preparation cohesion alone could not muster.',
             $date->dayOfMonth, $date->monthName, $date->year, $village->underpreparedYears, $village->name, $institution->name,
-        ));
+        ), 'institution-founded', [], $village->underpreparedEventIds, ['cooperation-deficit']);
+        $village->institutionEventId = $event->id;
     }
 
     private static function resolveDue(World $world, int $tick, TharadiDate $date): void
@@ -144,15 +145,16 @@ final class ProjectEngine
 
         if ($readiness < 0.7) {
             $village->underpreparedYears++;
-            $world->chronicle->record($tick, sprintf(
+            $event = $world->chronicle->record($tick, sprintf(
                 '%d %s, Year %d — the Sandstorm catches %s underprepared (readiness %d%%); the dust takes its toll.',
                 $date->dayOfMonth, $date->monthName, $date->year, $village->name, (int) round($readiness * 100),
-            ));
+            ), 'sandstorm-underprepared', [], [], ['cooperation-deficit']);
+            $village->underpreparedEventIds[] = $event->id;
         } elseif ($isFirst) {
             $world->chronicle->record($tick, sprintf(
                 '%d %s, Year %d — %s readies for its first Sandstorm together (readiness %d%%).',
                 $date->dayOfMonth, $date->monthName, $date->year, $village->name, (int) round($readiness * 100),
-            ));
+            ), 'sandstorm-prepared');
         }
 
         $world->activeProject = null;

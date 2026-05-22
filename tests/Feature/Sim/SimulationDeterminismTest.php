@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Sim;
 
+use App\Sim\Chronicle\ChronicleEvent;
 use App\Sim\Support\Rng;
 use App\Sim\Time\TharadiCalendar;
 use App\Sim\World\Agent;
@@ -28,7 +29,7 @@ class SimulationDeterminismTest extends TestCase
         $living = $world->livingAgents();
 
         return [
-            'chronicle' => array_map(static fn (array $e): string => $e['text'], $world->chronicle->all()),
+            'chronicle' => array_map(static fn (ChronicleEvent $e): string => $e->text, $world->chronicle->all()),
             'roster' => array_map(
                 static fn (Agent $a): string => sprintf(
                     '%d|%s|%s|%.1f|%.1f',

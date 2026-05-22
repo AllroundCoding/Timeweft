@@ -67,10 +67,12 @@ final class EmergenceEngine
 
         $f->partnerId = $m->id;
         $m->partnerId = $f->id;
-        $world->chronicle->record($tick, sprintf(
+        $event = $world->chronicle->record($tick, sprintf(
             '%d %s, Year %d — %s and %s become partners.',
             $date->dayOfMonth, $date->monthName, $date->year, $f->name, $m->name,
-        ));
+        ), 'pairing', [$f->id, $m->id]);
+        $f->pairingEventId = $event->id;
+        $m->pairingEventId = $event->id;
     }
 
     private static function tryBirth(World $world, int $tick, TharadiDate $date, Rng $rng): void
@@ -101,6 +103,7 @@ final class EmergenceEngine
                 continue;
             }
             $world->spawnChild($mother, $father, $tick, $date);
+            $birthEvent = $world->chronicle->last();
 
             // Childbirth is perilous: a frail, ill-fed mother may not survive the birth she just gave.
             $sickness = ($mother->needs['sickness'] ?? null)?->value ?? 0.0;
@@ -117,7 +120,7 @@ final class EmergenceEngine
                 $world->chronicle->record($tick, sprintf(
                     '%d %s, Year %d — %s dies in childbirth.',
                     $date->dayOfMonth, $date->monthName, $date->year, $mother->name,
-                ));
+                ), 'death', [$mother->id], $birthEvent !== null ? [$birthEvent->id] : [], ['childbirth']);
             }
         }
     }
@@ -131,6 +134,9 @@ final class EmergenceEngine
         // A near-empty granary compounds it (scarcity-driven die-back) — but a settlement that
         // shares (mutual aid) spreads the shortfall and loses fewer of its vulnerable.
         $starvation = self::starvationWithAid($world->village->starvationFactor, $world->village->mutualAid);
+
+        $village = $world->village;
+        $overcrowded = $population > $capacity;
 
         foreach ($world->livingAgents() as $agent) {
             $age = $agent->ageInYears($tick);
@@ -150,10 +156,34 @@ final class EmergenceEngine
                 }
                 $agent->partnerId = null;
             }
+
+            // Provenance: which pressures made this death likely — the granary, a plague, crowding, or age.
+            $causes = [];
+            $factors = [];
+            if ($village->inFamine && $village->famineEventId !== null) {
+                $causes[] = $village->famineEventId;
+                $factors[] = 'famine';
+            }
+            if ($sickness >= 40.0) {
+                $factors[] = 'illness';
+                if ($village->lastPlagueEventId !== null) {
+                    $causes[] = $village->lastPlagueEventId;
+                }
+            }
+            if ($overcrowded) {
+                $factors[] = 'overcrowding';
+            }
+            if ($age >= 50) {
+                $factors[] = 'old-age';
+            }
+            if ($factors === []) {
+                $factors[] = 'natural';
+            }
+
             $world->chronicle->record($tick, sprintf(
                 '%d %s, Year %d — %s dies at age %d.',
                 $date->dayOfMonth, $date->monthName, $date->year, $agent->name, $age,
-            ));
+            ), 'death', [$agent->id], $causes, $factors);
         }
     }
 

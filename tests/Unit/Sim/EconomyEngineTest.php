@@ -139,7 +139,7 @@ class EconomyEngineTest extends TestCase
 
         $this->assertGreaterThan(1.0, $world->village->starvationFactor);
         $this->assertTrue($world->village->inFamine);
-        $famine = array_filter($world->chronicle->all(), static fn (array $e): bool => str_contains($e['text'], 'famine grips'));
+        $famine = array_filter($world->chronicle->all(), static fn ($e): bool => str_contains($e->text, 'famine grips'));
         $this->assertNotEmpty($famine);
     }
 

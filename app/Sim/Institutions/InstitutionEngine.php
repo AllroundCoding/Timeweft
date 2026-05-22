@@ -38,12 +38,15 @@ final class InstitutionEngine
         $world->village->stockpile->withdraw('food', self::UPKEEP_FOOD_PER_YEAR);
 
         if ($institution->hasOssified(self::COLLAPSE_EFFECTIVENESS)) {
-            $world->village->institution = null;
-            $world->village->underpreparedYears = 0;
+            $village = $world->village;
+            $village->institution = null;
+            $village->underpreparedYears = 0;
             $world->chronicle->record($tick, sprintf(
                 '%d %s, Year %d — the %s, ossified and extracting more than it returns, collapses; %s falls back on its own cohesion.',
-                $date->dayOfMonth, $date->monthName, $date->year, $institution->name, $world->village->name,
-            ));
+                $date->dayOfMonth, $date->monthName, $date->year, $institution->name, $village->name,
+            ), 'institution-collapsed', [], $village->institutionEventId !== null ? [$village->institutionEventId] : [], ['ossification']);
+            $village->institutionEventId = null;
+            $village->underpreparedEventIds = [];
         }
     }
 }

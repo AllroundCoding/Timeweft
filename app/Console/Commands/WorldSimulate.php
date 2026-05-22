@@ -39,7 +39,7 @@ class WorldSimulate extends Command
 
         $this->comment('Chronicle:');
         foreach ($world->chronicle->all() as $entry) {
-            $this->line('  '.$entry['text']);
+            $this->line('  '.$entry->text);
         }
         $this->newLine();
 
@@ -248,7 +248,7 @@ class WorldSimulate extends Command
                 'achievedYear' => $m->achievedTick !== null ? TharadiCalendar::fromTick($m->achievedTick)->year : null,
                 'forced' => $m->wasForced,
             ], $world->milestones),
-            'chronicle' => $world->chronicle->all(),
+            'chronicle' => array_map(fn ($e) => $e->toArray(), $world->chronicle->all()),
             'roster' => array_map(fn (Agent $a) => [
                 'id' => $a->id,
                 'name' => $a->name,

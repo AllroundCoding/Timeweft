@@ -39,7 +39,7 @@ class ShockEngineTest extends TestCase
         ShockEngine::applyRaid($world, 0, self::date(), $world->rng);
 
         $this->assertLessThan($before, count($world->livingAgents()));
-        $raid = array_filter($world->chronicle->all(), static fn (array $e): bool => str_contains($e['text'], 'raiders strike'));
+        $raid = array_filter($world->chronicle->all(), static fn ($e): bool => str_contains($e->text, 'raiders strike'));
         $this->assertNotEmpty($raid);
     }
 
@@ -56,7 +56,7 @@ class ShockEngineTest extends TestCase
         foreach ($world->livingAgents() as $agent) {
             $this->assertGreaterThan(0.0, $agent->needs['sickness']->value);
         }
-        $plague = array_filter($world->chronicle->all(), static fn (array $e): bool => str_contains($e['text'], 'plague'));
+        $plague = array_filter($world->chronicle->all(), static fn ($e): bool => str_contains($e->text, 'plague'));
         $this->assertNotEmpty($plague);
     }
 
@@ -70,7 +70,7 @@ class ShockEngineTest extends TestCase
 
         $this->assertLessThan(1000.0, $world->village->stockpile->amount('food'));
         $this->assertLessThan(1000.0, $world->village->stockpile->amount('water'));
-        $blight = array_filter($world->chronicle->all(), static fn (array $e): bool => str_contains($e['text'], 'blight'));
+        $blight = array_filter($world->chronicle->all(), static fn ($e): bool => str_contains($e->text, 'blight'));
         $this->assertNotEmpty($blight);
     }
 }
