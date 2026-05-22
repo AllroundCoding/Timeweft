@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Sim\Direction\StoryDirector;
 use App\Sim\Economy\EconomyEngine;
 use App\Sim\Projects\ProjectEngine;
 use App\Sim\Support\Rng;
@@ -74,18 +75,24 @@ class WorldSimulate extends Command
 
         $this->comment('Milestones (story director):');
         foreach ($world->milestones as $m) {
+            $pin = $m->hard ? 'hard pin' : 'soft beat';
             if ($m->achieved) {
                 $achievedDate = TharadiCalendar::fromTick((int) $m->achievedTick);
-                $this->line(sprintf(
-                    '  ✓ %s — Year %d %s (budget: by Year %d)',
-                    ucfirst($m->name),
-                    $achievedDate->year,
-                    $m->wasForced ? '[forced as the deadline arrived]' : '[emerged organically]',
-                    $m->deadlineYear,
-                ));
+                $how = $m->wasForced ? '[forced — the pin held against the world\'s grain]' : '[emerged organically]';
+                $this->line(sprintf('  ✓ %s — Year %d %s (%s, budget by Year %d)', ucfirst($m->name), $achievedDate->year, $how, $pin, $m->deadlineYear));
+            } elseif ($m->lapsed) {
+                $this->line(sprintf('  ⋯ %s — lapsed; the world went another way (%s, budget by Year %d)', ucfirst($m->name), $pin, $m->deadlineYear));
             } else {
-                $this->line(sprintf('  ✗ %s — unfulfilled (budget: by Year %d)', ucfirst($m->name), $m->deadlineYear));
+                $this->line(sprintf('  ✗ %s — unfulfilled (%s, budget by Year %d)', ucfirst($m->name), $pin, $m->deadlineYear));
             }
+        }
+        $conflicts = StoryDirector::conflicts($world);
+        if ($conflicts !== []) {
+            $this->line(sprintf(
+                '  ⚠ author\'s hand: %d hard pin(s) forced against emergence — %s',
+                count($conflicts),
+                implode(', ', array_map(fn ($m) => $m->name, $conflicts)),
+            ));
         }
         $this->newLine();
 

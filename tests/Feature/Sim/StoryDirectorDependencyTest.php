@@ -61,6 +61,7 @@ class StoryDirectorDependencyTest extends TestCase
             deadlineYear: 25,
             prereqPopulation: 14,
             prerequisites: ['trading post on the caravan road'],
+            hard: true,
         );
         $world->advance(self::TICKS_PER_YEAR * 30);
 
@@ -81,8 +82,8 @@ class StoryDirectorDependencyTest extends TestCase
             new Agent(1, 'A', 'Vulpini', 'Tharados', 'f', -20 * self::TICKS_PER_YEAR, ['agility' => 50.0], []),
             new Agent(2, 'B', 'Vulpini', 'Tharados', 'm', -22 * self::TICKS_PER_YEAR, ['agility' => 50.0], []),
         ]);
-        $a = new Milestone('A', deadlineYear: 1, prereqPopulation: 0);
-        $b = new Milestone('B', deadlineYear: 1, prereqPopulation: 0, prerequisites: ['A']);
+        $a = new Milestone('A', deadlineYear: 1, prereqPopulation: 0, hard: true);
+        $b = new Milestone('B', deadlineYear: 1, prereqPopulation: 0, prerequisites: ['A'], hard: true);
         $world->milestones = [$a, $b];
 
         return [$world, $a, $b];

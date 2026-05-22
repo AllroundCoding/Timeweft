@@ -41,10 +41,34 @@ final class StoryDirector
             }
         }
 
-        // Fallback: the deadline forces the beat regardless of the organic path.
+        // Deadline reached. A hard pin is force-bridged — it must hold, even against the world's grain
+        // (a surfaced conflict). A soft beat the world didn't produce simply lapses: the sim wins, and
+        // the unmet hope is recorded rather than silently buried (design doc 08).
         if ($date->year >= $milestone->deadlineYear) {
-            self::achieve($world, $milestone, $tick, $date, forced: true, population: $population);
+            if ($milestone->hard) {
+                self::achieve($world, $milestone, $tick, $date, forced: true, population: $population);
+            } elseif (! $milestone->lapsed) {
+                $milestone->lapsed = true;
+                $world->chronicle->record($tick, sprintf(
+                    '%d %s, Year %d — the hoped-for %s never comes to pass; the world went another way.',
+                    $date->dayOfMonth, $date->monthName, $date->year, $milestone->name,
+                ), 'milestone-lapsed', [], [], ['soft-default']);
+            }
         }
+    }
+
+    /**
+     * The authored pins that had to be forced against the world's grain — conflicts between the
+     * author's hand and emergence, surfaced for the author rather than silently picked (design doc 08).
+     *
+     * @return list<Milestone>
+     */
+    public static function conflicts(World $world): array
+    {
+        return array_values(array_filter(
+            $world->milestones,
+            static fn (Milestone $milestone): bool => $milestone->isConflict(),
+        ));
     }
 
     private static function achieve(World $world, Milestone $milestone, int $tick, TharadiDate $date, bool $forced, int $population): void
