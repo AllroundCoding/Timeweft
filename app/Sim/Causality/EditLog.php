@@ -50,6 +50,17 @@ final class EditLog
         return array_values(array_filter($this->edits, static fn (Edit $e): bool => ! $e->retracted));
     }
 
+    public function find(int $id): ?Edit
+    {
+        foreach ($this->edits as $edit) {
+            if ($edit->id === $id) {
+                return $edit;
+            }
+        }
+
+        return null;
+    }
+
     /** The active edits folded into one intervention to replay the world with. */
     public function asIntervention(): Intervention
     {
