@@ -31,6 +31,18 @@ final class RetroactiveRipple
     }
 
     /**
+     * The current canonical timeline: the seeded world replayed with the edit log's active edits
+     * folded in (design doc 09's "fold over active events"). With an empty or fully-retracted log
+     * this is the true history.
+     *
+     * @return list<ChronicleEvent>
+     */
+    public static function canonicalTimeline(string $seed, int $population, int $years, EditLog $log): array
+    {
+        return self::run($seed, $population, $years, $log->asIntervention());
+    }
+
+    /**
      * The events an edit to $eventId *would* invalidate, read straight from the recorded
      * causal graph (no replay) — its declared downstream cone, including the event itself.
      *
