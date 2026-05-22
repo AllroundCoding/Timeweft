@@ -39,7 +39,7 @@ final class BackwardDecomposer
      */
     public static function decompose(Waypoint $target): array
     {
-        $deadlines = self::deadlines($target);
+        $deadlines = self::requiredDeadlines($target);
 
         // Topological order falls out of the back-dated deadlines: a precondition is always earlier.
         uasort($deadlines, static fn (int $a, int $b): int => $a <=> $b);
@@ -65,7 +65,7 @@ final class BackwardDecomposer
      */
     public static function isSatisfiable(Waypoint $target): bool
     {
-        foreach (self::deadlines($target) as $byYear) {
+        foreach (self::requiredDeadlines($target) as $byYear) {
             if ($byYear < 1) {
                 return false;
             }
@@ -80,7 +80,7 @@ final class BackwardDecomposer
      *
      * @return array<string,int> kind => the year by which it must hold
      */
-    private static function deadlines(Waypoint $target): array
+    public static function requiredDeadlines(Waypoint $target): array
     {
         $deadlines = [];
         $queue = [[$target->kind, $target->byYear]];
