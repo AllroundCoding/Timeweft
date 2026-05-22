@@ -173,6 +173,7 @@ final class World
                     // the emergent world (the perturbation TWT-39 ran into).
                     StoryDirector::evaluate($this, $milestone, $this->tick, $date, $this->rng->stream('director', $milestone->name, $this->tick));
                 }
+                TradeEngine::runDay($this, $this->tick, $date);
                 MigrationEngine::runDay($this, $this->tick, $date);
             }
         }
