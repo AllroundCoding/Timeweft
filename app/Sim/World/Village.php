@@ -64,6 +64,23 @@ final class Village
     /** @var list<int> */
     public array $underpreparedEventIds = [];
 
+    /** Whether the land is currently exhausted below its base (drives chronicle onset/recovery). */
+    public bool $landExhausted = false;
+
+    /** Chronicle id of the active land-exhaustion event, cited when scarcity follows depleted land. */
+    public ?int $landExhaustedEventId = null;
+
+    /** The technology level last chronicled as an advance, so only notable gains are recorded. */
+    public float $lastTechMilestone = 1.0;
+
+    /** Chronicle id of this year's lean-harvest event (null when the harvest was not lean). */
+    public ?int $leanHarvestEventId = null;
+
+    /** Chronicle id of the most recent blight, and the year it struck — cited if a famine follows it. */
+    public ?int $lastBlightEventId = null;
+
+    public ?int $lastBlightYear = null;
+
     /** Diet quality 0..1 — the variety/nutrition of foods in season; a varied diet keeps people well. */
     public float $dietQuality = 1.0;
 
@@ -90,6 +107,7 @@ final class Village
         $this->landYield = $landYield;
         $this->baseLandYield = $landYield;
         $this->technology = $technology;
+        $this->lastTechMilestone = $technology;
         $this->culture = $culture ?? Culture::tharados();
         $this->baselineCohesion = $this->culture->baselineCohesion();
         $this->stockpile = new Stockpile;
