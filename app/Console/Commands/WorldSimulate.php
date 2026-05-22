@@ -256,6 +256,7 @@ class WorldSimulate extends Command
                 'age' => $a->ageInYears($world->tick),
                 'partnerId' => $a->partnerId,
                 'parentIds' => $a->parentIds,
+                'activity' => $a->activity?->value,
                 'traits' => $a->traits,
                 'needs' => array_map(fn ($n) => round($n->value, 1), $a->needs),
                 'money' => round($a->stockpile->amount('money'), 1),
