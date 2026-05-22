@@ -29,7 +29,7 @@ class CultureTest extends TestCase
     public function test_the_tharadi_culture_is_derived_from_its_region(): void
     {
         $region = RegionProfile::tharados();
-        $derived = Culture::fromMaterialConditions('Tharadi', $region->scarcity(), $region->seasonalVolatility());
+        $derived = Culture::fromMaterialConditions('Tharadi', $region->scarcity(), $region->seasonalVolatility(), $region->landTenureConcentration());
 
         // The Tharados desert (scarcity 0.75, volatility 0.5) reproduces the historical hand-tuned vector.
         $this->assertEqualsWithDelta(85.0, $derived->collectivism, 1e-9);

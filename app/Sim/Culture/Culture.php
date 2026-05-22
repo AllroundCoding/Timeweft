@@ -30,7 +30,7 @@ final class Culture
     {
         $region = RegionProfile::tharados();
 
-        return self::fromMaterialConditions('Tharadi', $region->scarcity(), $region->seasonalVolatility());
+        return self::fromMaterialConditions('Tharadi', $region->scarcity(), $region->seasonalVolatility(), $region->landTenureConcentration());
     }
 
     /**
@@ -38,25 +38,37 @@ final class Culture
      * lean, volatile land breeds restraint, tradition, collectivism and piety; an abundant, stable
      * one breeds indulgence, secularism and individualism.
      *
+     * Hierarchy is the exception: it tracks not scarcity but the **appropriability of the productive
+     * base** — how concentrated/monopolizable the land (or vital resource) is — scaled by the
+     * surplus an elite can extract from it. A surplus you cannot monopolize (dispersed forage) breeds
+     * no ruling class; a concentrated one (oasis chokepoints, owned estates) does. This is why a
+     * fertile feudal kingdom and a harsh desert empire are both steeply hierarchical while harsh,
+     * dispersed bands stay egalitarian — political form is orthogonal to scarcity (TWT-121, doc 11).
+     *
      * The two-way street: when an $ancestral culture is supplied (a daughter settlement, or a
      * culture re-derived as conditions shift), it biases the result — the new culture inherits its
      * forebears and *adapts* toward the local materials rather than starting from a blank slate.
      *
      * @param  float  $scarcity  0 (abundant) .. 1 (harsh) — how lean the land is
      * @param  float  $volatility  0 (stable) .. 1 (swinging) — how much yield swings across seasons
+     * @param  float  $landTenureConcentration  0 (dispersed/mobile) .. 1 (concentrated/owned) — how monopolizable the productive base is
      */
     public static function fromMaterialConditions(
         string $name,
         float $scarcity,
         float $volatility,
+        float $landTenureConcentration = 0.5,
         ?self $ancestral = null,
     ): self {
         $clamp = static fn (float $v): float => max(0.0, min(100.0, $v));
+        $concentration = max(0.0, min(1.0, $landTenureConcentration));
+        $surplus = 1.0 - $scarcity; // the extractable abundance an elite can capture
 
         $derived = new self(
             name: $name,
             collectivism: $clamp(40.0 + $scarcity * 60.0),
-            hierarchy: $clamp(40.0 + $scarcity * 20.0 + $volatility * 30.0),
+            // Concentration of the productive base, amplified by the surplus it lets an elite extract.
+            hierarchy: $clamp(20.0 + 55.0 * $concentration + 25.0 * $surplus * $concentration),
             tradition: $clamp(30.0 + $scarcity * 40.0 + $volatility * 40.0),
             longTermOrientation: $clamp(30.0 + $volatility * 70.0),
             restraint: $clamp(30.0 + $scarcity * 60.0),

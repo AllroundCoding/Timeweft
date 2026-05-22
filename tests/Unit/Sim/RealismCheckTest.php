@@ -13,12 +13,12 @@ use PHPUnit\Framework\TestCase;
  * — the harsh desert and the fertile sownland — generates their cultures through the engine, and
  * asserts the result respects the canon's qualitative ordering.
  *
- * Oracle: docs/lore/canon/regions/tharados.yaml and aetheria.yaml (see docs/lore/realism.md). Two
- * axes are deliberately excluded, per the canon's own notes:
- *   - piety: a magic_exception for Aetheria (devotion stays rational under prosperity because magic
- *     is real), so a purely-material prediction is not expected to hold.
- *   - hierarchy: the canon flags it as tracking surplus/land-tenure, not scarcity alone, so the
- *     engine's scarcity-driven mapping is a known oversimplification here.
+ * Oracle: docs/lore/canon/regions/tharados.yaml and aetheria.yaml (see docs/lore/realism.md). The
+ * piety axis is deliberately excluded from the directional check: it is a magic_exception for
+ * Aetheria (devotion stays rational under prosperity because magic is real), so a purely-material
+ * prediction is not expected to hold. Hierarchy used to be excluded too, but TWT-121 now models it
+ * from land-tenure concentration rather than scarcity, so it is checked here directly across four
+ * regions the old scarcity-driven rule could not satisfy at once.
  */
 class RealismCheckTest extends TestCase
 {
@@ -53,5 +53,29 @@ class RealismCheckTest extends TestCase
         // Canon: Tharados achievement "low-moderate"; Aetheria "moderate-high" — abundance affords
         // mobility through skill (guilds, academies). The fertile land prizes achievement more.
         $this->assertLessThan($aetherian->achievement, $tharadi->achievement, 'the sownland prizes achievement more');
+    }
+
+    public function test_hierarchy_tracks_land_tenure_not_scarcity_across_four_regions(): void
+    {
+        // Four canon regions whose hierarchy a scarcity-only rule cannot fit at once — two harsh-cold
+        // lands (Draknar, Frostlands) sit at opposite ends of hierarchy. (scarcity, volatility,
+        // land-tenure concentration) from docs/lore/canon/regions/*.yaml + the structural notes there.
+        $tharados = Culture::fromMaterialConditions('Tharadi', 0.75, 0.50, 0.90);    // imperial — concentrated oases
+        $aetheria = Culture::fromMaterialConditions('Aetherian', 0.40, 0.43, 0.70);  // feudal — surplus + estates
+        $draknar = Culture::fromMaterialConditions('Draknar', 0.74, 0.53, 0.40);     // fragmented warrior clans
+        $frostlands = Culture::fromMaterialConditions('Frost', 0.85, 0.40, 0.12);    // egalitarian survivalist bands
+
+        // Canon ranks: Tharados high, Aetheria moderate-high, Draknar moderate, Frostlands low.
+        $this->assertGreaterThan(65.0, $tharados->hierarchy, 'the desert empire is steeply hierarchical');
+        $this->assertGreaterThan(55.0, $aetheria->hierarchy, 'the feudal kingdom is hierarchical');
+        $this->assertGreaterThan(38.0, $draknar->hierarchy, 'clan chieftains give Draknar middling hierarchy');
+        $this->assertLessThan(58.0, $draknar->hierarchy, 'but no central state keeps it from the top');
+        $this->assertLessThan(40.0, $frostlands->hierarchy, 'egalitarian bands have little hierarchy');
+
+        // The two harsh-cold lands diverge sharply — proof scarcity is not the lever.
+        $this->assertGreaterThan($frostlands->hierarchy, $draknar->hierarchy, 'same harsh cold, different polity');
+        // And the overall ordering follows concentration, not scarcity.
+        $this->assertGreaterThan($aetheria->hierarchy, $tharados->hierarchy, 'the empire out-ranks the feudal kingdom');
+        $this->assertGreaterThan($draknar->hierarchy, $aetheria->hierarchy, 'the feudal kingdom out-ranks the clans');
     }
 }
