@@ -27,6 +27,7 @@ class DietHealthTest extends TestCase
         $world->goods = GoodRegistry::tharados();
         $world->recipes = RecipeBook::tharados();
         $world->village = new Village('Larderhold', 'Tharados', [], landYield: 40.0);
+        $world->village->regionProfile = RegionProfile::tharados();
         $world->village->stockpile = new Stockpile($stocks);
 
         return $world;

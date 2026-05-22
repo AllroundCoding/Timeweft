@@ -1,0 +1,56 @@
+# The Frostlands — regional material profile (outline region).
+#
+# Source of truth: docs/regions/frostlands/README.md (a thin, single-source overview).
+# No calendar or pantheon in the source. Not yet consumed by Timeweft.
+# A THIRD harsh-cold data point (with Draknar) — but communal/survivalist, not warrior-clan.
+
+id: frostlands
+name: The Frostlands
+continent: aerindor   # far north, bordering the Frosthaven continent
+species: vulpini
+source: gdoc:1TvF_GXY7XWYW67WRbK2ajR2_V5YDeEakswZDpFEhmuM
+
+summary: >-
+  A perpetually frozen glacial expanse in the far north. Survivalist hunter
+  communities and oral saga-keepers; harsher than Draknar, with no true summer.
+
+terrain:
+  - { id: everfrost-glaciers,  name: The Everfrost Glaciers,  note: "Vast ice formations to the horizon." }
+  - { id: shattered-icefields, name: The Shattered Icefields, note: "Broken ice; crevasses under thin snow." }
+  - { id: snowspire-caverns,   name: The Snowspire Caverns,   note: "Underground ice-tunnel networks; rumored ancient secrets." }
+
+# No calendar in the source. Climate is qualitative; the derived values are
+# estimates from prose, not computed from seasonal yields. yield vs 1.0 base.
+climate:
+  description: "Perpetually cold; temperatures rarely above freezing even in summer. Polar nights and midnight suns."
+  derived:
+    scarcity: 0.85            # 0 abundant .. 1 harsh — the harshest profile so far (no true growing season)
+    seasonal_volatility: 0.40 # long dark winter / brief light summer, but food stays scarce either way
+    hazards: [blizzard, crevasse, polar-night, famine]
+    note: "Estimated from prose; no seasonal yield data in the source."
+
+trait_modifiers:
+  constitution: 9.0   # extreme cold-survival (cf. the cold-tolerance trait gap noted in draknar.yaml)
+
+resources: [furs, game, ice-craft]
+
+# Same harsh-cold material baseline as Draknar (high collectivism/tradition/restraint),
+# but a DIFFERENT social form again: small, close-knit, egalitarian survivalist bands
+# bound by oral saga — not competitive warrior clans, not a state. Another illustration
+# that harshness sets the values baseline while social organization varies. (0..100.)
+expected_culture:
+  collectivism: high          # small close-knit communities; survival is collective
+  hierarchy: low              # bands united by a hero-figure in crisis, not a standing ruling class
+  tradition: high             # oral sagas and songs preserve history and values
+  long_term_orientation: high
+  restraint: high             # scarcity discipline
+  achievement: low            # survival and continuity over glory
+  piety: moderate             # the Aurora Festival and sagas lean ancestral/mythic more than god-cult
+  notes:
+    - "Harsh-cold baseline like Draknar, but egalitarian-survivalist rather than warrior-clan: hierarchy and achievement run lower."
+
+timeweft:
+  status: not_yet_consumed
+  notes:
+    - "Outline region; no RegionProfile and no calendar/pantheon. Values are proposed estimates."
+    - "Spectrum: Elenwood 0.23 · Nyralthia 0.25 · Aetheria 0.40 · Draknar 0.74 · Tharados 0.75 · Frostlands ~0.85."

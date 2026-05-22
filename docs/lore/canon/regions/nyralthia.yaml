@@ -1,0 +1,67 @@
+# Nyralthia — regional material profile.
+#
+# Source of truth: docs/regions/nyralthia/.
+# Not yet consumed by Timeweft. The fifth region profile, and the setting's most
+# magic-explicit one (regulated crystal magic; dark magic banned).
+
+id: nyralthia
+name: Nyralthia
+continent: solrathis
+species: vulpini
+source: gdoc:17f8Jr_aDnasdFcIq5vw_X6B8fDAIAm3JMVfPyeQoXpc
+
+summary: >-
+  A tropical volcanic archipelago southeast of Aetheria. A food-abundant maritime
+  trade culture under an elected island council, devoted to the sea goddess Celeste.
+
+terrain:
+  - { id: volcanic-isles,   name: The Volcanic Isles,  note: "Active and dormant volcanoes; fire-adapted flora and fauna (Fire Mountain)." }
+  - { id: tropical-forests, name: The Tropical Forests, note: "Dense, biodiverse forest with ancient ruins (the Ruins of Lyria)." }
+  - { id: seas,             name: The seas,             note: "Star-shaped harbors and trade routes; abundant marine life." }
+
+# Tropical, warm year-round, frequent rain; Wet Season feeds marine/forest
+# abundance, Dry Season feeds agriculture and trade. Food is plentiful and steady
+# — BUT storms and volcanism are acute existential hazards (distinct from the food
+# yield). yield vs 1.0 base. NOTE: proposed parameters from qualitative lore.
+climate:
+  seasons_ref: ../calendar/nyralthia.yaml
+  yield_by_season:
+    wet: 1.3
+    dry: 1.2
+  derived:
+    # weighted by months per season (5 Wet / 5 Dry): (5*1.3 + 5*1.2) / 10
+    average_yield: 1.25
+    scarcity: 0.25             # 0 abundant .. 1 harsh — abundant, near Elenwood (0.23)
+    seasonal_volatility: 0.04  # little seasonal FOOD swing
+    hazards: [storms, volcanic-eruptions]  # acute, deadly, and frequent — not a food-yield effect
+
+# Maritime/tropical adaptation is largely cultural; see species/vulpini.yaml for
+# any Nyralthia fur palette. No strong physical nudge asserted by the source.
+trait_modifiers: {}
+
+resources: [exotic spices, rare gemstones, marine products, crystals]
+
+# A clean abundance case for the realism loop — with a twist. Food is plentiful and
+# steady (scarcity 0.25), and the culture fits that: low hierarchy (an ELECTED
+# island council, High Elder each decade), low restraint (festivals, dances), open
+# and cosmopolitan (a trade hub). The outlier is high piety — see tensions. (0..100.)
+expected_culture:
+  collectivism: moderate
+  hierarchy: low                # elected representative council; no hereditary monarch
+  tradition: moderate
+  long_term_orientation: moderate
+  restraint: low                # vibrant festivals and dances; expressive
+  achievement: moderate         # trade prosperity
+  piety: high                   # sea-goddess worship; deep respect for the ocean
+  notes:
+    - "Cosmopolitan and open — a maritime trade hub. Low hierarchy + low restraint fit the abundant, steady food base; this is the proto-democratic end of the political spectrum (vs Tharados's empire)."
+  tensions:
+    - "Piety despite food abundance — BUT storms and volcanism are real, frequent, deadly hazards, so propitiating sea/storm deities is materially rational. A hazard-driven faith more than a pure carve-out: food security and mortal danger can coexist."
+    - "Magic is literal AND institutional here: abundant crystals in daily use, magic regulated by the Council, dark magic banned. The clearest magic carve-out in the setting (see WRL-24)."
+
+timeweft:
+  status: not_yet_consumed
+  notes:
+    - "No RegionProfile::nyralthia() yet; the yields/scarcity/volatility above are proposed."
+    - "Spectrum so far: Elenwood 0.23 · Nyralthia 0.25 · Aetheria 0.40 · Draknar 0.74 · Tharados 0.75."
+    - "Note the hazard/scarcity split: low scarcity (food) can pair with high hazards (storms, volcanism). The model may want both axes, not one."

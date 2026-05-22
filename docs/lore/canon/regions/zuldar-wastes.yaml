@@ -1,0 +1,56 @@
+# The Zuldar Wastes — regional material profile (outline region).
+#
+# Source of truth: docs/regions/zuldar-wastes/README.md (a thin, single-source overview).
+# No calendar or pantheon in the source. Not yet consumed by Timeweft.
+# A SECOND harsh-arid data point alongside Tharados — but nomadic scavengers, not an empire.
+
+id: zuldar-wastes
+name: The Zuldar Wastes
+continent: aerindor   # far east
+species: vulpini
+source: gdoc:1TvF_GXY7XWYW67WRbK2ajR2_V5YDeEakswZDpFEhmuM
+
+summary: >-
+  An arid eastern wasteland of sun-bleached flats and red canyons. Resourceful
+  scavenger/trader/warrior bands honoring their ancestors; survival is a daily struggle.
+
+terrain:
+  - { id: cracked-flats,   name: The Cracked Flats,   note: "Sun-bleached earth broken by jagged rock." }
+  - { id: bone-ridge,      name: The Bone Ridge,      note: "Fossil-laden rocky hills." }
+  - { id: scarlet-canyons, name: The Scarlet Canyons, note: "Red ravines; the wind-sung Singing Stones." }
+  - { id: oblivion-oasis,  name: The Oblivion Oasis,  note: "A rare hidden sanctuary of life." }
+
+climate:
+  description: "Extreme heat by day, bitter cold by night; rare rain that triggers violent flash floods."
+  derived:
+    scarcity: 0.80            # harsh-arid, near Tharados (0.75) but less habitable
+    seasonal_volatility: 0.55 # day/night extremes and flash floods
+    hazards: [flash-flood, sandstorm, heat, night-cold]
+    note: "Estimated from prose; no seasonal yield data in the source."
+
+trait_modifiers:
+  constitution: 8.0
+  heatTolerance: 8.0   # like Tharados, adapted to extreme heat
+
+categorical_options:
+  fur_color: [gray, brown, rust]   # muted camouflage for the barren land (stated in the source)
+
+resources: [salvage, trade-goods, fossils]
+
+# Harsh-arid baseline like Tharados, but a scavenger/nomad social form rather than a
+# centralized empire — again, harshness sets values while organization differs. (0..100.)
+expected_culture:
+  collectivism: high
+  hierarchy: moderate         # bands and traders; no described empire
+  tradition: high             # elaborate ancestor rituals
+  long_term_orientation: moderate
+  restraint: high             # resourcefulness; nothing wasted
+  achievement: moderate
+  piety: high                 # ancestor veneration is central
+  notes:
+    - "Second harsh-arid case (cf. Tharados): same survival-values baseline, but nomadic scavengers, not a state."
+
+timeweft:
+  status: not_yet_consumed
+  notes:
+    - "Outline region; no RegionProfile and no calendar/pantheon. Values are proposed estimates."

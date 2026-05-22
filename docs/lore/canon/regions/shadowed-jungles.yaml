@@ -1,0 +1,38 @@
+# The Shadowed Jungles — regional material profile (outline region).
+#
+# Source of truth: docs/regions/shadowed-jungles/README.md.
+# Tropical and abundant, but its inhabitants are barely known, so expected_culture
+# is deferred. Strong magical/mystery flavor (Ghost Orchids, the Ziggurat's Watchers).
+
+id: shadowed-jungles
+name: The Shadowed Jungles
+continent: solrathis   # southern Solrathis
+species: unknown
+source: gdoc:1TvF_GXY7XWYW67WRbK2ajR2_V5YDeEakswZDpFEhmuM
+
+summary: >-
+  A dense, misty, hot-and-humid jungle in southern Solrathis. Lush and biodiverse,
+  with an ancient hidden ziggurat; its tribes and creatures are little known.
+
+terrain:
+  - { id: emerald-canopy,    name: The Emerald Canopy,    note: "Near-impenetrable roof of towering trees." }
+  - { id: veil-river,        name: The Veil River,        note: "Ink-black river, dark from mineral soil." }
+  - { id: obsidian-ziggurat, name: The Obsidian Ziggurat, note: "Massive ancient structure deep in the jungle; the Watchers' secret." }
+  - { id: twilight-marsh,    name: The Twilight Marsh,    note: "Swampy jungle edge, teeming with exotic wildlife." }
+
+climate:
+  description: "Hot and humid year-round; frequent rainstorms; dawn mists."
+  derived:
+    scarcity: 0.25            # tropical abundance (cf. Nyralthia 0.25)
+    seasonal_volatility: 0.10
+    hazards: [disease, predators, marsh]
+    note: "Environmental estimate; inhabitants barely documented."
+
+expected_culture:
+  status: undocumented
+  note: "Isolated tribes; little known. Defer culture until lore is developed. Expansion candidate, with strong magic/mystery hooks (Ghost Orchids grant visions; the Watchers of the Ziggurat)."
+
+timeweft:
+  status: not_yet_consumed
+  notes:
+    - "Outline region; scarcity is an environmental estimate, culture deferred."

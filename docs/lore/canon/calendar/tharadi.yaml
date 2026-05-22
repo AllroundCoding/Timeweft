@@ -1,0 +1,131 @@
+# Tharadi Calendar — the calendar of the Tharados empire.
+#
+# Source of truth: docs/regions/tharados (Geography, Climate and Calendar).
+# Consumed by Timeweft as App\Sim\Time\TharadiCalendar (test / seed data).
+#
+# Canon fixes the season / month / week structure. It does NOT fix days-per-month
+# or hours-per-day; those are engine choices (see the `timeweft` block).
+
+id: tharadi
+name: Tharadi Calendar
+region: tharados
+source: gdoc:130jESZdPVtGN4JehAM29ShxvRnW3nkPkySmj1d1dldI
+summary: >-
+  Two seasons, eight god-dedicated months, and a six-day week. The year begins at
+  the start of Oasis (Naralis), marking renewal and the goddess Nara's blessing.
+
+# Two seasons. Six of the eight months fall in Sandstorm, two in Oasis — the
+# brevity of Oasis is exactly the point: it is precious because it is short.
+seasons:
+  - id: oasis
+    name: Oasis
+    months: 2
+    character: >-
+      Short, more humid, and far more bearable. Rare rain brings extraordinary
+      blooms that last only weeks; most planting happens now. The new year begins
+      with it.
+  - id: sandstorm
+    name: Sandstorm
+    months: 6
+    character: >-
+      The long, harsh season. Lethal daytime heat, sub-freezing interior nights,
+      and sandstorms that can last days — burying structures and obliterating
+      trails. The harvesting and preserving period.
+
+# The six-day week, named for the six gods most central to daily Tharadi life.
+# Each city's temples observe their patron's day; in the capital, Ra'ans is the
+# day of major imperial announcements.
+week:
+  days: 6
+  weekdays:
+    - { name: "Ra'ans", god: "Ra'an" }
+    - { name: "Naras",  god: "Nara" }
+    - { name: "Mirahs", god: "Mirah" }
+    - { name: "Zaraks", god: "Zarak" }
+    - { name: "Kalims", god: "Kalim" }
+    - { name: "Jareks", god: "Jarek" }
+  # Two gods have no weekday named for them — an ancient, unexplained omission.
+  # Lunara is honored at month-end ceremonies; Varis at the Grand Bazaar's audits.
+  gods_without_a_weekday: ["Lunara", "Varis"]
+
+# Eight months, in order from the new year. `season` follows the canonical
+# 2-Oasis / 6-Sandstorm split; `phase` preserves the finer descriptive nuance
+# (e.g. Kalimos feels like "late Oasis" but counts toward Sandstorm).
+months:
+  - index: 1
+    name: Naralis
+    god: Nara
+    season: oasis
+    phase: Oasis (new year)
+    meaning: Renewal, salvation, the rain that breaks the long dry.
+  - index: 2
+    name: Jarethis
+    god: Jarek
+    season: oasis
+    phase: Oasis
+    meaning: Hidden knowledge and exploration; caravans depart on long expeditions.
+  - index: 3
+    name: Kalimos
+    god: Kalim
+    season: sandstorm
+    phase: late Oasis
+    meaning: The shifting winds that herald the return of the heat.
+  - index: 4
+    name: Lunaris
+    god: Lunara
+    season: sandstorm
+    phase: transition
+    meaning: Marks the end of Oasis and the beginning of Sandstorm.
+  - index: 5
+    name: "Ra'anis"
+    god: "Ra'an"
+    season: sandstorm
+    phase: Sandstorm (height)
+    meaning: Power and relentless heat; the height of Sandstorm.
+  - index: 6
+    name: Varith
+    god: Varis
+    season: sandstorm
+    phase: Sandstorm
+    meaning: Commerce; the traditional time for major contracts and trade negotiations.
+  - index: 7
+    name: Mirathis
+    god: Mirah
+    season: sandstorm
+    phase: Sandstorm
+    meaning: Stars and celestial events; major astrological readings are scheduled here.
+  - index: 8
+    name: Zarakon
+    god: Zarak
+    season: sandstorm
+    phase: late Sandstorm
+    meaning: The hardest weeks of the desert; closes the year before Naralis begins it again.
+
+# How dates are written.
+date_format:
+  formal: day-month, regnal year of the current emperor (imperial documents)
+  informal: >-
+    regnal year only, or years counted from the founding of the current imperial
+    line (~Year 220 of the Aetherian calendar).
+
+# Vaeris runs several coexisting calendars on one underlying timeline; these are
+# the canonical anchor points between Tharadi and Aetherian reckoning.
+cross_calendar:
+  - "Ra'anis aligns approximately with Aetheria's Ignathor, beginning six days after Vidoris."
+  - "The current imperial line was founded ~Year 220 of the Aetherian calendar."
+  - "The 8-month Tharadi year and 10-month Aetherian year mismatch; long-distance contracts dual-date explicitly."
+
+# Informational only — how the Timeweft engine currently consumes this calendar.
+# These notes are NOT canon; the structure above is.
+timeweft:
+  class: App\Sim\Time\TharadiCalendar
+  status: built
+  engine_defaults_not_in_canon:
+    hours_per_day: 24
+    days_per_month: 30
+    days_per_year: 240
+  simplifications:
+    - >-
+      Kalimos ("late Oasis") and Lunaris ("transition") are folded into Sandstorm
+      so the engine sees a clean 2/6 split — already reflected in the `season`
+      field above.

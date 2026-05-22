@@ -21,6 +21,9 @@ final class Village
     /** The culture of this settlement's people; sets the cohesion baseline and institution type. Drifts with material security. */
     public Culture $culture;
 
+    /** This settlement's region — its biome's seasonal yields, scarcity, and food basket. Null falls back to the world region (the canonical single-region run). */
+    public ?RegionProfile $regionProfile = null;
+
     /** Culture-set baseline cooperation strength (0..1), derived from the culture's collectivism. */
     public float $baselineCohesion;
 

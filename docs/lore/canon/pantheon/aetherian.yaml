@@ -1,0 +1,84 @@
+# Aetherian pantheon — the gods of the Kingdom of Aetheria.
+#
+# Source of truth: docs/regions/aetheria/religion.md and docs/world/pantheon.md.
+# Not yet consumed by Timeweft; the faith block is the lore-side moral-foundation
+# target for a future Aetherian Faith (cf. App\Sim\Culture\Faith).
+#
+# Polytheistic: ten Greater Gods and eighteen Smaller Gods.
+
+id: aetherian
+name: Aetherian pantheon
+region: aetheria
+source: gdoc:1w9xhj45YL2NLj6uSqX6sSrRHQPUAycn4WrtwaevBxW0
+
+# NAMING CONVENTION (resolved, WRL-12): a god's name is the short form; the month
+# named for that god takes the elaborated form (the god Aeris -> the month Aerisun),
+# as Earth's "March" derives from Mars. `month` records that derived month name.
+# The religion document's earlier use of month-forms as deity names is corrected to
+# the short forms below.
+greater_gods:
+  - { name: Vidar,    month: Vidoris,   domain: War and strength }
+  - { name: Faya,     month: Fayaelis,  domain: Harvest and fertility }
+  - { name: Luna,     month: Lunirim,   domain: Wisdom and stars }
+  - { name: Terra,    month: Terkhanor, domain: Earth and nature }
+  - { name: Neris,    month: Nerthion,  domain: Winter and death }
+  - { name: Reanne,   month: Reanaris,  domain: Creation and life }
+  - { name: Selene,   month: Selendir,  domain: Moon and night }
+  - { name: Tharanos, month: Thanior,   domain: Seas and rivers }
+  - { name: Aeris,    month: Aerisun,   domain: Sky and weather }
+  - { name: Ignis,    month: Ignathor,  domain: Fire and forge }
+
+smaller_gods:
+  - { name: Alana,   domain: Hearth and home }
+  - { name: Belenor, domain: Dawn and renewal }
+  - { name: Corvin,  domain: The hunt and wilderness }
+  - { name: Elia,    domain: Healing and compassion }
+  - { name: Fae,     domain: Love and beauty }
+  - { name: Galen,   domain: Health and medicine }
+  - { name: Joran,   domain: Strength and endurance }
+  - { name: Kyros,   domain: Knowledge and learning }
+  - { name: Lyra,    domain: Music and arts }
+  - { name: Maris,   domain: The sea and sailors }
+  - { name: Nysara,  domain: Nature and wildlife }
+  - { name: Orin,    domain: Wisdom and counsel }
+  - { name: Phaedra, domain: Fate and destiny }
+  - { name: Quorin,  domain: Agriculture and farming }
+  - { name: Selina,  domain: The stars and navigation }
+  - { name: Thallan, domain: Forests and animals }
+  - { name: Vanya,   domain: Dreams and visions }
+  - { name: Zaren,   domain: Trickery and luck }
+
+# The faith as a whole (0..100), the lore-side target for a future Aetherian Faith.
+# Communal and joyful (festivals, hospitality, healing) rather than austere; the
+# care/fairness/loyalty foundations lead, with moderate authority and sanctity and
+# more liberty than Tharados. Matches ../regions/aetheria.yaml expected_culture.
+faith:
+  name: Aetherian faith
+  foundations:
+    care: 70
+    fairness: 65
+    loyalty: 65
+    authority: 55
+    sanctity: 55
+    liberty: 55
+  binding: moderate
+
+# Cross-region equivalences with Tharados (finalized, WRL-13). Asserted only where
+# domains genuinely align; the rest are deliberate non-matches (aetherian: null) —
+# not every god has a counterpart, because the regions developed their faiths apart.
+# See docs/world/pantheon.md.
+cross_region:
+  - { aetherian: Reanne,  tharadi: Nara,    strength: strong,    note: "creation/life <-> oases/salvation; accepted by Aetherians, contested in-world by Tharadi" }
+  - { aetherian: Selene,  tharadi: Lunara,  strength: strong,    note: "both moon/night deities" }
+  - { aetherian: Luna,    tharadi: Mirah,   strength: strong,    note: "wisdom/stars <-> stars; readily accepted" }
+  - { aetherian: Joran,   tharadi: Zarak,   strength: confirmed, note: "strength/endurance overlap; firm now Joran's domain is fixed (WRL-12)" }
+  - { aetherian: null,    tharadi: "Ra'an", strength: ambiguous, note: "deliberate non-match: Aetheria has no sun god; Ignis (fire/forge) was proposed but rejected" }
+  - { aetherian: null,    tharadi: Varis,   strength: ambiguous, note: "deliberate gap: Aetheria has no trade deity" }
+  - { aetherian: null,    tharadi: Jarek,   strength: ambiguous, note: "deliberate non-match: Zaren (trickery/luck) was proposed for 'secrets' but is not asserted" }
+  - { aetherian: null,    tharadi: Kalim,   strength: ambiguous, note: "deliberate non-match: winds; nearest is Aeris (sky/weather), but Aetheria has no wind deity (cf. Zephyr, Vetra)" }
+
+timeweft:
+  status: not_yet_consumed
+  notes:
+    - "Faith::fromCulture would derive these foundations from an Aetherian culture vector; the values above are the lore-side target."
+    - "Supersedes the older 03. Tharados equivalence list, which used Aetheria's month names as deity names."

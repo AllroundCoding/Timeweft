@@ -1,0 +1,85 @@
+# Tharadi pantheon — the gods of Tharados and the faith that binds them.
+#
+# Source of truth: docs/regions/tharados/religion.md and docs/world/pantheon.md.
+# Consumed by Timeweft as App\Sim\Culture\Faith (generation input): a faith is a
+# weighting over Haidt's six moral foundations, derived from the culture vector.
+#
+# Eight gods — four major, four minor. Worship is hierarchical, calendrical, and
+# astrologically informed; the calendar (../calendar/tharadi.yaml) dedicates every
+# month to a god.
+
+id: tharadi
+name: Tharadi pantheon
+region: tharados
+source: gdoc:1IQV_B28iwrJ8G163pnPGijfbIf8xAhlX-QWM7ZWzy1Y
+
+gods:
+  major:
+    - name: "Ra'an"
+      domain: The sun — power, authority, inexorable will; source of imperial legitimacy.
+      priesthood: Largest temple (Azrak); red-and-gold, austere, senior celibacy; mostly male.
+      foundations: [authority, sanctity]
+    - name: Lunara
+      domain: The moon — beauty, mystery, the night/day cycle; the receptive principle opposite Ra'an.
+      priesthood: Smaller temples paired with Ra'an's; silver-and-blue, contemplative; mostly female.
+      foundations: [sanctity, care]
+    - name: Zarak
+      domain: The desert — strength, endurance, the harsh beauty of the land; patron of soldiers and caravans.
+      priesthood: Sparse altars; trials of fasting and exposure (the Trial of Zarak).
+      foundations: [loyalty, sanctity]
+    - name: Nara
+      domain: Oases and salvation — renewal, mercy, the rain that breaks the drought; the most beloved god.
+      priesthood: Wholly voluntary and decentralized; healers, midwives, herbalists; moral center at Jasara.
+      foundations: [care, fairness]
+  minor:
+    - name: Varis
+      domain: Trade — merchants, caravan masters, bazaar-keepers (and, informally, honest thieves).
+      foundations: [fairness]
+    - name: Mirah
+      domain: The stars — astrologers, navigators, scholars of the sky; her Voice sits on the Imperial Conclave.
+      foundations: [sanctity]
+    - name: Jarek
+      domain: Secrets — explorers, archivists, treasure hunters (and, informally, spies).
+      foundations: [liberty]
+    - name: Kalim
+      domain: The winds — sailors, travelers, messengers, storytellers.
+      foundations: [liberty]
+
+# The faith as a whole, expressed as the moral-foundation weighting Timeweft reads
+# (0..100). Tharadi worship is collectivist, hierarchical, traditional, and pious,
+# so it leans on the binding foundations (loyalty/authority/sanctity) while Nara's
+# beloved, voluntary cult keeps care and fairness high. This is the lore-side
+# target the engine's culture->faith derivation should approximate for Tharados,
+# not authored scripture; it matches ../regions/tharados.yaml expected_culture.
+faith:
+  name: Tharadi faith
+  foundations:
+    care: 70        # Nara's mercy; domestic devotion
+    fairness: 55
+    loyalty: 75     # in-group binding; the endurance ethos
+    authority: 80   # emperor as Ra'an's servant; rigid hierarchy
+    sanctity: 80    # purity codes, astrology, the sacred calendar
+    liberty: 35
+  binding: high     # piety is matter-of-fact and pervasive in daily life
+
+# Cross-region equivalences with Aetheria (finalized, WRL-13). Asserted only where
+# domains genuinely align; the rest are deliberate non-matches (aetherian: null) —
+# not every Tharadi god has an Aetherian counterpart, by design. The earlier
+# overview's fuller list used Aetheria's MONTH names (Ignathor, Selendir, Lunirim)
+# as if they were deity names; corrected here. See docs/world/pantheon.md.
+cross_region:
+  - { tharadi: Nara,    aetherian: Reanne, strength: strong,    note: "oases/salvation <-> creation/life; accepted by Aetherians, contested by Tharadi" }
+  - { tharadi: Lunara,  aetherian: Selene, strength: strong,    note: "both moon/night deities" }
+  - { tharadi: Mirah,   aetherian: Luna,   strength: strong,    note: "stars <-> wisdom/stars; readily accepted" }
+  - { tharadi: Zarak,   aetherian: Joran,  strength: confirmed, note: "desert strength/endurance <-> Joran (strength/endurance); confirmed once Joran's domain was fixed (WRL-12)" }
+  - { tharadi: "Ra'an", aetherian: null,   strength: ambiguous, note: "deliberate non-match: no Aetherian sun god; Ignis (fire/forge) proposed but rejected" }
+  - { tharadi: Varis,   aetherian: null,   strength: ambiguous, note: "deliberate gap: Aetheria has no trade deity" }
+  - { tharadi: Jarek,   aetherian: null,   strength: ambiguous, note: "deliberate non-match: Zaren (trickery/luck) proposed for 'secrets', not asserted" }
+  - { tharadi: Kalim,   aetherian: null,   strength: ambiguous, note: "deliberate non-match: winds; no Aetherian wind deity (Aeris sky/weather is nearest)" }
+
+timeweft:
+  class: App\Sim\Culture\Faith
+  status: built
+  notes:
+    - "Faith::fromCulture derives a six-foundation vector from the culture vector; the values above are the lore-side target that derivation should approximate for Tharados."
+    - "Per-agent adherence varies with conscientiousness and agreeableness, so professed faith and lived practice diverge — matching the lore's 'matter-of-fact piety with private doubt'."

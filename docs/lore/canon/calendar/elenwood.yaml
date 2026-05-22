@@ -1,0 +1,51 @@
+# Elenwood Calendar — the calendar of the forest region of Elenwood.
+#
+# Source of truth: docs/regions/elenwood/geography-climate-calendar.md.
+# Not yet consumed by Timeweft; a third calendar projection.
+#
+# Four seasons, eight spirit-dedicated months, a seven-day week. The new year (a
+# new "cycle") begins with Greensong, at the start of Verdance (spring).
+
+id: elenwood
+name: Elenwood Calendar
+region: elenwood
+source: gdoc:1RfPpFXnWC6mMEX5dLzbQBe2bdxy-_9dGJWxLe9LTooQ
+summary: >-
+  Four seasons, eight months each named for a nature spirit, and a seven-day week.
+  The year begins with Greensong at the start of Verdance.
+
+seasons:
+  - { id: verdance,     name: Verdance,     note: spring (blooming, renewal) }
+  - { id: suncrest,     name: Suncrest,     note: summer (warm, abundant growth) }
+  - { id: harvestbloom, name: Harvestbloom, note: autumn (the forest's bounty) }
+  - { id: frostveil,    name: Frostveil,    note: winter (rest, occasional snow) }
+
+# Eight months, in order from the new year, each dedicated to a nature spirit.
+months:
+  - { index: 1, name: Greensong,  spirit: Leaf,   season: verdance,     meaning: "Growth; begins Verdance and a new cycle." }
+  - { index: 2, name: Blossom,    spirit: Petal,  season: verdance,     meaning: "Flowers; the peak of spring." }
+  - { index: 3, name: Sunveil,    spirit: Solara, season: suncrest,     meaning: "The sun; starts Suncrest; warmth and light." }
+  - { index: 4, name: Glade,      spirit: Branch, season: suncrest,     meaning: "The forest; the fullness of the trees." }
+  - { index: 5, name: Fruitfall,  spirit: Berry,  season: harvestbloom, meaning: "Harvest; starts Harvestbloom; abundance." }
+  - { index: 6, name: Amberleaf,  spirit: Ember,  season: harvestbloom, meaning: "Autumn; the transition to rest." }
+  - { index: 7, name: Shadowfall, spirit: Luna,   season: frostveil,    meaning: "The moon; starts Frostveil; reflection and mystery." }
+  - { index: 8, name: Frostbark,  spirit: Ice,    season: frostveil,    meaning: "Winter; stillness and rest." }
+
+# Seven-day week, each day named for a spirit (the readable 'Leafday' etc. derive
+# from these). The monthly ritual falls on the first Leva.
+week:
+  days: 7
+  weekdays:
+    - { name: Leva,  spirit: Leaf }
+    - { name: Perna, spirit: Petal }
+    - { name: Solra, spirit: Solara }
+    - { name: Brana, spirit: Branch }
+    - { name: Brani, spirit: Berry }
+    - { name: Lura,  spirit: Luna }
+    - { name: Embra, spirit: Ember }
+
+timeweft:
+  status: not_yet_consumed
+  notes:
+    - "The engine projects only the Tharadi calendar today; this is ready for multi-calendar support."
+    - "The source states no explicit offset to the Tharadi or Aetherian calendars; cross-calendar anchoring is undefined."

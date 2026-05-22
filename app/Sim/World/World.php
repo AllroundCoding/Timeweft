@@ -81,6 +81,7 @@ final class World
         }
 
         $world->village = new Village('Sunwell Oasis', $world->region->name, $agents, landYield: 22.0, culture: $culture);
+        $world->village->regionProfile = $world->region;
         $world->villages = [$world->village];
         $world->milestones[] = new Milestone(
             name: 'trading post on the caravan road',
@@ -93,22 +94,38 @@ final class World
     }
 
     /**
-     * Found a further settlement in this world — fresh founders from the same species/region, run by
-     * the same engine alongside the others. The seam multi-settlement trade and migration build on.
+     * Found a further settlement in this world — fresh founders run by the same engine alongside the
+     * others. The seam multi-settlement trade and migration build on. Given a region archetype, the
+     * settlement is a different biome: its founders adapt to that land, its culture is generated from
+     * that land's materials, and it grows a different basket — so it specializes apart from its
+     * neighbours. Without one it defaults to the world's region (the canonical run is unchanged).
      */
-    public function foundVillage(string $name, int $population, float $landYield = 22.0): Village
+    public function foundVillage(string $name, int $population, float $landYield = 22.0, ?RegionArchetype $archetype = null): Village
     {
-        $culture = Culture::fromMaterialConditions('Tharadi', $this->region->scarcity(), $this->region->seasonalVolatility());
+        $region = $archetype?->toRegionProfile() ?? $this->region;
+        $cultureName = $archetype?->cultureName ?? 'Tharadi';
+        $culture = Culture::fromMaterialConditions($cultureName, $region->scarcity(), $region->seasonalVolatility());
         $ticksPerYear = TharadiCalendar::HOURS_PER_DAY * TharadiCalendar::DAYS_PER_YEAR;
 
         $agents = [];
         for ($i = 0; $i < $population; $i++) {
             $birthTick = -$this->rng->int(18, 50) * $ticksPerYear;
-            $agents[] = $this->species->birth($this->nextId++, $birthTick, $this->region, $culture, $this->rng, $this->names);
+            $agents[] = $this->species->birth($this->nextId++, $birthTick, $region, $culture, $this->rng, $this->names);
         }
 
-        $village = new Village($name, $this->region->name, $agents, landYield: $landYield, culture: $culture);
+        $village = new Village($name, $region->name, $agents, landYield: $landYield, culture: $culture);
+        $village->regionProfile = $region;
         $this->villages[] = $village;
+
+        // A new biome brings its own foodstuffs into the world catalog (grain and water are shared).
+        if ($archetype !== null) {
+            foreach ($archetype->goods as $good) {
+                $this->goods->define($good);
+            }
+            foreach ($archetype->recipes as $recipe) {
+                $this->recipes->add($recipe);
+            }
+        }
 
         return $village;
     }

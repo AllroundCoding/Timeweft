@@ -1,0 +1,50 @@
+# Draknar Calendar — the calendar of the mountain clans of Draknar.
+#
+# Source of truth: docs/regions/draknar/geography-climate-calendar.md.
+# Not yet consumed by Timeweft; a fourth calendar projection.
+#
+# Two seasons, ten months (eight gods + two legendary figures), a six-day week.
+
+id: draknar
+name: Draknar Calendar
+region: draknar
+source: gdoc:1hNhFJIkoD-g9ygU3tMxlnVKOSYqNbwiOWjUeLGsCgkw
+summary: >-
+  Two seasons (the long Frostweld winter, the brief Thawcrest summer), ten months,
+  and a six-day week. The source lists months from Skadimar (winter's height) but
+  names no explicit new-year month.
+
+seasons:
+  - { id: frostweld, name: Frostweld, months: 6, character: "the long, harsh winter — extreme cold, snow, and ice" }
+  - { id: thawcrest, name: Thawcrest, months: 4, character: "the brief, mild summer — rapid thaw, short warmth, melting snow" }
+
+# Ten months as listed in the source (no explicit new year). `patron` is a god
+# except where `patron_kind` marks a legendary figure.
+months:
+  - { index: 1,  name: Skadimar,    patron: Skadi,     patron_kind: god,                season: frostweld, meaning: "Winter's height and peak power." }
+  - { index: 2,  name: "Va'lenor",  patron: "Va'la",   patron_kind: god,                season: frostweld, meaning: "Endurance and the steadfast land." }
+  - { index: 3,  name: Bjornith,    patron: Bjorn,     patron_kind: god,                season: frostweld, meaning: "Resilience and fortitude." }
+  - { index: 4,  name: Eiradal,     patron: Eira,      patron_kind: god,                season: frostweld, meaning: "Ends Frostweld; recovery and preparation for the thaw." }
+  - { index: 5,  name: Kjoran,      patron: Kjor,      patron_kind: god,                season: thawcrest, meaning: "Starts Thawcrest; the renewal of life and the hunt." }
+  - { index: 6,  name: Fenralis,    patron: Fenrir,    patron_kind: god,                season: thawcrest, meaning: "The resurgence of the wild and the bonds of the pack." }
+  - { index: 7,  name: Vetrara,     patron: Vetra,     patron_kind: god,                season: thawcrest, meaning: "Change and refreshing breezes." }
+  - { index: 8,  name: "Tho'rakir", patron: "Tho'rak", patron_kind: god,                season: thawcrest, meaning: "Ends Thawcrest; the power of summer storms." }
+  - { index: 9,  name: Kharadam,    patron: Kharad,    patron_kind: legendary-chieftain, season: frostweld, meaning: "Transition back to Frostweld; leadership and strategy." }
+  - { index: 10, name: Stormfel,    patron: Stormfel,  patron_kind: legendary-storm,     season: frostweld, meaning: "Winter's returning might; final preparations for the cold." }
+
+week:
+  days: 6
+  weekdays:
+    - { name: Thorday,   god: "Tho'rak" }
+    - { name: Valday,    god: "Va'la" }
+    - { name: Bjornday,  god: Bjorn }
+    - { name: Eirday,    god: Eira }
+    - { name: Kjoday,    god: Kjor }
+    - { name: Fenrisday, god: Fenrir }
+  # The monthly ritual falls on the first Bjornday.
+
+timeweft:
+  status: not_yet_consumed
+  notes:
+    - "Ready for multi-calendar support; the engine projects only the Tharadi calendar today."
+    - "The source designates no new-year month and no offset to other calendars; cross-calendar anchoring is undefined."

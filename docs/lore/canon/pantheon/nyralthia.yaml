@@ -1,0 +1,59 @@
+# Nyralthia pantheon — the sea goddess and nature spirits of the archipelago.
+#
+# Source of truth: docs/regions/nyralthia/religion.md and docs/world/pantheon.md.
+# Not yet consumed by Timeweft; the faith block is the lore-side moral-foundation
+# target for a future Nyralthia faith (cf. App\Sim\Culture\Faith).
+#
+# Polytheistic: the sea goddess Celeste over a pantheon of nature spirits,
+# worshipped in grand temples and shrines across the islands.
+
+id: nyralthia
+name: Nyralthia pantheon
+region: nyralthia
+source: gdoc:17f8Jr_aDnasdFcIq5vw_X6B8fDAIAm3JMVfPyeQoXpc
+
+chief_deity:
+  name: Celeste
+  domain: The sea — protector and provider of the islands.
+  aetherian: Reanne
+
+major_deities:
+  - { name: Zephyr,  domain: "Wind — the vital breezes that aid sailors" }
+  - { name: Nautia,  domain: "The sea — the abundance and mystery of marine life" }
+  - { name: Pluvia,  domain: "Rain — essential to the lush vegetation" }
+  - { name: Tempest, domain: "Storms — the power and danger of the weather", aetherian: Vidar }
+  - { name: Aurelia, domain: "Prosperity — wealth and good fortune" }
+  - { name: Flora,   domain: "Flowers — beauty and growth", aetherian: Elia }
+
+# Spirits attested only in the calendar (../calendar/nyralthia.yaml), not in the
+# religion document's deity list: Calys (calm), Solara (sun), Lucid (light),
+# Serena (serenity).
+calendar_spirits: [Calys, Solara, Lucid, Serena]
+
+# The faith as a whole (0..100), the lore-side target for a future Nyralthia faith.
+# Maritime, communal, ocean-revering, festive and open: sanctity (the sacred sea),
+# care (Celeste the provider), and fairness (the representative council) lead;
+# authority moderate-low (elected, not hereditary); liberty tempered by regulated magic.
+faith:
+  name: Nyralthian sea faith
+  foundations:
+    care: 65
+    fairness: 65
+    loyalty: 55
+    authority: 45
+    sanctity: 75      # the sacred, providing-and-perilous ocean
+    liberty: 60       # open and cosmopolitan, but magic is Council-regulated
+  binding: high
+
+# Cross-region equivalences (finalized, WRL-13). Asserted only where domains align.
+cross_region:
+  - { nyralthia: Celeste, aetherian: Reanne, strength: strong,    note: "sea protector/provider <-> creation/life — part of the through-line (now five regions)" }
+  - { nyralthia: Tempest, aetherian: Vidar,  strength: stated,    note: "storms <-> war/strength; Draknar's Tho'rak (thunder/battle) also maps to Vidar (many-to-one is fine)" }
+  - { nyralthia: Flora,   aetherian: Elia,   strength: stated,    note: "flowers/beauty/growth <-> healing/compassion — a loose link the Nyralthia source asserts" }
+  - { nyralthia: Zephyr,  aetherian: null,   strength: ambiguous, note: "wind; deliberate non-match (WRL-13) — Aetheria has no wind deity. Provisionally mapped to Joran by the source; dropped once WRL-12 fixed Joran = strength/endurance." }
+
+timeweft:
+  status: not_yet_consumed
+  notes:
+    - "Faith::fromCulture would derive these foundations from a Nyralthia culture vector; the values above are the lore-side target."
+    - "High sanctity + low authority + high openness is the maritime-republic profile — the most liberal/open faith of the five regions."

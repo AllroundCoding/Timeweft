@@ -1,0 +1,59 @@
+# Elenwood pantheon — the nature spirits of the forest region of Elenwood.
+#
+# Source of truth: docs/regions/elenwood/religion.md and docs/world/pantheon.md.
+# Not yet consumed by Timeweft; the faith block is the lore-side moral-foundation
+# target for a future Elenwood faith (cf. App\Sim\Culture\Faith).
+#
+# Animistic: a Great Mother over major and lesser nature spirits. There are no
+# temples — worship happens in sacred groves.
+
+id: elenwood
+name: Elenwood pantheon (animist)
+region: elenwood
+source: gdoc:1RfPpFXnWC6mMEX5dLzbQBe2bdxy-_9dGJWxLe9LTooQ
+
+great_mother:
+  name: The Great Mother
+  domain: Nature itself — creation and life; the source of the forest (planted the Elder Tree).
+
+major_spirits:
+  - { name: Leaf,  domain: "Growth — renewal and vitality" }
+  - { name: Brook, domain: "Water — fluidity and nourishment" }
+  - { name: Gale,  domain: "Wind — change and movement" }
+  - { name: Ember, domain: "Fire — transformation and warmth" }
+
+lesser_spirits:
+  - { name: Moss,   domain: "The forest floor — resilience and grounding" }
+  - { name: Thorn,  domain: "Protection — defense and caution" }
+  - { name: Petal,  domain: "Flowers — beauty and fragility" }
+  - { name: Branch, domain: "Trees — strength and support" }
+
+# Additional spirits attested only in the calendar (../calendar/elenwood.yaml):
+# Solara (sun), Berry (harvest), Luna (moon), Ice (winter). Kept here for
+# completeness; the religion document does not rank them major or lesser.
+calendar_spirits: [Solara, Berry, Luna, Ice]
+
+# The faith as a whole (0..100), the lore-side target for a future Elenwood faith.
+# Animist, harmony-seeking, communal and rooted in place: sanctity (the sacred
+# living forest), care, and loyalty lead; authority is low (consensus, no temples
+# or priestly rank); liberty moderate. Matches ../regions/elenwood.yaml.
+faith:
+  name: Elenwood animism
+  foundations:
+    care: 70
+    fairness: 60
+    loyalty: 65
+    authority: 35      # consensus elders; no temples, no priestly hierarchy
+    sanctity: 85       # the living, sacred forest
+    liberty: 50
+  binding: high         # spirituality is woven through daily life
+
+# Cross-region equivalences (see docs/world/pantheon.md).
+cross_region:
+  - { elenwood: The Great Mother, aetherian: Reanne, tharadi: Nara, strength: strong, note: "creation/life through-line; stated in the Elenwood source as Reanne, which itself maps to Nara" }
+
+timeweft:
+  status: not_yet_consumed
+  notes:
+    - "Faith::fromCulture would derive these foundations from an Elenwood culture vector; the values above are the lore-side target."
+    - "Low authority + high sanctity is a distinct profile from Tharados (high authority) and Aetheria (moderate) — a useful spread for testing faith generation."

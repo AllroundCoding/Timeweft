@@ -1,0 +1,85 @@
+# Aetheria — regional material profile.
+#
+# Source of truth: docs/regions/aetheria/.
+# Not yet consumed by Timeweft (no RegionProfile::aetheria() yet); this is the
+# temperate, fertile counterpoint to Tharados — a second test of the
+# generate-from-materials loop.
+
+id: aetheria
+name: Aetheria
+continent: aerindor
+species: vulpini
+source: gdoc:1rzGe034PB1x2Xyk7gjd1O4w7fevEURXTs1UdE8JqGaQ
+
+summary: >-
+  A temperate, fertile, prosperous central kingdom: lush forests, rolling hills,
+  and rich plains under four mild seasons, governed by a central monarchy with a
+  deep magical and scholarly tradition.
+
+# Aetheria's wealth is agrarian abundance plus mining and magical industry, not a
+# single harsh constraint.
+terrain:
+  - { id: plains,    name: Fertile plains,           note: "The agricultural core; grain, vegetables, livestock." }
+  - { id: forests,   name: Eldergrove & woodlands,   note: "Timber, herbs, game; sacred groves and forest legend." }
+  - { id: hills,     name: Rolling hills,            note: "Pasture and orchard; berry farms at the forest edge." }
+  - { id: mountains, name: Draknar-border mountains, note: "Mining — iron, silver, gold, gems (around Lakarin)." }
+  - { id: coast,     name: Azure Coast,              note: "Ports, fisheries, shipbuilding (Cinara, Thaloria)." }
+
+# Four seasons; food peaks at harvest and dips in winter, but the swing is
+# buffered by storage and trade (public granaries at Veresh). yield vs 1.0 base.
+# NOTE: proposed parameters derived from qualitative lore (the docs give no
+# numbers), not values mirrored from engine code.
+climate:
+  seasons_ref: ../calendar/aetherian.yaml
+  yield_by_season:
+    springveil: 1.0
+    sunspire: 1.2
+    harvestfall: 1.5
+    frostweld: 0.6
+  derived:
+    # weighted by months per season (sunspire 4; the others 2 each)
+    average_yield: 1.1
+    scarcity: 0.40             # 0 abundant .. 1 harsh — far below Tharados's 0.75
+    seasonal_volatility: 0.43  # buffered in practice by granaries and trade
+    hazards: [harsh-winter, border-raids, piracy]
+
+# No strong physical adaptation — Aetherian Vulpini are the temperate default.
+trait_modifiers: {}
+
+categorical_options:
+  fur_color: [red, brown, gold, white-bellied, black-tipped]
+
+resources: [grain, fruit, herbs, wool, horses, timber, iron, silver, gold, gems, enchanted goods]
+
+# The culture cultural-materialism would predict from low scarcity (0.40) and
+# buffered volatility: looser restraint, more indulgence and individualism, and
+# weaker survival-piety than the desert. The lore mostly agrees — a prosperous,
+# learning- and festival-loving kingdom — and its two apparent divergences are both
+# resolved: hierarchy materially (see the axis note and `resolved` below), piety as
+# a magic exception (0..100 axes; values relative to Tharados):
+expected_culture:
+  collectivism: moderate         # communal festivals, but more individual mobility than Tharados
+  hierarchy: moderate-high       # feudal monarchy + noble houses — materially grounded (agrarian surplus + concentrated land-tenure + conquest legitimacy); see `resolved`
+  tradition: moderate
+  long_term_orientation: moderate
+  restraint: low-moderate        # the indulgence abundance affords
+  achievement: moderate-high     # guilds, academies, mobility through skill
+  piety: moderate                # faith is communal and joyful, less austere than Tharadi survival-piety
+  # No open tensions: both apparent divergences are resolved (WRL-23 / WRL-24).
+  resolved:
+    - "Hierarchy (WRL-23): not a divergence after all. Cultural materialism ties hierarchy to surplus extraction and land-tenure, NOT to scarcity alone — and feudalism is precisely an agrarian-surplus institution. Aetheria's fertile surplus, concentrated noble land-ownership, and the King Arandor founding-conquest myth (legitimacy) together produce its feudal hierarchy. The earlier 'scarcity -> hierarchy' framing was the oversimplification; the authored lore stands."
+  # Facts deliberately exempt because magic is the in-world cause, not a missing
+  # material pressure. The realism audit skips these. See docs/realism.md.
+  magic_exceptions:
+    - exempt: piety
+      mechanism: >-
+        Magic is real and present in Aetheria — gods tied to a working calendar,
+        enchanted sites, and divine artifacts — so devotion stays rational under
+        prosperity instead of eroding as a mere survival heuristic would.
+
+timeweft:
+  status: not_yet_consumed
+  notes:
+    - "No RegionProfile::aetheria() yet; the yields/scarcity/volatility above are proposed, to be validated when Aetheria is simulated."
+    - "Contrasting Aetheria (scarcity 0.40) with Tharados (0.75) is the cleanest available test of the culture-from-materials mapping."
+    - "Model note for the engine: hierarchy should track surplus/land-tenure, not scarcity alone (see the hierarchy resolution above)."

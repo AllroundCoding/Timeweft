@@ -1,0 +1,71 @@
+# Draknar — regional material profile.
+#
+# Source of truth: docs/regions/draknar/.
+# Not yet consumed by Timeweft. A SECOND harsh-environment profile alongside
+# Tharados — instructive because the two share a hostile climate but organize very
+# differently (centralized empire vs fragmented clans).
+
+id: draknar
+name: Draknar
+continent: aerindor
+species: vulpini
+source: gdoc:1hNhFJIkoD-g9ygU3tMxlnVKOSYqNbwiOWjUeLGsCgkw
+
+summary: >-
+  A cold, mountainous, largely rocky region of the northeast. Mining wealth and a
+  warrior clan culture sustained on a hostile land of long winters and brief summers.
+
+terrain:
+  - { id: mountains,  name: The mountains,            note: "Rugged, largely uninhabitable rocky land; rich ore and gem deposits." }
+  - { id: shadowpeak, name: The Shadowpeak Mountains, note: "Mist-shrouded northern range; sacred sites and the natural border of Aerindor." }
+
+# Cold, snowy; long winters and brief summers. Food comes from hunting, herding,
+# and trade more than farming (the land is mostly rock); yields are a proxy for
+# that food base. yield vs 1.0 base. NOTE: proposed parameters from qualitative lore.
+climate:
+  seasons_ref: ../calendar/draknar.yaml
+  yield_by_season:
+    frostweld: 0.4
+    thawcrest: 1.3
+  derived:
+    # weighted by months per season (6 Frostweld / 4 Thawcrest): (6*0.4 + 4*1.3) / 10
+    average_yield: 0.76
+    scarcity: 0.74             # 0 abundant .. 1 harsh — on par with Tharados (0.75)
+    seasonal_volatility: 0.53  # an extreme winter/summer swing; transitions in ~a month
+    hazards: [blizzard, famine, raids]
+
+# Hardy, resilient mountain dwellers.
+trait_modifiers:
+  constitution: 8.0
+# NOTE: the species registry has heatTolerance but no cold-tolerance trait; a
+# cold-adaptation trait is a candidate addition if Draknar is ever simulated.
+
+categorical_options:
+  fur_color: [thick grey, blue-highlighted, silver-highlighted]
+
+resources: [iron, silver, gemstones, weapons, armor, furs, wool]
+
+# Draknar is the realism loop's most instructive case so far: its material harshness
+# (scarcity 0.74) matches Tharados (0.75), so cultural materialism predicts the same
+# survival-values baseline — high collectivism, tradition, endurance, piety — and the
+# lore AGREES on those. But the two diverge on POLITICAL FORM: Tharados is a
+# centralized, high-hierarchy empire; Draknar is fragmented, competitive clans. A
+# clean illustration that material conditions set the values baseline, while political
+# organization (centralized state vs segmentary clans) is a separate axis. (0..100.)
+expected_culture:
+  collectivism: high            # clan loyalty; survival depends on the group
+  hierarchy: moderate           # strong WITHIN a clan (chieftain + elders), fragmented ACROSS clans
+  tradition: high               # ancestral tales, rites, gods of the land
+  long_term_orientation: moderate
+  restraint: moderate
+  achievement: high             # individual strength and glory — the warrior rite of passage
+  piety: high                   # gods of natural forces; ancestor veneration
+  notes:
+    - "Same scarcity as Tharados, different polity: centralized empire vs competitive clans. Material harshness sets the values baseline; political form is an orthogonal variable for the model to capture."
+    - "Achievement runs higher than collectivist Tharados: glory-seeking individual warriors, not only communal endurance."
+
+timeweft:
+  status: not_yet_consumed
+  notes:
+    - "No RegionProfile::draknar() yet; the yields/scarcity/volatility above are proposed."
+    - "Spectrum so far: Elenwood 0.23 (lush) · Aetheria 0.40 · Tharados 0.75 · Draknar 0.74 (harsh)."

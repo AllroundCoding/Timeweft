@@ -72,9 +72,6 @@ final class EconomyEngine
 
     private const BUMPER_HARVEST = 1.15;
 
-    /** Per-adult daily yield of each basket good (before tech × season); the real diet behind the calories. */
-    private const BASKET_YIELD = ['grain' => 3.0, 'dates' => 1.5, 'goat meat' => 1.5];
-
     /** Fraction of a good's perishability that spoils per day (meat rots, grain keeps). */
     private const SPOIL_RATE = 0.4;
 
@@ -100,16 +97,24 @@ final class EconomyEngine
         return $region->averageYield();
     }
 
+    /** The region whose conditions this settlement lives under — its own, or the world's as a fallback. */
+    public static function regionOf(World $world): RegionProfile
+    {
+        return $world->village->regionProfile ?? $world->region;
+    }
+
     /**
      * Produce the day's basket of foodstuffs from the settlement's labor, spoil the perishables
      * (meat rots, grain keeps), and cap the stores. The real diet behind the abstract food calories.
+     * The basket is the *region's* — a desert grows grain, dates, and herd meat; a fertile sownland
+     * grows grain, fruit, and herbs — so settlements of different biomes accumulate distinct stores.
      */
     private static function produceBasket(World $world, int $adults, int $population, float $tech, float $seasonMult): void
     {
         $granary = $world->village->stockpile;
         $cap = self::STORAGE_DAYS * $population;
 
-        foreach (self::BASKET_YIELD as $name => $perAdult) {
+        foreach (self::regionOf($world)->basket() as $name => $perAdult) {
             $granary->add($name, $adults * $perAdult * $tech * $seasonMult);
             $good = $world->goods->get($name);
             if ($good !== null) {
@@ -132,7 +137,14 @@ final class EconomyEngine
 
         $granary = $world->village->stockpile;
         $goods = $world->goods;
-        $recipes = $world->recipes->all();
+
+        // Only the meals this region can source from its own basket — so a neighbour's recipes
+        // (a sownland's fruit loaf beside a desert) never raise this settlement's "best possible meal".
+        $basket = self::regionOf($world)->basket();
+        $recipes = array_values(array_filter(
+            $world->recipes->all(),
+            static fn (Recipe $r): bool => array_diff(array_keys($r->ingredients), array_keys($basket)) === [],
+        ));
         usort($recipes, fn (Recipe $a, Recipe $b): int => $b->meal($goods)->nutrition <=> $a->meal($goods)->nutrition);
         $best = $recipes !== [] ? $recipes[0]->meal($goods)->nutrition : 1.0;
 
@@ -302,7 +314,7 @@ final class EconomyEngine
     {
         $roll = $world->rng->fork('harvest/'.$date->year)->float(-1.0, 1.0);
         $village = $world->village;
-        $village->harvestQuality = self::harvestQuality($roll, $world->region->seasonalVolatility());
+        $village->harvestQuality = self::harvestQuality($roll, self::regionOf($world)->seasonalVolatility());
         $village->leanHarvestEventId = null;
 
         // Chronicle the standout years — a lean one becomes a citable cause if a famine follows.
@@ -329,7 +341,7 @@ final class EconomyEngine
     public static function runDay(World $world, int $tick, TharadiDate $date): void
     {
         $village = $world->village;
-        $region = $world->region;
+        $region = self::regionOf($world);
 
         // Once a year: tech ratchets the ceiling up (Boserup), overuse erodes the land beneath it
         // (overshoot), and the harvest is rolled good or lean for the year ahead.

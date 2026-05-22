@@ -36,7 +36,7 @@ final class CultureEngine
         $target = Culture::fromMaterialConditions(
             $village->culture->name,
             1.0 - self::materialSecurity($village, $population),
-            $world->region->seasonalVolatility(),
+            ($village->regionProfile ?? $world->region)->seasonalVolatility(),
         );
 
         $village->culture = $village->culture->driftedToward($target, self::DRIFT_RATE);
