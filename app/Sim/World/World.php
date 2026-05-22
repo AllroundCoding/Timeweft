@@ -149,13 +149,14 @@ final class World
                 }
             }
 
-            // Story direction is world-level — authored beats span the world — evaluated once a day.
+            // World-level steps — story direction and cross-settlement migration — once a day.
             if ($date->hour === 8) {
                 foreach ($this->milestones as $milestone) {
                     // Each beat steers from its own sub-stream, so authoring an arc never reshuffles
                     // the emergent world (the perturbation TWT-39 ran into).
                     StoryDirector::evaluate($this, $milestone, $this->tick, $date, $this->rng->stream('director', $milestone->name, $this->tick));
                 }
+                MigrationEngine::runDay($this, $this->tick, $date);
             }
         }
 
