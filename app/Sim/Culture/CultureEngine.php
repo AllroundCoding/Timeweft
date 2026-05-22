@@ -33,10 +33,14 @@ final class CultureEngine
             return;
         }
 
+        // Land-tenure concentration is structural, not a function of the year's prosperity, so it
+        // holds steady while the security-driven dimensions drift.
+        $region = $village->regionProfile ?? $world->region;
         $target = Culture::fromMaterialConditions(
             $village->culture->name,
             1.0 - self::materialSecurity($village, $population),
-            ($village->regionProfile ?? $world->region)->seasonalVolatility(),
+            $region->seasonalVolatility(),
+            $region->landTenureConcentration(),
         );
 
         $village->culture = $village->culture->driftedToward($target, self::DRIFT_RATE);

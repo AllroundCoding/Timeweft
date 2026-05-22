@@ -28,6 +28,7 @@ final class RegionArchetype
      * @param  list<string>  $resources  the region's notable trade goods (its specialties)
      * @param  list<Good>  $goods  goods this region adds to the world catalog
      * @param  list<Recipe>  $recipes  meals cookable from this region's basket
+     * @param  float  $landTenureConcentration  0 (dispersed/mobile) .. 1 (concentrated/owned) — how monopolizable the base is; drives hierarchy
      */
     public function __construct(
         public readonly string $regionName,
@@ -39,6 +40,7 @@ final class RegionArchetype
         public readonly array $resources,
         public readonly array $goods,
         public readonly array $recipes,
+        public readonly float $landTenureConcentration = 0.5,
     ) {}
 
     /**
@@ -66,6 +68,8 @@ final class RegionArchetype
             resources: ['gems', 'spices', 'silk', 'salt', 'dates', 'olive oil'],
             goods: array_values(GoodRegistry::tharados()->all()),
             recipes: RecipeBook::tharados()->all(),
+            // The few fertile oases are chokepoints an empire controls absolutely — steep hierarchy.
+            landTenureConcentration: 0.90,
         );
     }
 
@@ -100,6 +104,8 @@ final class RegionArchetype
                 new Recipe('fruited grain pottage', ['grain' => 2.0, 'fruit' => 1.0]),
                 new Recipe('herb-and-grain loaf', ['grain' => 2.0, 'herbs' => 0.5]),
             ],
+            // Fertile estates under noble land-ownership — an extractable agrarian surplus breeds feudal hierarchy.
+            landTenureConcentration: 0.70,
         );
     }
 
@@ -113,6 +119,7 @@ final class RegionArchetype
             yieldBySeason: $this->yieldBySeason,
             basket: $this->basket,
             resources: $this->resources,
+            landTenureConcentration: $this->landTenureConcentration,
         );
     }
 }

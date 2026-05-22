@@ -13,6 +13,7 @@ final class RegionProfile
      * @param  array<string,float>  $yieldBySeason  food-yield multiplier per season (1.0 = baseline)
      * @param  array<string,float>  $basket  food good => per-adult daily yield (the diet this land grows)
      * @param  list<string>  $resources  the region's notable trade goods (its specialties)
+     * @param  float  $landTenureConcentration  0 (dispersed/mobile) .. 1 (concentrated/owned) — how monopolizable the productive base is; drives hierarchy
      */
     public function __construct(
         public readonly string $name,
@@ -21,6 +22,7 @@ final class RegionProfile
         public readonly array $yieldBySeason = [],
         public readonly array $basket = [],
         public readonly array $resources = [],
+        public readonly float $landTenureConcentration = 0.5,
     ) {}
 
     public static function tharados(): self
@@ -40,6 +42,12 @@ final class RegionProfile
     public function resources(): array
     {
         return $this->resources;
+    }
+
+    /** How monopolizable the productive base is (0 dispersed .. 1 concentrated) — the driver of hierarchy. */
+    public function landTenureConcentration(): float
+    {
+        return $this->landTenureConcentration;
     }
 
     /** Food-yield multiplier for a season (1.0 if the region defines none). */

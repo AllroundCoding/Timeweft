@@ -71,7 +71,7 @@ final class World
         $world->recipes = RecipeBook::tharados();
         $world->names = new TharadiNameGenerator($rng);
         // Culture is generated from the region's materials first, so it can shape the founders it births.
-        $culture = Culture::fromMaterialConditions('Tharadi', $world->region->scarcity(), $world->region->seasonalVolatility());
+        $culture = Culture::fromMaterialConditions('Tharadi', $world->region->scarcity(), $world->region->seasonalVolatility(), $world->region->landTenureConcentration());
         $ticksPerYear = TharadiCalendar::HOURS_PER_DAY * TharadiCalendar::DAYS_PER_YEAR;
 
         $agents = [];
@@ -104,7 +104,7 @@ final class World
     {
         $region = $archetype?->toRegionProfile() ?? $this->region;
         $cultureName = $archetype?->cultureName ?? 'Tharadi';
-        $culture = Culture::fromMaterialConditions($cultureName, $region->scarcity(), $region->seasonalVolatility());
+        $culture = Culture::fromMaterialConditions($cultureName, $region->scarcity(), $region->seasonalVolatility(), $region->landTenureConcentration());
         $ticksPerYear = TharadiCalendar::HOURS_PER_DAY * TharadiCalendar::DAYS_PER_YEAR;
 
         $agents = [];
