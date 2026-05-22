@@ -2,6 +2,8 @@
 
 namespace App\Sim\Direction;
 
+use App\Sim\Projects\Project;
+use App\Sim\Projects\ProjectEngine;
 use App\Sim\Support\Rng;
 use App\Sim\Time\TharadiDate;
 use App\Sim\World\World;
@@ -21,6 +23,12 @@ final class StoryDirector
     public static function evaluate(World $world, Milestone $milestone, int $tick, TharadiDate $date, Rng $rng): void
     {
         if ($milestone->achieved) {
+            return;
+        }
+
+        // A communal project is already working toward this beat — let the village's effort decide it
+        // (the same project mechanism in-world groups use); the director only steers what isn't pursued.
+        if (self::pursuedByProject($world, $milestone)) {
             return;
         }
 
@@ -69,6 +77,57 @@ final class StoryDirector
             $world->milestones,
             static fn (Milestone $milestone): bool => $milestone->isConflict(),
         ));
+    }
+
+    /**
+     * Spawn a communal project to pursue an authored beat — through the *same* path in-world groups
+     * use ({@see ProjectEngine::open}). Top-down intent realized by bottom-up effort: if the village
+     * musters enough by the deadline the beat is fulfilled organically; if not, the deadline backstop
+     * (force or lapse) still holds. This is the "top-down and bottom-up are one mechanism" payoff.
+     */
+    public static function spawnProject(World $world, Milestone $milestone, int $deadlineTick, float $requiredPerCapita = 20.0): void
+    {
+        $population = count($world->livingAgents());
+        ProjectEngine::open($world, new Project(
+            name: $milestone->name,
+            deadlineTick: $deadlineTick,
+            requiredEffort: max(1.0, $population * $requiredPerCapita),
+            type: 'authored-beat',
+            initiator: "the village's ambition",
+            milestoneName: $milestone->name,
+        ));
+    }
+
+    /** Mark a beat fulfilled by the village's own communal effort — an organic, project-driven achievement. */
+    public static function fulfillByProject(World $world, Milestone $milestone, int $tick, TharadiDate $date): void
+    {
+        $milestone->achieved = true;
+        $milestone->achievedTick = $tick;
+        $milestone->wasForced = false;
+
+        $causes = [];
+        foreach ($milestone->prerequisites as $name) {
+            $prereqId = self::milestoneByName($world, $name)?->achievedEventId;
+            if ($prereqId !== null) {
+                $causes[] = $prereqId;
+            }
+        }
+        $event = $world->chronicle->record($tick, sprintf(
+            '%d %s, Year %d — through shared effort, %s completes the %s.',
+            $date->dayOfMonth, $date->monthName, $date->year, $world->village->name, $milestone->name,
+        ), 'milestone', [], $causes, ['project']);
+        $milestone->achievedEventId = $event->id;
+    }
+
+    private static function pursuedByProject(World $world, Milestone $milestone): bool
+    {
+        foreach ($world->projects as $project) {
+            if (! $project->resolved && $project->milestoneName === $milestone->name) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static function achieve(World $world, Milestone $milestone, int $tick, TharadiDate $date, bool $forced, int $population): void

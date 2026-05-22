@@ -45,7 +45,8 @@ final class World
     /** @var list<Milestone> */
     public array $milestones = [];
 
-    public ?Project $activeProject = null;
+    /** @var list<Project> the communal endeavors currently underway — Sandstorm prep, director-spawned beats… */
+    public array $projects = [];
 
     /** An optional retroactive edit replayed into this run (suppresses a recorded shock); null = the true history. */
     public ?Intervention $intervention = null;
@@ -103,7 +104,7 @@ final class World
 
             $seasonMultiplier = $date->season === 'Sandstorm' ? 1.4 : 1.0;
 
-            $projectOpen = $this->activeProject !== null && ! $this->activeProject->resolved;
+            $projectOpen = $this->hasOpenProject();
             foreach ($this->livingAgents() as $agent) {
                 $contributing = $projectOpen && $agent->ageInYears($this->tick) >= self::ADULT_AGE;
                 $activity = BehaviorEngine::derive($agent, $date, $festival !== null, $contributing);
@@ -147,6 +148,17 @@ final class World
     public function livingAgents(): array
     {
         return array_values(array_filter($this->village->agents, fn (Agent $a) => $a->alive));
+    }
+
+    public function hasOpenProject(): bool
+    {
+        foreach ($this->projects as $project) {
+            if (! $project->resolved) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
