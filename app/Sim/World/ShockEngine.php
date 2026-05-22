@@ -83,10 +83,12 @@ final class ShockEngine
         $granary->withdraw('food', $granary->amount('food') * self::FAMINE_GRANARY_LOSS);
         $granary->withdraw('water', $granary->amount('water') * self::FAMINE_GRANARY_LOSS);
 
-        $world->chronicle->record($tick, sprintf(
+        $event = $world->chronicle->record($tick, sprintf(
             '%d %s, Year %d — a blight ruins much of the stores at %s.',
             $date->dayOfMonth, $date->monthName, $date->year, $world->village->name,
         ), 'shock-blight', [], [], ['blight']);
+        $world->village->lastBlightEventId = $event->id;
+        $world->village->lastBlightYear = $date->year;
     }
 
     public static function applyRaid(World $world, int $tick, TharadiDate $date, Rng $rng, bool $suppress = false): void

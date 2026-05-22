@@ -61,6 +61,17 @@ final class EconomyEngine
     /** The leanest an ordinary (non-catastrophic) harvest can fall to. */
     private const HARVEST_FLOOR = 0.2;
 
+    /** How much technology must climb since the last record to chronicle a notable advance. */
+    private const TECH_ADVANCE_STEP = 0.1;
+
+    /** Land below this fraction of its base counts as exhausted (chronicle onset). */
+    private const LAND_EXHAUSTED = 0.9;
+
+    /** A harvest at/below this is a notably lean year; at/above the bumper bound, a notably good one. */
+    private const LEAN_HARVEST = 0.85;
+
+    private const BUMPER_HARVEST = 1.15;
+
     /** Per-adult daily yield of each basket good (before tech × season); the real diet behind the calories. */
     private const BASKET_YIELD = ['grain' => 3.0, 'dates' => 1.5, 'goat meat' => 1.5];
 
@@ -168,7 +179,7 @@ final class EconomyEngine
      * with surplus to spare and the cultural openness to try will act on it. Technology, once won,
      * sticks (monotonic). Run once a year; deterministic (no RNG).
      */
-    public static function advanceTechnology(World $world, int $tick): void
+    public static function advanceTechnology(World $world, int $tick, ?TharadiDate $date = null): void
     {
         $village = $world->village;
         $population = count($world->livingAgents());
@@ -181,6 +192,15 @@ final class EconomyEngine
         $openness = self::settlementOpenness($world, $tick);
 
         $village->technology += self::technologyGrowth($pressure, $surplus, $openness);
+
+        // Chronicle the *rise*: a notable climb in technology, so growth is legible alongside the fall.
+        if ($date !== null && $village->technology - $village->lastTechMilestone >= self::TECH_ADVANCE_STEP) {
+            $village->lastTechMilestone = $village->technology;
+            $world->chronicle->record($tick, sprintf(
+                '%d %s, Year %d — %s masters new techniques; its craft and yield advance (technology %.2f).',
+                $date->dayOfMonth, $date->monthName, $date->year, $village->name, $village->technology,
+            ), 'tech-advance', [], [], ['intensification']);
+        }
     }
 
     /** The yearly technology gain from Boserupian pressure × surplus × openness; never negative (knowledge sticks). */
@@ -223,7 +243,7 @@ final class EconomyEngine
      * This is the *organic* fall — overshoot scars the land, K drops, the die-back deepens, and only
      * once pressure eases does the land (and the ceiling) recover. Run once a year; deterministic.
      */
-    public static function degradeLand(World $world): void
+    public static function degradeLand(World $world, ?int $tick = null, ?TharadiDate $date = null): void
     {
         $village = $world->village;
         $population = count($world->livingAgents());
@@ -238,6 +258,28 @@ final class EconomyEngine
             $village->baseLandYield,
             $village->landYield + self::landYieldChange($village->landYield, $village->baseLandYield, $pressure),
         ));
+
+        if ($date === null || $tick === null) {
+            return; // unit-test path: degrade the value without chronicling
+        }
+
+        // Chronicle the turning points: when overuse exhausts the land, and when fallow heals it.
+        $exhausted = $village->landYield < self::LAND_EXHAUSTED * $village->baseLandYield;
+        if ($exhausted && ! $village->landExhausted) {
+            $village->landExhausted = true;
+            $event = $world->chronicle->record($tick, sprintf(
+                '%d %s, Year %d — the land around %s is exhausted from overuse; it yields less than it once did.',
+                $date->dayOfMonth, $date->monthName, $date->year, $village->name,
+            ), 'land-exhausted', [], [], ['overuse']);
+            $village->landExhaustedEventId = $event->id;
+        } elseif (! $exhausted && $village->landExhausted) {
+            $village->landExhausted = false;
+            $world->chronicle->record($tick, sprintf(
+                '%d %s, Year %d — left fallow, the land around %s recovers its old vigour.',
+                $date->dayOfMonth, $date->monthName, $date->year, $village->name,
+            ), 'land-recovered', [], $village->landExhaustedEventId !== null ? [$village->landExhaustedEventId] : []);
+            $village->landExhaustedEventId = null;
+        }
     }
 
     /** Signed yearly change in land yield: negative when overshoot exhausts the land, positive as fallow heals it. */
@@ -256,10 +298,26 @@ final class EconomyEngine
      * buffer, distinct from the rare catastrophic shock. Drawn from an independent sub-stream so the
      * added randomness never perturbs the seeded births and deaths. Deterministic for a given seed.
      */
-    public static function rollHarvest(World $world, TharadiDate $date): void
+    public static function rollHarvest(World $world, int $tick, TharadiDate $date): void
     {
         $roll = $world->rng->fork('harvest/'.$date->year)->float(-1.0, 1.0);
-        $world->village->harvestQuality = self::harvestQuality($roll, $world->region->seasonalVolatility());
+        $village = $world->village;
+        $village->harvestQuality = self::harvestQuality($roll, $world->region->seasonalVolatility());
+        $village->leanHarvestEventId = null;
+
+        // Chronicle the standout years — a lean one becomes a citable cause if a famine follows.
+        if ($village->harvestQuality <= self::LEAN_HARVEST) {
+            $event = $world->chronicle->record($tick, sprintf(
+                '%d %s, Year %d — a lean harvest at %s; the granary fills slowly (yield %d%%).',
+                $date->dayOfMonth, $date->monthName, $date->year, $village->name, (int) round($village->harvestQuality * 100),
+            ), 'harvest-lean', [], [], ['lean-harvest']);
+            $village->leanHarvestEventId = $event->id;
+        } elseif ($village->harvestQuality >= self::BUMPER_HARVEST) {
+            $world->chronicle->record($tick, sprintf(
+                '%d %s, Year %d — a bountiful harvest at %s fills the stores (yield %d%%).',
+                $date->dayOfMonth, $date->monthName, $date->year, $village->name, (int) round($village->harvestQuality * 100),
+            ), 'harvest-bumper', [], [], ['bumper-harvest']);
+        }
     }
 
     /** Map a roll in [-1,1] and the region's volatility to a harvest multiplier around 1.0 (floored). */
@@ -276,9 +334,9 @@ final class EconomyEngine
         // Once a year: tech ratchets the ceiling up (Boserup), overuse erodes the land beneath it
         // (overshoot), and the harvest is rolled good or lean for the year ahead.
         if ($date->monthIndex === 0 && $date->dayOfMonth === 1) {
-            self::advanceTechnology($world, $tick);
-            self::degradeLand($world);
-            self::rollHarvest($world, $date);
+            self::advanceTechnology($world, $tick, $date);
+            self::degradeLand($world, $tick, $date);
+            self::rollHarvest($world, $tick, $date);
         }
 
         // Carrying capacity tracks the land's *average* annual yield — a lean desert
@@ -354,10 +412,16 @@ final class EconomyEngine
 
         if ($village->starvationFactor > 1.0 && ! $village->inFamine) {
             $village->inFamine = true;
+            // Cite the material drivers behind the shortfall: exhausted land, a lean harvest, a recent blight.
+            $causes = array_values(array_filter([
+                $village->landExhausted ? $village->landExhaustedEventId : null,
+                $village->leanHarvestEventId,
+                $village->lastBlightYear === $date->year ? $village->lastBlightEventId : null,
+            ]));
             $event = $world->chronicle->record($tick, sprintf(
                 '%d %s, Year %d — famine grips %s as the granary runs dry.',
                 $date->dayOfMonth, $date->monthName, $date->year, $village->name,
-            ), 'famine-onset', [], [], ['scarcity']);
+            ), 'famine-onset', [], $causes, ['scarcity']);
             $village->famineEventId = $event->id;
         } elseif ($village->starvationFactor <= 1.0 && $village->inFamine) {
             $village->inFamine = false;
