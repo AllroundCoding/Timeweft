@@ -4,6 +4,7 @@ namespace Tests\Unit\Sim;
 
 use App\Sim\Chronicle\ChronicleEvent;
 use App\Sim\Economy\GoodRegistry;
+use App\Sim\Economy\Pricing;
 use App\Sim\Economy\Stockpile;
 use App\Sim\Support\Rng;
 use App\Sim\Time\TharadiCalendar;
@@ -40,6 +41,22 @@ class TradeEngineTest extends TestCase
         // Payment flowed with the goods (food valued at 1, water at 5): money moved buyer -> seller.
         $this->assertLessThan(500.0, $poor->stockpile->amount('money'), 'the buyer paid for its imports');
         $this->assertGreaterThan(0.0, $rich->stockpile->amount('money'), 'the seller was paid');
+    }
+
+    public function test_trade_closes_the_price_gap_self_regulating(): void
+    {
+        $world = $this->world();
+        $poor = $world->villages[1];
+
+        // The short settlement's food is dear before relief arrives...
+        $before = Pricing::localPrice(1.0, $poor->stockpile->amount('food'), count($poor->livingAgents()));
+
+        $tick = 100 * TharadiCalendar::HOURS_PER_DAY + 8;
+        TradeEngine::runDay($world, $tick, TharadiCalendar::fromTick($tick));
+
+        // ...and cheaper once imports have filled the granary — the price signal regulates itself.
+        $after = Pricing::localPrice(1.0, $poor->stockpile->amount('food'), count($poor->livingAgents()));
+        $this->assertLessThan($before, $after, 'imports ease scarcity, so the local price falls');
     }
 
     public function test_a_lone_settlement_never_trades(): void

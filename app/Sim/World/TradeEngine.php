@@ -2,6 +2,7 @@
 
 namespace App\Sim\World;
 
+use App\Sim\Economy\Pricing;
 use App\Sim\Time\TharadiDate;
 
 /**
@@ -16,8 +17,9 @@ use App\Sim\Time\TharadiDate;
  * settlements there is nowhere to trade, so it does nothing — and draws no RNG, leaving the
  * single-settlement run byte-identical. Deterministic: pure function of the settlements' stores.
  *
- * Payment moves with the goods at each staple's catalog value; dynamic supply/demand pricing is the
- * next step (TWT-47), so this v1 keeps a fixed price and never blocks a shipment on the buyer's purse.
+ * Payment moves with the goods at the cleared local price (Pricing, TWT-47): dear in the short
+ * settlement, cheap in the flush one, so a shipment is valued by the scarcity it relieves — and as
+ * goods flow the two prices converge, the mark of a self-regulating market.
  */
 final class TradeEngine
 {
@@ -82,19 +84,25 @@ final class TradeEngine
         unset($importer);
     }
 
-    /** Move the staple from exporter to importer, settle payment at its catalog value, and chronicle the year's route. */
+    /** Move the staple from exporter to importer, settle payment at the cleared local price, and chronicle the year's route. */
     private static function ship(World $world, Village $from, Village $to, string $staple, float $amount, int $tick, TharadiDate $date): void
     {
+        // Price the trade at the midpoint of the two local markets, read *before* the goods move:
+        // dear in the short settlement, cheap in the flush one — the gain from trade split between them.
+        $base = $world->goods->get($staple)?->value ?? 1.0;
+        $buyerPrice = Pricing::localPrice($base, $to->stockpile->amount($staple), count($to->livingAgents()));
+        $sellerPrice = Pricing::localPrice($base, $from->stockpile->amount($staple), count($from->livingAgents()));
+        $unitPrice = ($buyerPrice + $sellerPrice) / 2.0;
+
         $shipped = $from->stockpile->withdraw($staple, $amount);
         if ($shipped <= 0.0) {
             return;
         }
         $to->stockpile->add($staple, $shipped);
 
-        // Payment follows the goods at the staple's catalog value, capped at what the buyer can pay
-        // (the unpaid remainder is implicit reciprocity for now; market pricing is TWT-47).
-        $unitValue = $world->goods->get($staple)?->value ?? 1.0;
-        $payment = min($shipped * $unitValue, $to->stockpile->amount('money'));
+        // Payment follows the goods at the cleared price, capped at what the buyer can pay (the unpaid
+        // remainder is implicit reciprocity for now).
+        $payment = min($shipped * $unitPrice, $to->stockpile->amount('money'));
         if ($payment > 0.0) {
             $to->stockpile->withdraw('money', $payment);
             $from->stockpile->add('money', $payment);
