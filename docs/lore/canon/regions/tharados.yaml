@@ -1,0 +1,90 @@
+# Tharados — regional material profile.
+#
+# Source of truth: docs/regions/tharados/.
+# Consumed by Timeweft as App\Sim\World\RegionProfile::tharados() (generation input).
+#
+# This is the "generate from materials" seed for the region: terrain and seasonal
+# yields define scarcity and volatility, which (per cultural materialism) should
+# predict the region's culture. The `expected_culture` block records that
+# prediction so lore and simulation can be checked against each other.
+
+id: tharados
+name: Tharados
+continent: aerindor
+species: vulpini
+source: gdoc:1LbH-T9utCBgpkKWT61uIZCc8wDe-12ogocDROMR-MbM
+
+summary: >-
+  A desert empire of dunes, hidden oases, and mineral-rich mountains. Life is
+  organized around two seasons — the long, lethal Sandstorm and the short,
+  fertile Oasis — and a rigid, pious imperial hierarchy.
+
+# Four broad zones (see docs/regions/tharados/geography-climate-calendar.md).
+terrain:
+  - id: sand-sea
+    name: The Sand Sea
+    note: Dune interior, from rolling sand-flats to mountains of sand; holds the hidden oases.
+  - id: oasis-belt
+    name: The Oasis Belt
+    note: A curved chain of sealed fertile pockets fed by underground water; the population and farming centers.
+  - id: scorching-mountains
+    name: The Scorching Mountains
+    note: Dry, glittering, mineral-rich western wall; the empire's gem trade depends on it.
+  - id: mirage-coast
+    name: The Mirage Coast
+    note: Southern shore on the Mirage Sea; few harbors, milder seasons, year-round protected gardens.
+
+# Two seasons drive a feast-or-famine food supply. yield = food multiplier vs a
+# 1.0 baseline. Oasis is the brief planting/bloom; Sandstorm is long and lean.
+climate:
+  seasons_ref: ../calendar/tharadi.yaml
+  yield_by_season:
+    oasis: 1.5
+    sandstorm: 0.5
+  # Derived (informational): how the above reads as generation parameters.
+  derived:
+    # average yield, weighted by the 2/6 month split: (2*1.5 + 6*0.5) / 8 = 0.75
+    average_yield: 0.75
+    scarcity: 0.75            # 0 abundant .. 1 harsh
+    seasonal_volatility: 0.50 # 0 stable .. 1 wild
+    hazards: [sandstorm, drought, raids]
+
+# Physical nudges applied to a Vulpini born here (additive, on the 0..100 trait
+# scale). Desert life selects for endurance and desert-attuned senses.
+trait_modifiers:
+  constitution: 8.0
+  senses: 4.0
+
+# Region-specific vocabularies for categorical traits.
+categorical_options:
+  fur_color: [sandy, golden, pale tan, dust-grey, ochre]
+
+# Notable resources / trade goods (see the economy section of the region overview).
+resources: [gems, spices, silk, salt, dates, olive oil]
+
+# The culture cultural-materialism would predict from scarcity 0.75 / volatility
+# 0.50: a harsh, lean, shock-prone land breeds endurance, tight cohesion, and
+# strong tradition and piety. The lore agrees — a rigid imperial hierarchy,
+# matter-of-fact daily piety, and an endurance ethos (6 of 8 months named for the
+# hard season). This is the realism check, not a hand-set value (0..100 axes).
+expected_culture:
+  collectivism: high
+  hierarchy: high
+  tradition: high
+  long_term_orientation: high   # storage and preparation against the lean season
+  restraint: high
+  achievement: low-moderate
+  piety: high
+  note: >-
+    Generated, not authored. If a simulation drifts Tharadi culture far from this
+    under the same material conditions, treat it as a prompt to revisit either the
+    lore or the rules — magic excepted.
+
+# Informational — how Timeweft encodes this region today.
+timeweft:
+  class: App\Sim\World\RegionProfile
+  factory: tharados()
+  status: built
+  notes:
+    - "trait_modifiers {constitution:+8, senses:+4} and the fur_color options match the factory."
+    - "scarcity() and seasonalVolatility() are computed from yield_by_season, matching the derived values above."

@@ -1,0 +1,50 @@
+# Nyralthia Calendar — the calendar of the archipelago of Nyralthia.
+#
+# Source of truth: docs/regions/nyralthia/geography-climate-calendar.md.
+# Not yet consumed by Timeweft; a fifth calendar projection.
+#
+# Two seasons (Wet, Dry), ten spirit-dedicated months, a seven-day week led by
+# Celestday (the sea goddess Celeste).
+
+id: nyralthia
+name: Nyralthia Calendar
+region: nyralthia
+source: gdoc:17f8Jr_aDnasdFcIq5vw_X6B8fDAIAm3JMVfPyeQoXpc
+summary: >-
+  Two seasons (Wet and Dry), ten months each named for a spirit, and a seven-day
+  week. The cycle opens with Zephyra at the start of the Wet Season.
+
+seasons:
+  - { id: wet, name: Wet Season, months: 5, character: "frequent rains and storms; lush growth and vibrant marine life" }
+  - { id: dry, name: Dry Season, months: 5, character: "temperate, fewer rains; the season for agriculture and trade" }
+
+# Ten months in order from the start of the Wet Season.
+months:
+  - { index: 1,  name: Zephyra,   spirit: Zephyr,  season: wet, meaning: "Begins the Wet Season; the arrival of the monsoon winds." }
+  - { index: 2,  name: Nautilus,  spirit: Nautia,  season: wet, meaning: "The abundance of marine life." }
+  - { index: 3,  name: Pluvia,    spirit: Pluvia,  season: wet, meaning: "Heavy rains and lush growth." }
+  - { index: 4,  name: Tempesta,  spirit: Tempest, season: wet, meaning: "Intense storms and turbulent seas." }
+  - { index: 5,  name: Calysta,   spirit: Calys,   season: wet, meaning: "Ends the Wet Season; the transition to the Dry Season." }
+  - { index: 6,  name: Solaris,   spirit: Solara,  season: dry, meaning: "Starts the Dry Season; warmth and growth." }
+  - { index: 7,  name: Aurelia,   spirit: Aurelia, season: dry, meaning: "Wealth and harvest." }
+  - { index: 8,  name: Floralia,  spirit: Flora,   season: dry, meaning: "Vibrant blooms and agriculture." }
+  - { index: 9,  name: Lucidus,   spirit: Lucid,   season: dry, meaning: "Clarity and enlightenment." }
+  - { index: 10, name: Serenitas, spirit: Serena,  season: dry, meaning: "Ends the Dry Season; the transition back to the Wet Season." }
+
+week:
+  days: 7
+  weekdays:
+    - { name: Celestday, spirit: Celeste }
+    - { name: Zephday,   spirit: Zephyr }
+    - { name: Nautday,   spirit: Nautia }
+    - { name: Pluvday,   spirit: Pluvia }
+    - { name: Tempday,   spirit: Tempest }
+    - { name: Auralday,  spirit: Aurelia }
+    - { name: Floraday,  spirit: Flora }
+  # The monthly ritual falls on the first Celestday.
+
+timeweft:
+  status: not_yet_consumed
+  notes:
+    - "Ready for multi-calendar support; the engine projects only the Tharadi calendar today."
+    - "The source designates no offset to other calendars; cross-calendar anchoring is undefined."

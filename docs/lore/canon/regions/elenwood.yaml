@@ -1,0 +1,69 @@
+# Elenwood — regional material profile.
+#
+# Source of truth: docs/regions/elenwood/.
+# Not yet consumed by Timeweft (no RegionProfile::elenwood() yet); a third region
+# profile and a third data point for the generate-from-materials loop.
+
+id: elenwood
+name: Elenwood
+continent: aerindor
+species: vulpini
+source: gdoc:1RfPpFXnWC6mMEX5dLzbQBe2bdxy-_9dGJWxLe9LTooQ
+
+summary: >-
+  A dense, mystical, rain-fed forest east of Aetheria. Lush and stable year-round,
+  governed by a consensus Council of Elders and an animist reverence for the wood.
+
+terrain:
+  - { id: deep-forest,      name: Deep forest,         note: "Towering trees and hidden groves; the heart of the region (Sylvana)." }
+  - { id: ironwood,         name: The Ironwood Forest, note: "Durable Ironwood timber; the wilder, deeper reaches (Leafhaven)." }
+  - { id: medicinal-groves, name: Medicinal groves,    note: "Rare herbs and healing springs (Briarwood)." }
+
+# Humid, temperate, abundant rain year-round -> a lush, stable food and resource
+# base with little seasonal swing (only Frostveil truly rests). yield vs 1.0 base.
+# NOTE: proposed parameters derived from qualitative lore, not engine code.
+climate:
+  seasons_ref: ../calendar/elenwood.yaml
+  yield_by_season:
+    verdance: 1.3
+    suncrest: 1.4
+    harvestbloom: 1.5
+    frostveil: 0.9
+  derived:
+    # weighted by months per season (2 each): (2*1.3 + 2*1.4 + 2*1.5 + 2*0.9) / 8
+    average_yield: 1.275
+    scarcity: 0.23             # 0 abundant .. 1 harsh — the lushest region migrated so far
+    seasonal_volatility: 0.25  # a gentle four-season swing, buffered by year-round rain
+    hazards: []                # no notable seasonal shock attested in the source
+
+# No strong physical adaptation noted; the camouflage colouring is captured in the
+# species fur palette rather than as a trait nudge.
+trait_modifiers: {}
+
+categorical_options:
+  fur_color: [auburn, deep red, dark-striped]
+
+resources: [rare herbs, medicinal plants, woodcrafts, timber, ironwood]
+
+# Cultural materialism would predict an abundant, stable land to breed low
+# hierarchy and loose, self-expressive values. Elenwood half-fits: governance IS
+# flat (a consensus Council of Elders, no ruling class). But it is also strongly
+# traditional, sanctity-heavy (animism), and restrained (sustainability) — which
+# abundance alone would not predict (0..100 axes; values relative to the others).
+expected_culture:
+  collectivism: moderate-high   # communal, harmony-with-nature
+  hierarchy: low                # consensus elders, not a ruling class (fits abundance)
+  tradition: high               # ancient wisdom, animist continuity
+  long_term_orientation: high   # sustainability; planting for the future
+  restraint: moderate-high      # responsible harvesting despite plenty
+  achievement: low              # harmony over competition
+  piety: high                   # animism woven through daily life
+  tensions:
+    - "Tradition/restraint despite abundance is not predicted by low scarcity. Candidate: the abundance is conditional on tending a fragile forest (ecological dependence), which imposes a conservation ethos — a material pressure independent of scarcity."
+    - "Piety despite material security: the forest spirits are literal/magical here, so the animism is grounded in fact — a deliberate magic carve-out (see WRL-24)."
+
+timeweft:
+  status: not_yet_consumed
+  notes:
+    - "No RegionProfile::elenwood() yet; the yields/scarcity/volatility above are proposed."
+    - "Elenwood (scarcity ~0.23) anchors the abundant end of the spectrum; Aetheria (0.40) the middle; Tharados (0.75) the harsh end."

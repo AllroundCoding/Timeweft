@@ -1,0 +1,40 @@
+# Luthara — regional material profile (outline region; mythic frontier).
+#
+# Source of truth: docs/regions/luthara/README.md.
+# A largely unexplored continent: terrain/climate are described, but NO settled
+# society is documented, so expected_culture is deliberately deferred.
+
+id: luthara
+name: Luthara
+continent: luthara   # its own continent, west of Aerindor across the Endless Ocean
+species: unknown
+source: gdoc:1TvF_GXY7XWYW67WRbK2ajR2_V5YDeEakswZDpFEhmuM
+
+summary: >-
+  A mysterious, largely unexplored continent west of Aerindor. Diverse and
+  generally temperate, rich in magical crystal soil; rumored home of a lost
+  precursor civilization. No present society is documented.
+
+terrain:
+  - { id: whispering-woods,  name: The Whispering Woods,  note: "Ancient eastern forest; sentient trees, magical creatures." }
+  - { id: skyspire-peaks,    name: The Skyspire Peaks,    note: "Cloud-piercing central highlands; rumored dragons; the mythic Golden Spire." }
+  - { id: obsidian-shore,    name: The Obsidian Shore,    note: "Southern volcanic coast; black sand, bioluminescent tide pools." }
+  - { id: shimmering-plains, name: The Shimmering Plains, note: "Western grasslands aglow from magical crystal deposits." }
+
+climate:
+  description: "Diverse: temperate eastern forests, cool central highlands, subtropical south; Endless-Ocean storms batter the west coast."
+  derived:
+    scarcity: 0.35            # tentative — environmentally favorable/diverse IF settled
+    seasonal_volatility: 0.35
+    hazards: [ocean-storms]
+    note: "Environmental estimate only; no population to support a culture profile."
+
+# No society documented (mythic, unexplored). Deferred until lore is developed.
+expected_culture:
+  status: undocumented
+  note: "No settled society in the source. If the 'Vanished Kingdom'/precursor lore is developed, derive culture then. Expansion candidate."
+
+timeweft:
+  status: not_yet_consumed
+  notes:
+    - "Outline/frontier region; scarcity is a tentative environmental estimate, culture deferred."

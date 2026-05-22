@@ -1,0 +1,64 @@
+# Draknar pantheon — the gods of the mountain clans of Draknar.
+#
+# Source of truth: docs/regions/draknar/religion.md and docs/world/pantheon.md.
+# Not yet consumed by Timeweft; the faith block is the lore-side moral-foundation
+# target for a future Draknar faith (cf. App\Sim\Culture\Faith).
+#
+# Polytheistic: gods of natural forces, worshipped in longhouses and stone circles.
+# The source gives explicit Aetherian counterparts for every deity.
+
+id: draknar
+name: Draknar pantheon
+region: draknar
+source: gdoc:1hNhFJIkoD-g9ygU3tMxlnVKOSYqNbwiOWjUeLGsCgkw
+
+gods:
+  major:
+    - { name: "Tho'rak", domain: "Thunder and battle — power and protection",        aetherian: Vidar,     foundations: [authority, loyalty] }
+    - { name: "Va'la",   domain: "The earth — fertility and stability",               aetherian: Reanne,    foundations: [care, sanctity] }
+    - { name: Kjor,      domain: "The hunt — survival and the wild",                  aetherian: Corvin,    foundations: [loyalty] }
+    - { name: Skadi,     domain: "Winter — endurance and the season's harshness",      aetherian: Neris,     foundations: [sanctity, authority] }
+  minor:
+    - { name: Bjorn,  domain: "Strength — physical and mental fortitude",     aetherian: Joran,  foundations: [authority] }
+    - { name: Eira,   domain: "Healing — recovery and care",                  aetherian: Elia,   foundations: [care] }
+    - { name: Fenrir, domain: "Wolves — loyalty and the spirit of the pack",  aetherian: Terra,  foundations: [loyalty] }
+    - { name: Vetra,  domain: "Wind — change and freedom",                    aetherian: Maris,  foundations: [liberty] }
+
+# Two legendary figures lend their names to calendar months but are not gods:
+legendary_figures:
+  - { name: Kharad,   note: "a legendary chieftain (month Kharadam) — leadership and strategy" }
+  - { name: Stormfel, note: "a legendary storm (month Stormfel) — winter's returning might" }
+
+# The faith as a whole (0..100), the lore-side target for a future Draknar faith.
+# A warrior clan culture on a hostile land: loyalty (the pack/clan), authority
+# (chieftains, the strong), and sanctity (gods of the forces, ancestors) lead;
+# liberty is low (clan duty); care moderate (Eira, but a hard land).
+faith:
+  name: Draknar clan faith
+  foundations:
+    care: 50
+    fairness: 45
+    loyalty: 85       # clan and pack above all
+    authority: 75     # chieftains; respect for strength
+    sanctity: 70      # gods of the land; ancestor veneration
+    liberty: 35
+  binding: high
+
+# Cross-region equivalences (finalized, WRL-13). The Draknar source states an
+# Aetherian counterpart for every deity; references point to the GOD's name, not
+# the month forms the source used (Neris not 'Nerthion', Terra not 'Terkhanor').
+cross_region:
+  - { draknar: "Tho'rak", aetherian: Vidar,  strength: confirmed, note: "thunder/battle <-> war/strength" }
+  - { draknar: "Va'la",   aetherian: Reanne, strength: strong,    note: "earth/fertility <-> creation/life — part of the Nara/Reanne/Great Mother/Va'la/Celeste through-line" }
+  - { draknar: Kjor,      aetherian: Corvin, strength: confirmed, note: "the hunt <-> hunt/wilderness; re-pointed from Joran after WRL-12 fixed Joran = strength/endurance" }
+  - { draknar: Skadi,     aetherian: Neris,  strength: confirmed, note: "winter <-> winter/death (the Draknar source wrote the month form 'Nerthion')" }
+  - { draknar: Bjorn,     aetherian: Joran,  strength: confirmed, note: "strength <-> strength/endurance" }
+  - { draknar: Eira,      aetherian: Elia,   strength: confirmed, note: "healing <-> healing/compassion" }
+  - { draknar: Fenrir,    aetherian: Terra,  strength: stated,    note: "wolves/loyalty <-> earth/nature (source wrote the month form 'Terkhanor') — a loose link the Draknar source asserts" }
+  - { draknar: Vetra,     aetherian: Maris,  strength: stated,    note: "wind <-> sea/sailors — a loose 'free-element' link the Draknar source asserts; Aetheria has no wind deity" }
+
+timeweft:
+  status: not_yet_consumed
+  notes:
+    - "Faith::fromCulture would derive these foundations from a Draknar culture vector; the values above are the lore-side target."
+    - "High loyalty + high authority + low liberty is the warrior-clan profile — distinct from Tharados (authority/sanctity) and Elenwood (sanctity, low authority)."

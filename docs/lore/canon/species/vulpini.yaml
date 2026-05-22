@@ -1,0 +1,56 @@
+# Vulpini — species trait registry.
+#
+# Source of truth: docs/world/inhabitants.md (+ region pages for adaptations).
+# Consumed by Timeweft as App\Sim\World\Species::vulpini() (generation input).
+#
+# The single template from which agents are generated: each numeric trait is
+# drawn within [min, max] (0..100 scale) then nudged by region (physical) and
+# culture (dispositional); categorical traits are picked from a region's options.
+# `mutation` is the +/- spread applied when a trait is inherited from two parents.
+
+id: vulpini
+name: Vulpini
+summary: >-
+  Anthropomorphic fox-folk — fox agility and senses with people's intelligence
+  and dexterity — diverse across the regions of Vaeris, shaped by environment.
+
+# Registration order is part of the seeded contract: reordering this list changes
+# every seeded run. It mirrors the engine registry exactly.
+traits:
+  - { key: agility,           type: numeric, min: 60, max: 90, mutation: 5 }
+  - { key: senses,            type: numeric, min: 60, max: 92, mutation: 5 }
+  - { key: dexterity,         type: numeric, min: 55, max: 85, mutation: 5 }
+  - { key: constitution,      type: numeric, min: 40, max: 80, mutation: 5 }
+  - { key: sociability,       type: numeric, min: 30, max: 90, mutation: 5 }   # OCEAN extraversion
+  - { key: fur_color,         type: categorical }
+  - { key: heat_tolerance,    type: numeric, min: 60, max: 95, mutation: 4 }
+  - { key: generosity,        type: numeric, min: 30, max: 70, mutation: 5 }   # OCEAN agreeableness
+  - { key: thrift,            type: numeric, min: 30, max: 70, mutation: 5 }
+  - { key: openness,          type: numeric, min: 30, max: 70, mutation: 6 }   # OCEAN openness
+  - { key: conscientiousness, type: numeric, min: 30, max: 70, mutation: 6 }   # OCEAN conscientiousness
+  - { key: neuroticism,       type: numeric, min: 30, max: 70, mutation: 6 }   # OCEAN neuroticism
+
+# Categorical vocabularies are supplied per region. Fur color by region of birth
+# (from docs/world/inhabitants.md). Only Tharados is wired into the engine today;
+# the rest are ready for when those regions are simulated.
+regional_fur_color:
+  aetheria:   [red, brown, gold, white-bellied, black-tipped]
+  tharados:   [sandy, golden, pale tan, dust-grey, ochre]
+  elenwood:   [auburn, deep red, dark-striped]
+  draknar:    [thick grey, blue-highlighted, silver-highlighted]
+  nyralthia:  [cream, tan, light brown]
+  frostlands: [pale grey, dark grey, near-black]
+  zuldar:     [muted grey, brown, rust]
+
+# Drives that deplete over time and motivate behavior (see Timeweft design doc 03).
+needs:
+  - { key: hunger, fills_in_hours: 16 }
+  - { key: energy, fills_in_hours: 18 }
+
+timeweft:
+  class: App\Sim\World\Species
+  factory: vulpini()
+  status: built
+  notes:
+    - "Numeric ranges, mutation values, and trait order mirror the engine's current registry exactly."
+    - "Only Tharados's fur_color vocabulary is wired into RegionProfile today; the other palettes above are lore, ready for use."

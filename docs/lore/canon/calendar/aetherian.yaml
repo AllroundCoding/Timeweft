@@ -1,0 +1,65 @@
+# Aetherian Calendar — the calendar of the Kingdom of Aetheria.
+#
+# Source of truth: docs/regions/aetheria/geography-climate-calendar.md.
+# Not yet consumed by Timeweft (the engine runs the Tharadi calendar today); this
+# is the second calendar projection, ready for the designed multi-calendar support.
+#
+# Four seasons, ten god-dedicated months, an eight-day week. The new year begins
+# with Vidoris, at the end of Sunspire (summer).
+
+id: aetherian
+name: Aetherian Calendar
+region: aetheria
+source: gdoc:1rzGe034PB1x2Xyk7gjd1O4w7fevEURXTs1UdE8JqGaQ
+summary: >-
+  Four seasons, ten god-dedicated months, and an eight-day week. The year begins
+  with Vidoris at the end of Sunspire; King Arandor's founding reign is Year 0.
+
+seasons:
+  - { id: springveil,  name: Springveil,  note: spring (mild) }
+  - { id: sunspire,    name: Sunspire,    note: summer (warm) }
+  - { id: harvestfall, name: Harvestfall, note: autumn (cool) }
+  - { id: frostweld,   name: Frostweld,   note: winter (cold) }
+
+# Ten months in order from the new year. The month `name` is the elaborated form
+# of the god it honors (the god Aeris -> the month Aerisun), as Earth's "March"
+# derives from Mars; `god` is that deity's canonical (short) name. See the naming
+# convention in canon/pantheon/aetherian.yaml.
+months:
+  - { index: 1,  name: Vidoris,   god: Vidar,    season: sunspire,    meaning: "War and strength; ends Sunspire and starts the new year." }
+  - { index: 2,  name: Fayaelis,  god: Faya,     season: harvestfall, meaning: "Harvest and fertility; starts Harvestfall." }
+  - { index: 3,  name: Lunirim,   god: Luna,     season: harvestfall, meaning: "Wisdom and stars." }
+  - { index: 4,  name: Terkhanor, god: Terra,    season: frostweld,   meaning: "Earth and nature; starts Frostweld." }
+  - { index: 5,  name: Nerthion,  god: Neris,    season: frostweld,   meaning: "Winter and death; endings and rest." }
+  - { index: 6,  name: Reanaris,  god: Reanne,   season: springveil,  meaning: "Creation and life; transition to Springveil." }
+  - { index: 7,  name: Selendir,  god: Selene,   season: springveil,  meaning: "Moon and night; mystery and dreams." }
+  - { index: 8,  name: Thanior,   god: Tharanos, season: sunspire,    meaning: "Seas and rivers; starts Sunspire." }
+  - { index: 9,  name: Aerisun,   god: Aeris,    season: sunspire,    meaning: "Sky and weather." }
+  - { index: 10, name: Ignathor,  god: Ignis,    season: sunspire,    meaning: "Fire and forge; craftsmanship; ends the year." }
+
+week:
+  days: 8
+  # Weekdays are named for the Smaller Gods (a god-derived name, as Earth's
+  # Thursday derives from Thor). Jornday is named for Joran (strength and
+  # endurance, WRL-12); the hunt and wilderness belong to Corvin.
+  weekdays:
+    - { name: Lyrinday, god: Lyra }
+    - { name: Marisday, god: Maris }
+    - { name: Faeday,   god: Fae }
+    - { name: Jornday,  god: Joran }
+    - { name: Eliday,   god: Elia }
+    - { name: Kyrday,   god: Kyros }
+    - { name: Alanday,  god: Alana }
+    - { name: Zarenday, god: Zaren }
+
+# Cross-calendar anchoring to the Tharadi calendar (./tharadi.yaml).
+cross_calendar:
+  - "Tharados's Ra'anis begins six days after Vidoris and aligns roughly with Ignathor."
+  - "The current Tharadi imperial line was founded ~Year 220 of this calendar."
+  - "King Arandor's founding reign is Year 0; the monthly communal ritual falls on the first Alanday."
+
+timeweft:
+  status: not_yet_consumed
+  notes:
+    - "The engine projects only the Tharadi calendar today; this file is ready for the designed multi-calendar support (Timeweft design doc 02)."
+    - "Days-per-month and hours-per-day are not fixed by lore."
