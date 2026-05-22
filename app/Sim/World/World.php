@@ -120,7 +120,9 @@ final class World
                 InstitutionEngine::runDay($this, $this->tick, $date);
                 ShockEngine::runDay($this, $this->tick, $date);
                 foreach ($this->milestones as $milestone) {
-                    StoryDirector::evaluate($this, $milestone, $this->tick, $date, $this->rng);
+                    // Each beat steers from its own sub-stream, so authoring an arc never reshuffles
+                    // the emergent world (the perturbation TWT-39 ran into).
+                    StoryDirector::evaluate($this, $milestone, $this->tick, $date, $this->rng->stream('director', $milestone->name, $this->tick));
                 }
             }
         }

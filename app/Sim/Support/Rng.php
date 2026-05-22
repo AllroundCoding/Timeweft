@@ -32,6 +32,17 @@ final class Rng
         return new self((int) crc32($this->seed.'/'.$salt));
     }
 
+    /**
+     * An independent sub-stream keyed by a named concern and any number of keys (region, entity,
+     * epoch…). Each concern × epoch draws from its own deterministic stream, so a draw added or
+     * removed in one never shifts another — the property that keeps retroactive ripple legible
+     * (an edit perturbs only its own cone) and lets parallel work stay reproducible (design docs 09, 18).
+     */
+    public function stream(string $concern, int|string ...$keys): self
+    {
+        return $this->fork($keys === [] ? $concern : $concern.'/'.implode('/', $keys));
+    }
+
     public function int(int $min, int $max): int
     {
         return $this->r->getInt($min, $max);

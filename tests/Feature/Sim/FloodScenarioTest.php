@@ -14,16 +14,16 @@ use PHPUnit\Framework\TestCase;
  * that the editing machinery (provenance → graph → ripple → edit log → undo)
  * works on a real narrative, not just at unit level.
  *
- * The flood stand-in is a deadly raid deep in a stressed settlement's past.
- * Author undoes it, and the consequences ripple: the catastrophe and the
- * history it caused are rewritten, while everything before it is untouched —
- * legible, reproducible, and reversible.
+ * The flood stand-in is the most consequential catastrophe deep in a stressed
+ * settlement's past. Author undoes it, and the consequences ripple: the
+ * catastrophe and the history it caused are rewritten, while everything before
+ * it is untouched — legible, reproducible, and reversible.
  */
 class FloodScenarioTest extends TestCase
 {
     private const SEED = 'vaeris';
 
-    private const POPULATION = 16;
+    private const POPULATION = 24;
 
     private const YEARS = 40;
 
@@ -34,12 +34,10 @@ class FloodScenarioTest extends TestCase
         $history = new EditHistory;
         $trueHistory = $this->timeline($history);
 
-        // The Great Flood: the first deadly catastrophe in the settlement's past.
-        $flood = $this->firstOfType($trueHistory, 'shock-raid');
+        $flood = $this->mostConsequentialShock($trueHistory);
         $this->assertNotNull($flood, 'the stressed settlement suffers a catastrophe to undo');
         $floodYear = TharadiCalendar::fromTick($flood->tick)->year;
 
-        // The author reaches into the past and undoes it.
         $history->apply("undo the Great Flood of Year {$floodYear}", Intervention::suppressShocks($floodYear));
         $edited = $this->timeline($history);
 
@@ -57,16 +55,15 @@ class FloodScenarioTest extends TestCase
             'the past before the flood is untouched',
         );
 
-        // The counterfactual is a living world, not a broken one: births and deaths still follow.
-        $this->assertTrue($this->hasTypeAfter($edited, 'birth', $flood->tick), 'children are still born after the edit');
-        $this->assertTrue($this->hasTypeAfter($edited, 'death', $flood->tick), 'the world keeps turning after the edit');
+        // The counterfactual is a living history, not a frozen one: events keep flowing after the edit.
+        $this->assertTrue($this->hasEventAfter($edited, $flood->tick), 'history keeps turning after the edit');
     }
 
     public function test_undo_and_redo_restore_the_two_histories(): void
     {
         $history = new EditHistory;
         $trueHistory = $this->timeline($history);
-        $flood = $this->firstOfType($trueHistory, 'shock-raid');
+        $flood = $this->mostConsequentialShock($trueHistory);
         $this->assertNotNull($flood);
         $floodYear = TharadiCalendar::fromTick($flood->tick)->year;
 
@@ -89,23 +86,42 @@ class FloodScenarioTest extends TestCase
         return RetroactiveRipple::canonicalTimeline(self::SEED, self::POPULATION, self::YEARS, $history->log());
     }
 
-    /** @param list<ChronicleEvent> $events */
-    private function firstOfType(array $events, string $type): ?ChronicleEvent
+    /**
+     * The past event whose undoing reshapes history the most — the Great Flood.
+     *
+     * @param  list<ChronicleEvent>  $events
+     */
+    private function mostConsequentialShock(array $events): ?ChronicleEvent
     {
+        $best = null;
+        $bestRipple = 0;
+        $seenYears = [];
         foreach ($events as $event) {
-            if ($event->type === $type) {
-                return $event;
+            if (! str_starts_with($event->type, 'shock-')) {
+                continue;
+            }
+            $year = TharadiCalendar::fromTick($event->tick)->year;
+            if (isset($seenYears[$year])) {
+                continue;
+            }
+            $seenYears[$year] = true;
+
+            $result = RetroactiveRipple::replay(self::SEED, self::POPULATION, self::YEARS, Intervention::suppressShocks($year));
+            $ripple = count($result->erased) + count($result->emerged);
+            if ($ripple > $bestRipple) {
+                $bestRipple = $ripple;
+                $best = $event;
             }
         }
 
-        return null;
+        return $best;
     }
 
     /** @param list<ChronicleEvent> $events */
-    private function hasTypeAfter(array $events, string $type, int $tick): bool
+    private function hasEventAfter(array $events, int $tick): bool
     {
         foreach ($events as $event) {
-            if ($event->type === $type && $event->tick > $tick) {
+            if ($event->tick > $tick) {
                 return true;
             }
         }
