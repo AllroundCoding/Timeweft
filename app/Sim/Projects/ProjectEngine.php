@@ -71,7 +71,7 @@ final class ProjectEngine
      */
     public static function open(World $world, Project $project): void
     {
-        $world->projects[] = $project;
+        $world->village->projects[] = $project;
     }
 
     private static function maybeOpenSandstormPrep(World $world, int $tick, TharadiDate $date): void
@@ -97,7 +97,7 @@ final class ProjectEngine
 
     private static function contributeDaily(World $world, int $tick): void
     {
-        $open = array_filter($world->projects, static fn (Project $p): bool => ! $p->resolved);
+        $open = array_filter($world->village->projects, static fn (Project $p): bool => ! $p->resolved);
         if ($open === []) {
             return;
         }
@@ -128,7 +128,7 @@ final class ProjectEngine
     /** @return list<Project> */
     private static function openProjects(World $world): array
     {
-        return array_values(array_filter($world->projects, static fn (Project $p): bool => ! $p->resolved));
+        return array_values(array_filter($world->village->projects, static fn (Project $p): bool => ! $p->resolved));
     }
 
     private static function openOfType(World $world, string $type): ?Project

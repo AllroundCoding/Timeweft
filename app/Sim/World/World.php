@@ -14,7 +14,6 @@ use App\Sim\Economy\EconomyEngine;
 use App\Sim\Economy\GoodRegistry;
 use App\Sim\Economy\RecipeBook;
 use App\Sim\Institutions\InstitutionEngine;
-use App\Sim\Projects\Project;
 use App\Sim\Projects\ProjectEngine;
 use App\Sim\Support\Rng;
 use App\Sim\Support\TharadiNameGenerator;
@@ -28,7 +27,11 @@ final class World
 
     public int $tick = 0;
 
+    /** The settlement currently in focus — the engines operate on it; reset to the primary after a run. */
     public Village $village;
+
+    /** @var list<Village> every settlement in the world (the village above is whichever is being simulated) */
+    public array $villages = [];
 
     public Chronicle $chronicle;
 
@@ -44,9 +47,6 @@ final class World
 
     /** @var list<Milestone> */
     public array $milestones = [];
-
-    /** @var list<Project> the communal endeavors currently underway — Sandstorm prep, director-spawned beats… */
-    public array $projects = [];
 
     /** An optional retroactive edit replayed into this run (suppresses a recorded shock); null = the true history. */
     public ?Intervention $intervention = null;
@@ -81,6 +81,7 @@ final class World
         }
 
         $world->village = new Village('Sunwell Oasis', $world->region->name, $agents, landYield: 22.0, culture: $culture);
+        $world->villages = [$world->village];
         $world->milestones[] = new Milestone(
             name: 'trading post on the caravan road',
             deadlineYear: 12,
@@ -89,6 +90,27 @@ final class World
         );
 
         return $world;
+    }
+
+    /**
+     * Found a further settlement in this world — fresh founders from the same species/region, run by
+     * the same engine alongside the others. The seam multi-settlement trade and migration build on.
+     */
+    public function foundVillage(string $name, int $population, float $landYield = 22.0): Village
+    {
+        $culture = Culture::fromMaterialConditions('Tharadi', $this->region->scarcity(), $this->region->seasonalVolatility());
+        $ticksPerYear = TharadiCalendar::HOURS_PER_DAY * TharadiCalendar::DAYS_PER_YEAR;
+
+        $agents = [];
+        for ($i = 0; $i < $population; $i++) {
+            $birthTick = -$this->rng->int(18, 50) * $ticksPerYear;
+            $agents[] = $this->species->birth($this->nextId++, $birthTick, $this->region, $culture, $this->rng, $this->names);
+        }
+
+        $village = new Village($name, $this->region->name, $agents, landYield: $landYield, culture: $culture);
+        $this->villages[] = $village;
+
+        return $village;
     }
 
     public function advance(int $ticks): void
@@ -104,29 +126,42 @@ final class World
 
             $seasonMultiplier = $date->season === 'Sandstorm' ? 1.4 : 1.0;
 
-            $projectOpen = $this->hasOpenProject();
-            foreach ($this->livingAgents() as $agent) {
-                $contributing = $projectOpen && $agent->ageInYears($this->tick) >= self::ADULT_AGE;
-                $activity = BehaviorEngine::derive($agent, $date, $festival !== null, $contributing);
-                $agent->activity = $activity;
-                BehaviorEngine::applyEffects($agent, $activity, $seasonMultiplier);
+            // Each settlement is simulated in turn; the engines read whichever is currently in focus.
+            foreach ($this->villages as $village) {
+                $this->village = $village;
+                $projectOpen = $village->hasOpenProject();
+                foreach ($village->livingAgents() as $agent) {
+                    $contributing = $projectOpen && $agent->ageInYears($this->tick) >= self::ADULT_AGE;
+                    $activity = BehaviorEngine::derive($agent, $date, $festival !== null, $contributing);
+                    $agent->activity = $activity;
+                    BehaviorEngine::applyEffects($agent, $activity, $seasonMultiplier);
+                }
+
+                // Economy, emergence, and projects run once per in-world day, per settlement.
+                if ($date->hour === 8) {
+                    EconomyEngine::runDay($this, $this->tick, $date);
+                    CultureEngine::runDay($this, $this->tick, $date);
+                    HealthEngine::runDay($this, $this->tick);
+                    EmergenceEngine::runDay($this, $this->tick, $date);
+                    ProjectEngine::runDay($this, $this->tick, $date);
+                    InstitutionEngine::runDay($this, $this->tick, $date);
+                    ShockEngine::runDay($this, $this->tick, $date);
+                }
             }
 
-            // Economy, emergence, projects, and story-direction run once per in-world day.
+            // Story direction is world-level — authored beats span the world — evaluated once a day.
             if ($date->hour === 8) {
-                EconomyEngine::runDay($this, $this->tick, $date);
-                CultureEngine::runDay($this, $this->tick, $date);
-                HealthEngine::runDay($this, $this->tick);
-                EmergenceEngine::runDay($this, $this->tick, $date);
-                ProjectEngine::runDay($this, $this->tick, $date);
-                InstitutionEngine::runDay($this, $this->tick, $date);
-                ShockEngine::runDay($this, $this->tick, $date);
                 foreach ($this->milestones as $milestone) {
                     // Each beat steers from its own sub-stream, so authoring an arc never reshuffles
                     // the emergent world (the perturbation TWT-39 ran into).
                     StoryDirector::evaluate($this, $milestone, $this->tick, $date, $this->rng->stream('director', $milestone->name, $this->tick));
                 }
             }
+        }
+
+        // Leave the cursor on the primary settlement for inspection (reports, queries).
+        if ($this->villages !== []) {
+            $this->village = $this->villages[0];
         }
     }
 
@@ -144,21 +179,15 @@ final class World
         return $child;
     }
 
-    /** @return list<Agent> */
+    /** @return list<Agent> the living members of the settlement currently in focus */
     public function livingAgents(): array
     {
-        return array_values(array_filter($this->village->agents, fn (Agent $a) => $a->alive));
+        return $this->village->livingAgents();
     }
 
     public function hasOpenProject(): bool
     {
-        foreach ($this->projects as $project) {
-            if (! $project->resolved) {
-                return true;
-            }
-        }
-
-        return false;
+        return $this->village->hasOpenProject();
     }
 
     /**
