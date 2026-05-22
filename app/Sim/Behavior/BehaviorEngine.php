@@ -10,7 +10,7 @@ final class BehaviorEngine
 {
     private const HUNGER_OVERRIDE = 70.0;
 
-    public static function derive(Agent $agent, TharadiDate $date, bool $isFestival): Activity
+    public static function derive(Agent $agent, TharadiDate $date, bool $isFestival, bool $contributing = false): Activity
     {
         if ($isFestival && $date->hour >= 8 && $date->hour < 20) {
             return Activity::Celebrating;
@@ -19,7 +19,15 @@ final class BehaviorEngine
             return Activity::Eating;
         }
 
-        return self::routineActivity($date);
+        $routine = self::routineActivity($date);
+
+        // When the day's work goes to a communal project, surface it as Contributing so
+        // participation is visible in the roster, not just a number in the readiness math.
+        if ($routine === Activity::Working && $contributing) {
+            return Activity::Contributing;
+        }
+
+        return $routine;
     }
 
     /** The base routine layer: hour-of-day + season, ignoring needs and festivals. */
@@ -58,6 +66,7 @@ final class BehaviorEngine
                 $energy->advance(1, $seasonMultiplier);
                 break;
             case Activity::Working:
+            case Activity::Contributing: // contributing is work, just aimed at a communal project
                 $hunger->advance(1, $seasonMultiplier * 1.2);
                 $energy->advance(1, $seasonMultiplier * 1.2);
                 break;

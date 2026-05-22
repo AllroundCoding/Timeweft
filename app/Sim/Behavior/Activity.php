@@ -11,6 +11,7 @@ enum Activity: string
     case Socializing = 'socializing';
     case Sheltering = 'sheltering';
     case Celebrating = 'celebrating';
+    case Contributing = 'contributing';
 
     public function label(): string
     {
@@ -28,6 +29,7 @@ enum Activity: string
             self::Socializing => 'O',
             self::Sheltering => 'H',
             self::Celebrating => 'C',
+            self::Contributing => 'P',
         };
     }
 }

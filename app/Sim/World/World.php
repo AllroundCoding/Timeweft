@@ -24,6 +24,8 @@ use App\Sim\Time\TharadiDate;
 /** Top-level sim container: the canonical clock, the world's agents, RNG, and chronicle. */
 final class World
 {
+    private const ADULT_AGE = 16;
+
     public int $tick = 0;
 
     public Village $village;
@@ -100,8 +102,10 @@ final class World
 
             $seasonMultiplier = $date->season === 'Sandstorm' ? 1.4 : 1.0;
 
+            $projectOpen = $this->activeProject !== null && ! $this->activeProject->resolved;
             foreach ($this->livingAgents() as $agent) {
-                $activity = BehaviorEngine::derive($agent, $date, $festival !== null);
+                $contributing = $projectOpen && $agent->ageInYears($this->tick) >= self::ADULT_AGE;
+                $activity = BehaviorEngine::derive($agent, $date, $festival !== null, $contributing);
                 $agent->activity = $activity;
                 BehaviorEngine::applyEffects($agent, $activity, $seasonMultiplier);
             }
