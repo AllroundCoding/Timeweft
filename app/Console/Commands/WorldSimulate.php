@@ -2,7 +2,10 @@
 
 namespace App\Console\Commands;
 
+use App\Sim\Direction\Generation;
+use App\Sim\Direction\LoreCheck;
 use App\Sim\Direction\StoryDirector;
+use App\Sim\Direction\Waypoint;
 use App\Sim\Economy\EconomyEngine;
 use App\Sim\Projects\ProjectEngine;
 use App\Sim\Support\Rng;
@@ -13,7 +16,7 @@ use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 
-#[Signature('world:simulate {--years=22 : In-world years to simulate} {--seed=vaeris : RNG seed for reproducible runs} {--population=8 : Number of founding villagers} {--json : Also write the chronicle + roster to storage/app/chronicle.json}')]
+#[Signature('world:simulate {--years=22 : In-world years to simulate} {--seed=vaeris : RNG seed for reproducible runs} {--population=8 : Number of founding villagers} {--end-state= : Justify an authored end-state instead of surprising me — e.g. empire@500 or empire@500,town@300} {--json : Also write the chronicle + roster to storage/app/chronicle.json}')]
 #[Description('Run the headless world simulation and dump the resulting chronicle')]
 class WorldSimulate extends Command
 {
@@ -22,12 +25,31 @@ class WorldSimulate extends Command
         $years = (int) $this->option('years');
         $seed = (string) $this->option('seed');
         $population = (int) $this->option('population');
+        $endStateSpec = (string) $this->option('end-state');
 
         $rng = new Rng($seed);
-        $world = World::seedTharadosVillage($rng, $population);
+
+        if ($endStateSpec !== '') {
+            $waypoints = self::parseEndState($endStateSpec);
+            $problems = LoreCheck::check(...$waypoints);
+            if ($problems !== []) {
+                $this->error('Inconsistent lore — cannot generate this world:');
+                foreach ($problems as $problem) {
+                    $this->line('  • '.$problem);
+                }
+
+                return self::FAILURE;
+            }
+            $world = Generation::fromEndState($rng, $population, ...$waypoints);
+        } else {
+            $world = Generation::seedForward($rng, $population);
+        }
         $foundingCount = count($world->village->agents);
 
         $this->info(sprintf('Timeweft — %s (%s), seed "%s"', $world->village->name, $world->village->region, $seed));
+        $this->line($endStateSpec !== ''
+            ? sprintf('Generation mode: end-state-backward — justifying %s', $endStateSpec)
+            : 'Generation mode: seed-forward — surprise me');
         $this->line(sprintf('Founded %s; simulating %d years…', TharadiCalendar::fromTick(0), $years));
         $this->newLine();
 
@@ -303,6 +325,26 @@ class WorldSimulate extends Command
             ));
         }
         $this->newLine();
+    }
+
+    /**
+     * Parse an end-state spec like "empire@500,town@300" into authored waypoints.
+     *
+     * @return list<Waypoint>
+     */
+    private static function parseEndState(string $spec): array
+    {
+        $waypoints = [];
+        foreach (explode(',', $spec) as $part) {
+            $part = trim($part);
+            if ($part === '') {
+                continue;
+            }
+            [$kind, $year] = array_pad(explode('@', $part, 2), 2, '');
+            $waypoints[] = new Waypoint(trim($kind), (int) $year);
+        }
+
+        return $waypoints;
     }
 
     /** @param list<Agent> $all */
