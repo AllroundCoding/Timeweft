@@ -20,6 +20,7 @@ final class Project
         public readonly float $requiredEffort,
         public readonly string $type = 'general',
         public readonly string $initiator = 'the community',
+        public readonly ?string $milestoneName = null, // a director-spawned project realizes this beat on success
     ) {}
 
     public function contribute(float $amount): void

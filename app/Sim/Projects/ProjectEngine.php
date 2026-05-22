@@ -3,6 +3,7 @@
 namespace App\Sim\Projects;
 
 use App\Sim\Culture\Faith;
+use App\Sim\Direction\StoryDirector;
 use App\Sim\Institutions\Institution;
 use App\Sim\Time\TharadiCalendar;
 use App\Sim\Time\TharadiDate;
@@ -22,6 +23,8 @@ final class ProjectEngine
     private const ADULT_AGE = 16;
 
     private const REQUIRED_PER_CAPITA = 30.0;
+
+    private const SUCCESS_THRESHOLD = 0.7; // effort fraction at which a project counts as succeeding
 
     private const SANDSTORM_START_MONTH = 2; // Kalimos = first Sandstorm month
 
@@ -62,9 +65,18 @@ final class ProjectEngine
         return min(1.0, $withForced + $paidTo * (1.0 - $withForced));
     }
 
+    /**
+     * The one path every communal endeavor opens through — Sandstorm prep, and the beats the story
+     * director spawns alike (design docs 07 + 08). Top-down and bottom-up steering, one mechanism.
+     */
+    public static function open(World $world, Project $project): void
+    {
+        $world->projects[] = $project;
+    }
+
     private static function maybeOpenSandstormPrep(World $world, int $tick, TharadiDate $date): void
     {
-        if ($world->activeProject !== null) {
+        if (self::openOfType($world, 'seasonal-preparation') !== null) {
             return;
         }
         if ($date->monthIndex !== 0 || $date->dayOfMonth !== 1) {
@@ -74,19 +86,19 @@ final class ProjectEngine
         $population = count($world->livingAgents());
         $daysUntilSandstorm = self::SANDSTORM_START_MONTH * TharadiCalendar::DAYS_PER_MONTH;
 
-        $world->activeProject = new Project(
+        self::open($world, new Project(
             name: 'Sandstorm preparation',
             deadlineTick: $tick + $daysUntilSandstorm * TharadiCalendar::HOURS_PER_DAY,
             requiredEffort: $population * self::REQUIRED_PER_CAPITA,
             type: 'seasonal-preparation',
             initiator: 'the coming Sandstorm',
-        );
+        ));
     }
 
     private static function contributeDaily(World $world, int $tick): void
     {
-        $project = $world->activeProject;
-        if ($project === null || $project->resolved) {
+        $open = array_filter($world->projects, static fn (Project $p): bool => ! $p->resolved);
+        if ($open === []) {
             return;
         }
 
@@ -106,8 +118,28 @@ final class ProjectEngine
                 $paidTo = self::PAID_TO_STRENGTH;
             }
 
-            $project->contribute(self::participationWeight($agent, $cohesion, $institution, $paidTo, $faith));
+            $effort = self::participationWeight($agent, $cohesion, $institution, $paidTo, $faith);
+            foreach ($open as $project) {
+                $project->contribute($effort);
+            }
         }
+    }
+
+    /** @return list<Project> */
+    private static function openProjects(World $world): array
+    {
+        return array_values(array_filter($world->projects, static fn (Project $p): bool => ! $p->resolved));
+    }
+
+    private static function openOfType(World $world, string $type): ?Project
+    {
+        foreach (self::openProjects($world) as $project) {
+            if ($project->type === $type) {
+                return $project;
+            }
+        }
+
+        return null;
     }
 
     /**
@@ -133,11 +165,22 @@ final class ProjectEngine
 
     private static function resolveDue(World $world, int $tick, TharadiDate $date): void
     {
-        $project = $world->activeProject;
-        if ($project === null || $tick < $project->deadlineTick) {
-            return;
-        }
+        foreach (self::openProjects($world) as $project) {
+            if ($tick < $project->deadlineTick) {
+                continue;
+            }
+            $project->resolved = true;
 
+            if ($project->milestoneName !== null) {
+                self::resolveAuthoredBeat($world, $project, $tick, $date);
+            } else {
+                self::resolveSandstorm($world, $project, $tick, $date);
+            }
+        }
+    }
+
+    private static function resolveSandstorm(World $world, Project $project, int $tick, TharadiDate $date): void
+    {
         $readiness = $project->readiness();
         $village = $world->village;
         $isFirst = $village->lastReadiness === null;
@@ -156,7 +199,22 @@ final class ProjectEngine
                 $date->dayOfMonth, $date->monthName, $date->year, $village->name, (int) round($readiness * 100),
             ), 'sandstorm-prepared');
         }
+    }
 
-        $world->activeProject = null;
+    /**
+     * A director-spawned project realizing an authored beat: if the village mustered enough effort,
+     * the beat is fulfilled organically — through the people's own work, not a forced bridge. If it
+     * fell short, the milestone is left for the director's deadline backstop (force or lapse).
+     */
+    private static function resolveAuthoredBeat(World $world, Project $project, int $tick, TharadiDate $date): void
+    {
+        if ($project->readiness() < self::SUCCESS_THRESHOLD) {
+            return;
+        }
+        foreach ($world->milestones as $milestone) {
+            if ($milestone->name === $project->milestoneName && ! $milestone->achieved) {
+                StoryDirector::fulfillByProject($world, $milestone, $tick, $date);
+            }
+        }
     }
 }
