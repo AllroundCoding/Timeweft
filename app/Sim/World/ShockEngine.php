@@ -41,22 +41,23 @@ final class ShockEngine
 
     public static function applyPlague(World $world, int $tick, TharadiDate $date): void
     {
-        $struck = 0;
+        $struck = [];
         foreach ($world->livingAgents() as $agent) {
             $sickness = $agent->needs['sickness'] ?? null;
             if ($sickness !== null) {
                 $sickness->value = min(100.0, $sickness->value + self::PLAGUE_SICKNESS);
-                $struck++;
+                $struck[] = $agent->id;
             }
         }
-        if ($struck === 0) {
+        if ($struck === []) {
             return;
         }
 
-        $world->chronicle->record($tick, sprintf(
+        $event = $world->chronicle->record($tick, sprintf(
             '%d %s, Year %d — a plague sweeps through %s; the sick fill its homes.',
             $date->dayOfMonth, $date->monthName, $date->year, $world->village->name,
-        ));
+        ), 'shock-plague', $struck);
+        $world->village->lastPlagueEventId = $event->id;
     }
 
     public static function applyFamine(World $world, int $tick, TharadiDate $date): void
@@ -68,7 +69,7 @@ final class ShockEngine
         $world->chronicle->record($tick, sprintf(
             '%d %s, Year %d — a blight ruins much of the stores at %s.',
             $date->dayOfMonth, $date->monthName, $date->year, $world->village->name,
-        ));
+        ), 'shock-blight', [], [], ['blight']);
     }
 
     public static function applyRaid(World $world, int $tick, TharadiDate $date, Rng $rng): void
@@ -79,6 +80,7 @@ final class ShockEngine
             return;
         }
 
+        $fallen = [];
         for ($i = 0; $i < $casualties; $i++) {
             $index = $rng->int(0, count($pool) - 1);
             $victim = $pool[$index];
@@ -86,6 +88,7 @@ final class ShockEngine
 
             $victim->alive = false;
             $victim->deathTick = $tick;
+            $fallen[] = $victim->id;
             if ($victim->partnerId !== null) {
                 foreach ($world->village->agents as $other) {
                     if ($other->id === $victim->partnerId) {
@@ -99,6 +102,6 @@ final class ShockEngine
         $world->chronicle->record($tick, sprintf(
             '%d %s, Year %d — raiders strike %s; %d souls are lost.',
             $date->dayOfMonth, $date->monthName, $date->year, $world->village->name, $casualties,
-        ));
+        ), 'shock-raid', $fallen, [], ['raid']);
     }
 }

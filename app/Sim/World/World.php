@@ -127,7 +127,7 @@ final class World
         $this->chronicle->record($birthTick, sprintf(
             '%d %s, Year %d — %s is born to %s and %s.',
             $date->dayOfMonth, $date->monthName, $date->year, $child->name, $mother->name, $father->name,
-        ));
+        ), 'birth', [$child->id, $mother->id, $father->id], array_values(array_filter([$mother->pairingEventId])));
 
         return $child;
     }
@@ -151,6 +151,6 @@ final class World
         $this->chronicle->record($this->tick, sprintf(
             '%d %s, Year %d — the village first observes the %s.',
             $date->dayOfMonth, $date->monthName, $date->year, $festival,
-        ));
+        ), 'festival');
     }
 }

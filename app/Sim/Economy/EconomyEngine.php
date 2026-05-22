@@ -354,16 +354,18 @@ final class EconomyEngine
 
         if ($village->starvationFactor > 1.0 && ! $village->inFamine) {
             $village->inFamine = true;
-            $world->chronicle->record($tick, sprintf(
+            $event = $world->chronicle->record($tick, sprintf(
                 '%d %s, Year %d — famine grips %s as the granary runs dry.',
                 $date->dayOfMonth, $date->monthName, $date->year, $village->name,
-            ));
+            ), 'famine-onset', [], [], ['scarcity']);
+            $village->famineEventId = $event->id;
         } elseif ($village->starvationFactor <= 1.0 && $village->inFamine) {
             $village->inFamine = false;
             $world->chronicle->record($tick, sprintf(
                 '%d %s, Year %d — the famine at %s breaks; the granary fills again.',
                 $date->dayOfMonth, $date->monthName, $date->year, $village->name,
-            ));
+            ), 'famine-break', [], $village->famineEventId !== null ? [$village->famineEventId] : []);
+            $village->famineEventId = null;
         }
     }
 }

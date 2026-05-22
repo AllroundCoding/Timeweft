@@ -15,6 +15,7 @@ use App\Sim\World\World;
 final class StoryDirector
 {
     private const BASE_CHANCE_DAY = 0.0006;
+
     private const RAMP = 0.012;
 
     public static function evaluate(World $world, Milestone $milestone, int $tick, TharadiDate $date, Rng $rng): void
@@ -57,6 +58,6 @@ final class StoryDirector
                 $date->dayOfMonth, $date->monthName, $date->year, $milestone->name, $population,
             );
 
-        $world->chronicle->record($tick, $text);
+        $world->chronicle->record($tick, $text, 'milestone', [], [], [$forced ? 'deadline' : 'organic']);
     }
 }

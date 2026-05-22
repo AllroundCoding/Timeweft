@@ -51,6 +51,19 @@ final class Village
     /** Whether the settlement is currently gripped by famine (drives chronicle onset/recovery). */
     public bool $inFamine = false;
 
+    /** Chronicle id of the active famine-onset event, cited as the cause of famine deaths (null when fed). */
+    public ?int $famineEventId = null;
+
+    /** Chronicle id of the most recent plague event, cited as the cause of illness deaths. */
+    public ?int $lastPlagueEventId = null;
+
+    /** Chronicle id of the standing institution's founding event, cited when it collapses. */
+    public ?int $institutionEventId = null;
+
+    /** Chronicle ids of the underprepared-Sandstorm events that accumulate toward founding an institution. */
+    /** @var list<int> */
+    public array $underpreparedEventIds = [];
+
     /** Diet quality 0..1 — the variety/nutrition of foods in season; a varied diet keeps people well. */
     public float $dietQuality = 1.0;
 

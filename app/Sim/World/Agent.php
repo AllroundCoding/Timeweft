@@ -13,6 +13,9 @@ final class Agent
 
     public ?int $partnerId = null;
 
+    /** Id of the chronicle pairing event that formed the current bond — the cause cited by any birth. */
+    public ?int $pairingEventId = null;
+
     /** @var array<int> [motherId, fatherId] */
     public array $parentIds = [];
 
