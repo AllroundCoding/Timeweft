@@ -24,6 +24,11 @@ final class StoryDirector
             return;
         }
 
+        // Dependency ordering: an authored beat waits — even past its deadline — for the beats it depends on.
+        if (! self::prerequisitesMet($world, $milestone)) {
+            return;
+        }
+
         $population = count($world->livingAgents());
         $urgency = min(1.0, $date->year / $milestone->deadlineYear);
 
@@ -58,6 +63,39 @@ final class StoryDirector
                 $date->dayOfMonth, $date->monthName, $date->year, $milestone->name, $population,
             );
 
-        $world->chronicle->record($tick, $text, 'milestone', [], [], [$forced ? 'deadline' : 'organic']);
+        // The arc as a causal chain: this beat cites the beats it depended on (design doc 09).
+        $causes = [];
+        foreach ($milestone->prerequisites as $name) {
+            $prereqId = self::milestoneByName($world, $name)?->achievedEventId;
+            if ($prereqId !== null) {
+                $causes[] = $prereqId;
+            }
+        }
+
+        $event = $world->chronicle->record($tick, $text, 'milestone', [], $causes, [$forced ? 'deadline' : 'organic']);
+        $milestone->achievedEventId = $event->id;
+    }
+
+    private static function prerequisitesMet(World $world, Milestone $milestone): bool
+    {
+        foreach ($milestone->prerequisites as $name) {
+            $prereq = self::milestoneByName($world, $name);
+            if ($prereq === null || ! $prereq->achieved) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static function milestoneByName(World $world, string $name): ?Milestone
+    {
+        foreach ($world->milestones as $candidate) {
+            if ($candidate->name === $name) {
+                return $candidate;
+            }
+        }
+
+        return null;
     }
 }
