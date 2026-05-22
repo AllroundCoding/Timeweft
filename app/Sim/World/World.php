@@ -84,6 +84,7 @@ final class World
             name: 'trading post on the caravan road',
             deadlineYear: 12,
             prereqPopulation: 12,
+            hard: true, // a pinned beat of Vaeris canon — force-bridged if emergence won't reach it
         );
 
         return $world;
