@@ -11,30 +11,35 @@ final class RegionProfile
      * @param  array<string,float>  $traitModifiers  additive nudges to numeric traits at birth
      * @param  array<string,list<string>>  $categoricalOptions  trait => allowed values for that region
      * @param  array<string,float>  $yieldBySeason  food-yield multiplier per season (1.0 = baseline)
+     * @param  array<string,float>  $basket  food good => per-adult daily yield (the diet this land grows)
+     * @param  list<string>  $resources  the region's notable trade goods (its specialties)
      */
     public function __construct(
         public readonly string $name,
         public readonly array $traitModifiers,
         public readonly array $categoricalOptions,
         public readonly array $yieldBySeason = [],
+        public readonly array $basket = [],
+        public readonly array $resources = [],
     ) {}
 
     public static function tharados(): self
     {
-        return new self(
-            name: 'Tharados',
-            traitModifiers: [
-                'constitution' => 8.0,  // resilient desert dwellers
-                'senses' => 4.0,        // attuned to the open desert
-            ],
-            categoricalOptions: [
-                'furColor' => ['sandy', 'golden', 'pale tan', 'dust-grey', 'ochre'],
-            ],
-            yieldBySeason: [
-                'Oasis' => 1.5,      // the brief, fertile season
-                'Sandstorm' => 0.5,  // the long, lean months
-            ],
-        );
+        return RegionArchetype::desert()->toRegionProfile();
+    }
+
+    /** The basket of foodstuffs this region grows: good name => per-adult daily yield. */
+    /** @return array<string,float> */
+    public function basket(): array
+    {
+        return $this->basket;
+    }
+
+    /** The region's notable trade goods — what it produces in surplus and can offer elsewhere. */
+    /** @return list<string> */
+    public function resources(): array
+    {
+        return $this->resources;
     }
 
     /** Food-yield multiplier for a season (1.0 if the region defines none). */
