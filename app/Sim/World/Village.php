@@ -7,6 +7,7 @@ use App\Sim\Culture\Faith;
 use App\Sim\Economy\EconomyEngine;
 use App\Sim\Economy\Stockpile;
 use App\Sim\Institutions\Institution;
+use App\Sim\Projects\Project;
 
 /** A settlement — the smallest place-scale container of agents (Phase 0). */
 final class Village
@@ -90,6 +91,10 @@ final class Village
     /** This year's harvest multiplier on production — 1.0 average, &gt;1 a bumper year, &lt;1 a lean one. */
     public float $harvestQuality = 1.0;
 
+    /** Communal endeavors this settlement currently has underway (Sandstorm prep, director-spawned beats). */
+    /** @var list<Project> */
+    public array $projects = [];
+
     /**
      * @param  list<Agent>  $agents
      * @param  float  $landYield  Food/day the oasis can sustainably produce; sets the
@@ -132,5 +137,22 @@ final class Village
         $decay = 1.0 / (1.0 + $scale * $scale);
 
         return $this->cohesionFloor + ($this->baselineCohesion - $this->cohesionFloor) * $decay;
+    }
+
+    /** @return list<Agent> the settlement's living members */
+    public function livingAgents(): array
+    {
+        return array_values(array_filter($this->agents, static fn (Agent $a): bool => $a->alive));
+    }
+
+    public function hasOpenProject(): bool
+    {
+        foreach ($this->projects as $project) {
+            if (! $project->resolved) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

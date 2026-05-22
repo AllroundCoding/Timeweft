@@ -121,7 +121,7 @@ final class StoryDirector
 
     private static function pursuedByProject(World $world, Milestone $milestone): bool
     {
-        foreach ($world->projects as $project) {
+        foreach ($world->village->projects as $project) {
             if (! $project->resolved && $project->milestoneName === $milestone->name) {
                 return true;
             }
