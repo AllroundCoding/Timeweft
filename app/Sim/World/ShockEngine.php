@@ -32,15 +32,29 @@ final class ShockEngine
             return;
         }
 
-        match ($rng->int(1, 3)) {
-            1 => self::applyFamine($world, $tick, $date),
-            2 => self::applyRaid($world, $tick, $date, $rng),
-            default => self::applyPlague($world, $tick, $date),
+        // Draw the shock unconditionally; an edit may suppress its *effect*, but never its RNG draws,
+        // so a counterfactual replay stays aligned with the true history except where the edit bites.
+        $type = $rng->int(1, 3);
+        $name = match ($type) {
+            1 => 'blight',
+            2 => 'raid',
+            default => 'plague',
+        };
+        $suppress = $world->intervention?->suppressesShock($date->year, $name) ?? false;
+
+        match ($type) {
+            1 => self::applyFamine($world, $tick, $date, $suppress),
+            2 => self::applyRaid($world, $tick, $date, $rng, $suppress),
+            default => self::applyPlague($world, $tick, $date, $suppress),
         };
     }
 
-    public static function applyPlague(World $world, int $tick, TharadiDate $date): void
+    public static function applyPlague(World $world, int $tick, TharadiDate $date, bool $suppress = false): void
     {
+        if ($suppress) {
+            return;
+        }
+
         $struck = [];
         foreach ($world->livingAgents() as $agent) {
             $sickness = $agent->needs['sickness'] ?? null;
@@ -60,8 +74,11 @@ final class ShockEngine
         $world->village->lastPlagueEventId = $event->id;
     }
 
-    public static function applyFamine(World $world, int $tick, TharadiDate $date): void
+    public static function applyFamine(World $world, int $tick, TharadiDate $date, bool $suppress = false): void
     {
+        if ($suppress) {
+            return;
+        }
         $granary = $world->village->stockpile;
         $granary->withdraw('food', $granary->amount('food') * self::FAMINE_GRANARY_LOSS);
         $granary->withdraw('water', $granary->amount('water') * self::FAMINE_GRANARY_LOSS);
@@ -72,7 +89,7 @@ final class ShockEngine
         ), 'shock-blight', [], [], ['blight']);
     }
 
-    public static function applyRaid(World $world, int $tick, TharadiDate $date, Rng $rng): void
+    public static function applyRaid(World $world, int $tick, TharadiDate $date, Rng $rng, bool $suppress = false): void
     {
         $pool = $world->livingAgents();
         $casualties = min(count($pool), (int) ceil(count($pool) * self::RAID_CASUALTY_RATE));
@@ -82,9 +99,13 @@ final class ShockEngine
 
         $fallen = [];
         for ($i = 0; $i < $casualties; $i++) {
+            // Draw the victim even when suppressed (keeps the seeded stream aligned); only the death is undone.
             $index = $rng->int(0, count($pool) - 1);
             $victim = $pool[$index];
             array_splice($pool, $index, 1);
+            if ($suppress) {
+                continue;
+            }
 
             $victim->alive = false;
             $victim->deathTick = $tick;
@@ -97,6 +118,10 @@ final class ShockEngine
                 }
                 $victim->partnerId = null;
             }
+        }
+
+        if ($suppress) {
+            return;
         }
 
         $world->chronicle->record($tick, sprintf(

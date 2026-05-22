@@ -4,6 +4,7 @@ namespace App\Sim\World;
 
 use App\Sim\Behavior\BehaviorEngine;
 use App\Sim\Behavior\FestivalCalendar;
+use App\Sim\Causality\Intervention;
 use App\Sim\Chronicle\Chronicle;
 use App\Sim\Culture\Culture;
 use App\Sim\Culture\CultureEngine;
@@ -43,6 +44,9 @@ final class World
     public array $milestones = [];
 
     public ?Project $activeProject = null;
+
+    /** An optional retroactive edit replayed into this run (suppresses a recorded shock); null = the true history. */
+    public ?Intervention $intervention = null;
 
     private TharadiNameGenerator $names;
 
