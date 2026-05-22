@@ -2,14 +2,16 @@
 
 **A worldbuilder's timeline you can _live inside_.**
 
-Timeweft is a gamified life- and world-simulator: seed or author a world, simulate it forward,
-scrub to any point in time, zoom in to watch life happen, and (eventually) edit history and watch
-the consequences ripple. Characters — and households, villages, kingdoms, religions — go about
-their lives; history emerges on its own; the author pins the key moments and the world fills in a
+Timeweft is a worldbuilder's engine: **generate** a world's history (forward from a seed, or
+_backward_ from an authored end-state), **edit** a past event and watch the consequences ripple,
+and zoom in to watch life happen. Characters — and households, villages, kingdoms, religions — go
+about their lives; history emerges on its own; the author pins the key moments and the world fills a
 plausible past and future around them.
 
-It is being rebuilt on **Laravel** as a headless, deterministic simulation engine. A timeline /
-2-D map renderer is a _view_ onto that engine, added later — the engine comes first.
+The generate–edit–explain core is built today, at the scale of a single settlement. It is a
+headless, deterministic engine on **Laravel**; scaling it to a world of many settlements you can
+_see_ and keep is what comes next. A timeline / 2-D map renderer is a _view_ onto the engine — the
+engine comes first.
 
 ---
 
@@ -26,13 +28,14 @@ nothing below is scripted; it all falls out of the rules:
 
 ```
 Chronicle:
- 1 Naralis, Year 1 — the village first observes the Renewal of Nara.
  1 Naralis, Year 1 — a blight ruins much of the stores at Sunwell Oasis.
  18 Jarethis, Year 1 — Keshun and Qiqer become partners.
+ 1 Naralis, Year 3 — a lean harvest at Sunwell Oasis; the granary fills slowly (yield 83%).
  5 Lunaris, Year 3 — Tosir is born to Lagogik and Kikas.
  28 Naralis, Year 4 — Tosir dies at age 0.
  1 Kalimos, Year 9 — the Sandstorm catches Sunwell Oasis underprepared (readiness 67%); the dust takes its toll.
- 12 Mirathis, Year 12 — Takhezu is born to Fajebel and Shamatan.
+ 1 Naralis, Year 11 — Sunwell Oasis masters new techniques; its craft and yield advance (technology 1.11).
+ 1 Naralis, Year 12 — with the deadline pressing, a caravan-master under Varis founds the trading post regardless.
  12 Mirathis, Year 12 — Fajebel dies in childbirth.
  1 Naralis, Year 14 — a plague sweeps through Sunwell Oasis; the sick fill its homes.
  9 Ra'anis, Year 18 — Keshun dies at age 58.
@@ -61,6 +64,18 @@ php artisan world:simulate --seed=lyrion                # a different world
 php artisan world:simulate --json                       # also dump chronicle + roster to storage/app/chronicle.json
 ```
 
+Or run generation **backwards** — author an end-state and let the engine justify it, decomposing the
+target into the pinned past it requires (and refusing a present that can't be reached in time):
+
+```bash
+php artisan world:simulate --end-state=town@40          # "justify a town by Year 40"
+# Generation mode: end-state-backward — justifying town@40
+#  8 Naralis, Year 1  — the village founds the settlement
+#  1 Naralis, Year 15 — … founds the trading post (the town it grows from)
+#  1 Naralis, Year 40 — … founds the town
+php artisan world:simulate --end-state=empire@50        # refused: an empire by Year 50 can't be reached in time
+```
+
 ---
 
 ## What's happening under the hood
@@ -79,7 +94,9 @@ Everything emerges from a small set of interacting systems — no scripted event
 - **Faith** — a **Moral-Foundations** weighting (loyalty, authority, sanctity…) derived from the culture, which binds thrift, generosity, and cooperation — and binds them more for the devout than the nominal believer.
 - **Mutual aid** — a generous, collectivist settlement shares a famine's shortfall and loses fewer of its vulnerable; a stingy one hoards (Sahlins' reciprocity).
 - **Personality** — a per-agent **Big Five (OCEAN)** layer beneath culture, so two members of one culture still differ.
-- **Story direction** — an author can pin **milestones**; the world steers toward them organically, or forces them as a deadline arrives.
+- **Story direction** — an author pins **milestones** in dependency order; the world steers toward them organically, and **soft beats yield to emergence** (they lapse if the world goes another way) while **hard pins must hold** (force-bridged at their deadline, with the conflict surfaced). Top-down beats and bottom-up communal projects run on **one mechanism** — the director can spawn a project the village then works toward.
+- **Editing the past** — every event records *why* it happened (its causes), so the chronicle is a causal graph. Edit a past event — undo a disaster — and the engine invalidates only its **downstream cone** and recomputes it deterministically: a clean history-diff, not butterfly chaos. With an append-only edit log and linear + selective **undo/redo**.
+- **Generating a world, both directions** — grow **forward** from a seed ("surprise me"), or run the graph **backward** from an authored end-state ("an empire by Year 500") into the pinned past that justifies it — with a **lore checker** that flags pins which can't all be true before they yield a broken world.
 
 ### The small set of primitives
 
@@ -96,9 +113,27 @@ The scope is enormous but the machinery stays small. Every system reduces to a h
 
 ## Where it's going
 
-Built so far: the headless engine (**M0**), its foundations (**M1**), the full **pressure → relief → rise & fall** loop (**M2**), the **cultural & social model** with faith (**M8**), a **diet & health** layer (real foodstuffs → meals → well-being), and a pass deepening the simulation's realism — endogenous technology, land degradation, harvest variance, and lifelike mortality — so the single settlement is now a richly interlocked living world. Ahead lie persistence (**M3**), the headline **edit-history-and-ripple** trick (**M4**), backward **generation** from an authored end-state (**M5**), **scale** to many settlements with trade and migration (**M6**), and the visual **presentation** layer (**M7**).
+The north star is a **worldbuilder's tool**: generate, edit, and explore a coherent civilization's
+history. That core is built — at the scale of one settlement.
 
-The vision reaches further still — itemized goods & cuisine, technology trees and conflict between kingdoms, and a geology-up world generator — sketched in the design docs.
+**Built so far:** the headless engine and its foundations (**M0/M1**); the full **pressure → relief →
+rise & fall** loop (**M2**); the **cultural & social model** with faith (**M8**); a **diet & health**
+layer plus a realism pass (endogenous technology, land degradation, harvest variance, lifelike
+mortality); the **edit-history & ripple** machinery — provenance graph, retroactive ripple, edit log,
+undo/redo (**M3**); and **two-direction generation** — forward and end-state-backward, with author
+pins and a lore checker (**M4**). The single settlement is now a richly interlocked, editable,
+generatable living world.
+
+**Next — make the core a world you can use:**
+
+- **Scale (M5)** — one settlement → many, with trade, migration, and regional specialization. The village becomes a *world*.
+- **Persistence (M6)** — a database so worlds survive between runs (and can be scrubbed and resumed).
+- **Presentation (M7)** — *see* the timeline: a gantt → 2-D map renderer, and an optional LLM flavor layer.
+
+**Act II — someday, deliberately downstream:** "world sim to the max" — a real-time, **playable**
+layer where you walk the world as an agent (and maybe with others), an **ecology** of animal and herd
+agents, a **celestial** almanac of moons and tides, and itemized goods, tech trees, and conflict
+between kingdoms. Sketched in the design docs; it builds *on* the worldbuilding core, not instead of it.
 
 ---
 
@@ -114,7 +149,7 @@ and world-generation ideas. A public wiki explaining every mechanic will follow.
 
 ## Tech & development
 
-- **PHP 8 / Laravel** — the engine is plain PHP under [`app/Sim/`](app/Sim) and runs headless; no database yet (persistence is M3).
+- **PHP 8 / Laravel** — the engine is plain PHP under [`app/Sim/`](app/Sim) and runs headless; no database yet (persistence is M6).
 - **Deterministic & tested** — a seeded RNG plus a unit + golden-master test suite lock in reproducibility.
 
 ```bash
