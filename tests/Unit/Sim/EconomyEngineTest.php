@@ -126,11 +126,14 @@ class EconomyEngineTest extends TestCase
         $world->village->culture = new Culture('Plain', collectivism: 50, hierarchy: 50, tradition: 50, longTermOrientation: 50, restraint: 50, achievement: 50, piety: 50);
         EconomyEngine::runDay($world, self::OASIS_TICK, self::date(self::OASIS_TICK));
 
-        // wage 1.0/day: saver keeps 0.8, spender keeps 0.2.
-        $this->assertEqualsWithDelta(0.8, $saver->stockpile->amount('money'), 1e-9);
-        $this->assertEqualsWithDelta(0.2, $spender->stockpile->amount('money'), 1e-9);
-        $this->assertGreaterThan($spender->stockpile->amount('money'), $saver->stockpile->amount('money'));
-        // The spent remainder (0.2 + 0.8) circulates into the communal treasury.
+        // wage 1.0/day: the saver keeps 0.8, the spender 0.2 — then both pay the same cost of living
+        // (TWT-135), so each keeps a little less but the thrift gap between them is unchanged.
+        $saverMoney = $saver->stockpile->amount('money');
+        $spenderMoney = $spender->stockpile->amount('money');
+        $this->assertGreaterThan($spenderMoney, $saverMoney, 'the thrifty still save more');
+        $this->assertLessThan(0.8, $saverMoney, 'the cost of living eats into even the saver');
+        $this->assertEqualsWithDelta(0.6, $saverMoney - $spenderMoney, 1e-9, 'the thrift gap (0.8 − 0.2) survives a shared cost of living');
+        // The treasury is untouched by personal spending — communal circulation is unchanged.
         $this->assertEqualsWithDelta(1.0, $world->village->stockpile->amount('money'), 1e-9);
     }
 

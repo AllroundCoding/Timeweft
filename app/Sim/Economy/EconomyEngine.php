@@ -3,6 +3,7 @@
 namespace App\Sim\Economy;
 
 use App\Sim\Time\TharadiDate;
+use App\Sim\World\Agent;
 use App\Sim\World\RegionProfile;
 use App\Sim\World\Village;
 use App\Sim\World\World;
@@ -30,6 +31,9 @@ final class EconomyEngine
 
     /** Money an adult earns per day from their labor. */
     private const WAGE_PER_ADULT = 1.0;
+
+    /** A day's cost of keep at the reference food holding, as a share of the daily wage (TWT-135). */
+    private const COST_OF_LIVING = 0.1;
 
     /** Below one day of food per head the granary is acutely empty — famine. */
     private const SECURE_FOOD_DAYS = 1.0;
@@ -423,11 +427,40 @@ final class EconomyEngine
             }
         }
 
+        // Cost of living (TWT-135): each adult spends on its keep at the settlement's local food price,
+        // drawn from personal savings — so scarcity eats into wealth and plenty lets the thrifty build it.
+        // Closes pricing's spender/saver half (TWT-47/23). The treasury and the free ration are untouched,
+        // so the canonical narrative is unmoved; only personal purses feel the price.
+        self::chargeCostOfLiving($living, $tick, $granary->amount('food'), $population);
+
         $village->mutualAid = self::mutualAid($world, $tick);
         self::updateFoodSecurity($world, $tick, $date, $granary->amount('food') / $population);
     }
 
     /** A near-empty granary raises the starvation mortality factor and chronicles the famine. */
+    /** The day's cost of keep for one adult, dearer where food is scarce — its local price (TWT-47/135). */
+    public static function costOfLiving(float $foodStock, int $population): float
+    {
+        return self::COST_OF_LIVING * Pricing::localPrice(1.0, $foodStock, $population);
+    }
+
+    /**
+     * Charge each adult its keep, drawn from personal savings and never below empty — so a dear, scarce
+     * settlement eats into personal wealth while a cheap, abundant one leaves more for thrift to keep.
+     *
+     * @param  list<Agent>  $living
+     */
+    private static function chargeCostOfLiving(array $living, int $tick, float $foodStock, int $population): void
+    {
+        $cost = self::costOfLiving($foodStock, $population);
+        foreach ($living as $agent) {
+            if ($agent->ageInYears($tick) < self::ADULT_AGE) {
+                continue;
+            }
+            $agent->stockpile->withdraw('money', min($agent->stockpile->amount('money'), $cost));
+        }
+    }
+
     private static function updateFoodSecurity(World $world, int $tick, TharadiDate $date, float $foodPerCapita): void
     {
         $village = $world->village;
