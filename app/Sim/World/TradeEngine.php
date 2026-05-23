@@ -32,6 +32,18 @@ final class TradeEngine
     /** A settlement exports only what it holds beyond this comfortable buffer per head. */
     private const EXPORT_KEEP_DAYS = 15.0;
 
+    /** Map units of distance over which transit loss climbs to its cap — distance taxes a shipment. */
+    private const LOSS_SCALE = 500.0;
+
+    /** The most a long haul can lose in transit (a fresh, unimproved route). */
+    private const MAX_TRANSIT_LOSS = 0.6;
+
+    /** How fast a route matures per active year (0..1): roads, known paths, trust — caps at 1. */
+    private const MATURITY_PER_YEAR = 0.15;
+
+    /** How much of the distance tax a fully-mature route relieves — time makes distance cheaper. */
+    private const MATURITY_LOSS_RELIEF = 0.6;
+
     public static function runDay(World $world, int $tick, TharadiDate $date): void
     {
         if (count($world->villages) < 2) {
@@ -98,11 +110,19 @@ final class TradeEngine
         if ($shipped <= 0.0) {
             return;
         }
-        $to->stockpile->add($staple, $shipped);
 
-        // Payment follows the goods at the cleared price, capped at what the buyer can pay (the unpaid
-        // remainder is implicit reciprocity for now).
-        $payment = min($shipped * $unitPrice, $to->stockpile->amount('money'));
+        // Distance taxes the haul: a fraction is lost in transit, scaling with how far the goods travel
+        // and shrinking as the route matures (TWT-127) — so an established route effectively reaches
+        // farther over time. The exporter parts with the full amount; only the delivered share arrives.
+        $maturity = self::routeMaturity($world, $from, $to);
+        $loss = min(self::MAX_TRANSIT_LOSS, $from->distanceTo($to) / self::LOSS_SCALE) * (1.0 - $maturity * self::MATURITY_LOSS_RELIEF);
+        $delivered = $shipped * (1.0 - $loss);
+        $to->stockpile->add($staple, $delivered);
+        self::mature($world, $from, $to, $date->year);
+
+        // Payment follows the *delivered* goods at the cleared price, capped at what the buyer can pay
+        // (the unpaid remainder is implicit reciprocity for now).
+        $payment = min($delivered * $unitPrice, $to->stockpile->amount('money'));
         if ($payment > 0.0) {
             $to->stockpile->withdraw('money', $payment);
             $from->stockpile->add('money', $payment);
@@ -115,5 +135,31 @@ final class TradeEngine
                 $date->dayOfMonth, $date->monthName, $date->year, $from->name, $staple, $to->name,
             ), 'trade', [], [], ['trade']);
         }
+    }
+
+    /** A route's maturity 0..1, from the number of distinct years it has carried goods. */
+    private static function routeMaturity(World $world, Village $a, Village $b): float
+    {
+        $age = $world->routes[self::routeKey($a, $b)]['ageYears'] ?? 0;
+
+        return min(1.0, $age * self::MATURITY_PER_YEAR);
+    }
+
+    /** Age a route one step the first time it ships in a given year — roads worn, paths learned, trust built. */
+    private static function mature(World $world, Village $a, Village $b, int $year): void
+    {
+        $key = self::routeKey($a, $b);
+        $route = $world->routes[$key] ?? ['ageYears' => 0, 'lastYear' => PHP_INT_MIN];
+        if ($route['lastYear'] !== $year) {
+            $route['ageYears']++;
+            $route['lastYear'] = $year;
+        }
+        $world->routes[$key] = $route;
+    }
+
+    /** A direction-independent key for the route between two settlements. */
+    private static function routeKey(Village $a, Village $b): string
+    {
+        return $a->name < $b->name ? "{$a->name}↔{$b->name}" : "{$b->name}↔{$a->name}";
     }
 }

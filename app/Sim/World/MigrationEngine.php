@@ -93,6 +93,9 @@ final class MigrationEngine
         return max(0.0, $headroom);
     }
 
+    /** Distance over which a destination's pull falls to half — nearer settlements draw migrants more (TWT-127). */
+    private const DISTANCE_HALF_PULL = 150.0;
+
     private static function bestDestination(World $world, Village $from): ?Village
     {
         $best = null;
@@ -101,7 +104,8 @@ final class MigrationEngine
             if ($village === $from) {
                 continue;
             }
-            $score = self::desirability($village);
+            // Room draws migrants, but distance discounts the pull — a close haven beats a far frontier.
+            $score = self::desirability($village) * (self::DISTANCE_HALF_PULL / (self::DISTANCE_HALF_PULL + $from->distanceTo($village)));
             if ($score > $bestScore) {
                 $bestScore = $score;
                 $best = $village;
