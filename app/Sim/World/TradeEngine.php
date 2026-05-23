@@ -163,6 +163,6 @@ final class TradeEngine
     /** A direction-independent key for the route between two settlements. */
     public static function routeKey(Village $a, Village $b): string
     {
-        return $a->name < $b->name ? "{$a->name}↔{$b->name}" : "{$b->name}↔{$a->name}";
+        return $a->pairKey($b);
     }
 }

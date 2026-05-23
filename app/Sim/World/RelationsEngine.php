@@ -11,12 +11,11 @@ use App\Sim\Time\TharadiDate;
  * under shared scarcity drives them apart (close, hungry neighbours compete). Relations are
  * path-dependent: an enmity, once fallen into, takes years to mend.
  *
- * The standing gates the rest: enemies don't trade (TradeEngine reads {@see hostile}), and migrants
- * won't flee *into* a hostile settlement (MigrationEngine does too). World-level, deterministic, and
- * RNG-free — a no-op below two settlements, so the single-settlement run is byte-identical.
- *
- * v1 is the relations model + the trade/migration gate (the smallest slice that closes the "ship
- * grain to your sworn enemy" hole). Raids and open war between hostiles are the next slice.
+ * The standing gates cooperation across the map: sworn enemies neither trade (TradeEngine reads
+ * {@see hostile}) nor send caravans (CaravanEngine), and migrants won't flee *into* a hostile settlement
+ * (MigrationEngine); enmity instead breaks into raids and open war (WarEngine), while {@see cohesion} —
+ * standing scaled by kinship — sets how readily neighbours aid one another (DistressEngine). World-level,
+ * deterministic, and RNG-free — a no-op below two settlements, so the single-settlement run is byte-identical.
  */
 final class RelationsEngine
 {
@@ -55,7 +54,7 @@ final class RelationsEngine
     /** The standing between two settlements (0 hostile .. 1 allied); neutral until they have a history. */
     public static function standing(World $world, Village $a, Village $b): float
     {
-        return $world->relations[self::key($a, $b)] ?? self::NEUTRAL;
+        return $world->relations[$a->pairKey($b)] ?? self::NEUTRAL;
     }
 
     /** Are these two settlements hostile enough to refuse each other — embargo trade, bar refuge? */
@@ -81,7 +80,7 @@ final class RelationsEngine
     /** Drift one pair's standing toward what their conditions warrant, and chronicle a crossing into enmity or alliance. */
     private static function settle(World $world, Village $a, Village $b, int $tick, TharadiDate $date): void
     {
-        $key = self::key($a, $b);
+        $key = $a->pairKey($b);
         $before = $world->relations[$key] ?? self::NEUTRAL;
         $target = self::warrantedStanding($a, $b);
         $after = $before + ($target - $before) * self::DRIFT_RATE;
@@ -132,11 +131,5 @@ final class RelationsEngine
         $maxDistance = sqrt(count($va)) * 100.0; // each dim spans 0..100
 
         return $maxDistance > 0.0 ? min(1.0, sqrt($sumSquares) / $maxDistance) : 0.0;
-    }
-
-    /** A direction-independent key for the pair. */
-    private static function key(Village $a, Village $b): string
-    {
-        return $a->name < $b->name ? "{$a->name}↔{$b->name}" : "{$b->name}↔{$a->name}";
     }
 }

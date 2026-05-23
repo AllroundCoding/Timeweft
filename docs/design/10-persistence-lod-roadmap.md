@@ -33,18 +33,27 @@ persistent **group-scale agents** born from cooperation
 
 ## Build status  🟢
 
-Branch `rewrite/laravel` (all seeded & reproducible, headless `php artisan world:simulate`):
+All seeded & reproducible, headless `php artisan world:simulate`; the canonical `--seed=vaeris` run
+stays byte-identical across additive features (a deliberate invariant — see
+[`conventions.md`](../conventions.md)).
 
 - **Phase-0 spike:** calendar clock, agents/traits/needs, per-tick behavior, emergence
   (pairing/birth/inheritance/death), story-director milestone, `--json` chronicle artifact.
-- **+ collaborative projects v1** (communal Sandstorm prep).
-- **+ carrying capacity** (logistic growth, population trajectory sparkline).
+- **+ collaborative projects v1** (communal Sandstorm prep) and **carrying capacity** (logistic growth).
+- **+ institutions** — rise & fall from the cohesion deficit (collapse from ossification *and* insolvency).
+- **+ economy (M5):** regional specialization, inter-settlement trade & scarcity pricing, tech-scaled
+  storage, cost of living, and the agentic layer — a settlement labor market, professions, and
+  agent-driven caravans (mutual aid as an action).
+- **+ cross-settlement society (M5):** map coordinates & distance-aware routes, relations/diplomacy,
+  raids & open war, distress aid, migration, and per-edge cohesion.
+- **+ disease** (contagion along trade/proximity), **worldgen substrate** (plates → elevation/minerals),
+  and **LOD (M5):** statistical cohorts with promote/demote and scale-polymorphic group agents.
 
 ## Roadmap
 
-1. **Institutions** from the cohesion deficit (+ upkeep / ossification curve → rise & fall).
-2. **Resources → dynamic K**, then inter-settlement **trade**.
-3. **Persistence + schema** (events with provenance).
-4. **Retroactive ripple / undo** (Lyrion's Great Flood as the test).
-5. **LOD / cohorts** → civilization scale (tribes → kingdoms).
-6. **LLM flavor** layer; **gantt + 2D renderer**; **adaptive ticks + speed dial**.
+1. ~~**Institutions** from the cohesion deficit (upkeep / ossification → rise & fall).~~ ✅
+2. ~~**Resources → dynamic K**, then inter-settlement **trade**.~~ ✅
+3. **Persistence + schema** (events with provenance) — *next (M6)*.
+4. ~~**Retroactive ripple / undo** (Lyrion's Great Flood as the test).~~ ✅
+5. ~~**LOD / cohorts** → civilization scale.~~ ✅ *(cohorts + promote/demote shipped; region domain-decomposition pending)*
+6. **LLM flavor** layer; **gantt + 2D renderer**; **adaptive ticks + speed dial** — *later (M7)*.

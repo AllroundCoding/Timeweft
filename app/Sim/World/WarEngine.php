@@ -55,7 +55,7 @@ final class WarEngine
     /** Resolve a year of conflict between two hostile settlements: open war if deep enough, else a raid. */
     private static function clash(World $world, Village $a, Village $b, int $tick, TharadiDate $date): void
     {
-        $rng = $world->rng->stream('war', self::key($a, $b), $date->year);
+        $rng = $world->rng->stream('war', $a->pairKey($b), $date->year);
 
         if (RelationsEngine::standing($world, $a, $b) < self::WAR_BELOW) {
             self::war($world, $a, $b, $rng, $tick, $date);
@@ -128,11 +128,5 @@ final class WarEngine
             }
         }
         $fallen->partnerId = null;
-    }
-
-    /** A direction-independent key for the pair (matches the relations ledger). */
-    private static function key(Village $a, Village $b): string
-    {
-        return $a->name < $b->name ? "{$a->name}↔{$b->name}" : "{$b->name}↔{$a->name}";
     }
 }
