@@ -60,6 +60,12 @@ final class Village
     /** Whether the settlement is currently gripped by famine (drives chronicle onset/recovery). */
     public bool $inFamine = false;
 
+    /** Consecutive years gripped by famine — sustained distress drives a settlement to send for help (TWT-184). */
+    public int $famineYears = 0;
+
+    /** Whether the settlement has emptied (died out or fled) and been mourned in the chronicle — set once. */
+    public bool $collapsed = false;
+
     /** Chronicle id of the active famine-onset event, cited as the cause of famine deaths (null when fed). */
     public ?int $famineEventId = null;
 
