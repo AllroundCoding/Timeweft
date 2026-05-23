@@ -114,6 +114,23 @@ final class Culture
         );
     }
 
+    /** A copy with every dimension clamped to 0..100 — the world guider's bounds enforcement (TWT-90). */
+    public function clamped(): self
+    {
+        $clamp = static fn (float $v): float => max(0.0, min(100.0, $v));
+
+        return new self(
+            name: $this->name,
+            collectivism: $clamp($this->collectivism),
+            hierarchy: $clamp($this->hierarchy),
+            tradition: $clamp($this->tradition),
+            longTermOrientation: $clamp($this->longTermOrientation),
+            restraint: $clamp($this->restraint),
+            achievement: $clamp($this->achievement),
+            piety: $clamp($this->piety),
+        );
+    }
+
     /** Organic cooperation baseline (0..1) that the culture's collectivism sets. */
     public function baselineCohesion(): float
     {

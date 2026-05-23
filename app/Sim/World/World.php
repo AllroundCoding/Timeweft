@@ -52,6 +52,10 @@ final class World
     /** The narrative author steering the world (pluggable). Defaults to the rule-based, human-authored director; swap NullDirector for pure emergence (TWT-89). */
     public Director $director;
 
+    /** Invariant breaches the world guider has flagged or clamped this run (TWT-90); empty on a healthy run. */
+    /** @var list<GuardViolation> */
+    public array $guardLog = [];
+
     /** An optional retroactive edit replayed into this run (suppresses a recorded shock); null = the true history. */
     public ?Intervention $intervention = null;
 
@@ -188,6 +192,12 @@ final class World
                 $this->director->direct($this, $this->tick, $date);
                 TradeEngine::runDay($this, $this->tick, $date);
                 MigrationEngine::runDay($this, $this->tick, $date);
+
+                // The world guider checks the day's invariants and clamps any out-of-bounds state — a
+                // no-op on a well-behaved run, a safety floor when an edit or new system pushes too far.
+                foreach (WorldGuider::inspect($this, $this->tick) as $violation) {
+                    $this->guardLog[] = $violation;
+                }
             }
         }
 
