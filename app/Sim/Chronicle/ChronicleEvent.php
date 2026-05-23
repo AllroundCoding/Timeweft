@@ -2,13 +2,17 @@
 
 namespace App\Sim\Chronicle;
 
+use App\Sim\Persistence\Skeleton;
+
 /**
  * One canonical event — a node in the timeline's causal graph (design doc 09).
  * Beyond its human-readable text it records *why* it happened: the prior events
  * it depended on (`causes`) and the typed conditions behind it (`factors`). This
  * provenance is what later lets an edit compute the downstream cone it invalidates.
+ *
+ * A {@see Skeleton} type (doc 01): the canonical, persisted timeline — never derived.
  */
-final class ChronicleEvent
+final class ChronicleEvent implements Skeleton
 {
     /**
      * @param  list<int>  $subjects  ids of the agents this event is about

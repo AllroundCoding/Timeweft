@@ -2,7 +2,14 @@
 
 namespace App\Sim\Behavior;
 
-enum Activity: string
+use App\Sim\Persistence\Texture;
+
+/**
+ * What an agent is doing in a tick — the canonical example of {@see Texture} (doc 01): a pure function
+ * of the agent's state and the date ({@see BehaviorEngine::derive}), recomputable on demand and never
+ * persisted as canon.
+ */
+enum Activity: string implements Texture
 {
     case Sleeping = 'sleeping';
     case Eating = 'eating';

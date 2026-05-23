@@ -57,6 +57,29 @@ and pass the result in.
   runs. Sort by an explicit key; never rely on insertion order of an associative array you mutated, or
   on hash order.
 
+## Skeleton vs texture
+
+The engine keeps two layers ([design doc 01](design/01-architecture.md)), and the distinction is
+explicit in code so it's unambiguous what must be stored vs what can be regenerated:
+
+- **Skeleton** — the sparse, canonical, *persisted* timeline: the
+  [`Chronicle`](../app/Sim/Chronicle/Chronicle.php) of events plus the path-dependent entities and
+  ledgers you can't recover from the seed alone (you only know who exists in year 800 by having run the
+  world there). Canonical types implement the [`Skeleton`](../app/Sim/Persistence/Skeleton.php) marker;
+  [`World::skeleton()`](../app/Sim/World/World.php) returns the whole world's persistable skeleton (seed,
+  tick, chronicle, settlements, ledgers) — the seam persistence ([TWT-28](https://linear.app/allroundcoding/issue/TWT-28)/30)
+  and checkpoints (TWT-32) work against.
+- **Texture** — the dense, *derived* detail: "what is X doing at noon on day 3", a pure function of
+  (skeleton/checkpoint, seed, query), recomputable on demand and never the source of truth. Derived
+  types implement the [`Texture`](../app/Sim/Persistence/Texture.php) marker (e.g.
+  [`Activity`](../app/Sim/Behavior/Activity.php)); they are not persisted — storage grows with
+  *attention*, not time × population.
+
+A mixed entity carries both: an agent's identity, traits, and life events are skeleton; its current
+activity and the exact value of its needs at an arbitrary tick are texture (re-derived by replaying from
+the nearest checkpoint). When adding state, decide which side it's on — persist the skeleton, mark and
+recompute the texture.
+
 ## The sweep
 
 The core's purity is checkable, not aspirational. As of this writing the sweep is **clean — zero

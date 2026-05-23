@@ -17,6 +17,7 @@ use App\Sim\Economy\JobMarket;
 use App\Sim\Economy\ProfessionEngine;
 use App\Sim\Economy\RecipeBook;
 use App\Sim\Institutions\InstitutionEngine;
+use App\Sim\Persistence\WorldSkeleton;
 use App\Sim\Projects\ProjectEngine;
 use App\Sim\Support\NameGenerator;
 use App\Sim\Support\Rng;
@@ -243,6 +244,25 @@ final class World
         ), 'birth', [$child->id, $mother->id, $father->id], array_values(array_filter([$mother->pairingEventId])));
 
         return $child;
+    }
+
+    /**
+     * The world's canonical, persistable state (design doc 01; TWT-31) — the skeleton the rest of the
+     * world's texture is derived from. A view, not a copy: persistence (TWT-28/30) maps it to storage and
+     * a checkpoint (TWT-32) anchors it to this tick; the per-tick texture (activities, need values) is
+     * left out, to be re-derived on demand (TWT-38).
+     */
+    public function skeleton(): WorldSkeleton
+    {
+        return new WorldSkeleton(
+            seed: $this->rng->seed(),
+            tick: $this->tick,
+            chronicle: $this->chronicle->all(),
+            villages: $this->villages,
+            milestones: $this->milestones,
+            relations: $this->relations,
+            routes: $this->routes,
+        );
     }
 
     /** @return list<Agent> the living members of the settlement currently in focus */
