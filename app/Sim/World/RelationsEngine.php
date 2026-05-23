@@ -64,6 +64,20 @@ final class RelationsEngine
         return self::standing($world, $a, $b) < self::HOSTILE_BELOW;
     }
 
+    /**
+     * The cooperation strength between two settlements (0..1; TWT-52) — the cross-settlement counterpart
+     * of a settlement's own size-decayed cohesion ({@see Village::cohesion}, TWT-10). Their standing sets
+     * the ceiling (rivals barely cooperate, allies readily) and cultural kinship scales it (kindred
+     * peoples cooperate more smoothly than strangers at the same standing). Allied kin cohere fully;
+     * rivals hardly at all.
+     */
+    public static function cohesion(World $world, Village $a, Village $b): float
+    {
+        $kinship = 1.0 - self::culturalDistance($a, $b);
+
+        return self::standing($world, $a, $b) * $kinship;
+    }
+
     /** Drift one pair's standing toward what their conditions warrant, and chronicle a crossing into enmity or alliance. */
     private static function settle(World $world, Village $a, Village $b, int $tick, TharadiDate $date): void
     {

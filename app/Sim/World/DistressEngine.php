@@ -22,8 +22,11 @@ final class DistressEngine
     /** Consecutive famine years that mark a settlement as in distress — past coping, sending for help. */
     private const DISTRESS_YEARS = 2;
 
-    /** Days of food per head a donor keeps back in a crisis — lower than its trade buffer; allies sacrifice more. */
-    private const AID_DONOR_KEEP_DAYS = 8.0;
+    /** Days of food per head an allied, kindred donor keeps back in a crisis — the most cohesive dig deepest. */
+    private const AID_KEEP_DAYS_MIN = 4.0;
+
+    /** Days a barely-amicable donor keeps back — a lukewarm neighbour parts with little (TWT-52). */
+    private const AID_KEEP_DAYS_MAX = 12.0;
 
     /** Relief lifts a stricken settlement up to this many days of food per head. */
     private const RELIEF_TARGET_DAYS = 5.0;
@@ -66,7 +69,12 @@ final class DistressEngine
             if ($donorPop === 0) {
                 continue;
             }
-            $spare = $donor->stockpile->amount('food') - self::AID_DONOR_KEEP_DAYS * $donorPop;
+            // How deep a donor digs scales with its cohesion to the stricken (TWT-52): an allied, kindred
+            // neighbour keeps little back, a lukewarm one keeps more. At neutral standing this is the old
+            // fixed buffer, so a viable run is unchanged.
+            $cohesion = RelationsEngine::cohesion($world, $donor, $stricken);
+            $keepDays = self::AID_KEEP_DAYS_MAX - (self::AID_KEEP_DAYS_MAX - self::AID_KEEP_DAYS_MIN) * $cohesion;
+            $spare = $donor->stockpile->amount('food') - $keepDays * $donorPop;
             if ($spare <= 0.0) {
                 continue;
             }
