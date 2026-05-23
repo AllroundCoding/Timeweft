@@ -56,6 +56,10 @@ final class World
     /** @var list<GuardViolation> */
     public array $guardLog = [];
 
+    /** Trade-route maturity, keyed "A↔B" → ['ageYears'=>int, 'lastYear'=>int]: a route reaches farther and loses less the longer it runs (TWT-127). */
+    /** @var array<string,array{ageYears:int,lastYear:int}> */
+    public array $routes = [];
+
     /** An optional retroactive edit replayed into this run (suppresses a recorded shock); null = the true history. */
     public ?Intervention $intervention = null;
 
@@ -116,7 +120,7 @@ final class World
      * A null name is coined from the settlement's culture (a per-settlement sub-stream) rather than
      * defaulting to a canon string — canon scenarios pin a name by passing one (TWT-120).
      */
-    public function foundVillage(?string $name = null, int $population = 5, float $landYield = 22.0, ?RegionArchetype $archetype = null): Village
+    public function foundVillage(?string $name = null, int $population = 5, float $landYield = 22.0, ?RegionArchetype $archetype = null, ?float $x = null, ?float $y = null): Village
     {
         $region = $archetype?->toRegionProfile() ?? $this->region;
         $cultureName = $region->cultureName();
@@ -136,6 +140,11 @@ final class World
 
         $village = new Village($name, $region->name, $agents, landYield: $landYield, culture: $culture);
         $village->regionProfile = $region;
+        // Place it on the map: an explicit position (canon/scenario) or a deterministic site off a
+        // dedicated sub-stream, so siting never perturbs the seeded births and deaths (TWT-127).
+        $siting = $this->rng->stream('site', $village->name);
+        $village->x = $x ?? $siting->float(-100.0, 100.0);
+        $village->y = $y ?? $siting->float(-100.0, 100.0);
         $this->villages[] = $village;
 
         // A new biome brings its own foodstuffs into the world catalog (grain and water are shared).

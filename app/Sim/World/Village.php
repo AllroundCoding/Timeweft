@@ -24,6 +24,11 @@ final class Village
     /** This settlement's region — its biome's seasonal yields, scarcity, and food basket. Null falls back to the world region (the canonical single-region run). */
     public ?RegionProfile $regionProfile = null;
 
+    /** Map position (arbitrary units). Distance between settlements gates and taxes trade and migration (TWT-127). */
+    public float $x = 0.0;
+
+    public float $y = 0.0;
+
     /** Culture-set baseline cooperation strength (0..1), derived from the culture's collectivism. */
     public float $baselineCohesion;
 
@@ -140,6 +145,12 @@ final class Village
         $decay = 1.0 / (1.0 + $scale * $scale);
 
         return $this->cohesionFloor + ($this->baselineCohesion - $this->cohesionFloor) * $decay;
+    }
+
+    /** Straight-line distance to another settlement, in map units. */
+    public function distanceTo(self $other): float
+    {
+        return hypot($this->x - $other->x, $this->y - $other->y);
     }
 
     /** @return list<Agent> the settlement's living members */
