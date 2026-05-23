@@ -2,6 +2,9 @@
 
 namespace App\Sim\World;
 
+use App\Sim\Culture\Culture;
+use App\Sim\Support\NameGenerator;
+use App\Sim\Support\Rng;
 use App\Sim\Time\TharadiCalendar;
 
 /**
@@ -53,6 +56,60 @@ final class CohortEngine
         ksort($aged); // stable iteration order (a determinism invariant)
 
         return new Cohort($aged);
+    }
+
+    /**
+     * Promote a cohort member into a fully-tracked agent (design doc 10; TWT-50) — "materialize on
+     * observation" applied to *existence*. An age is drawn from the cohort's distribution, a real
+     * individual of that age is born from the species/region/culture (the same generation as any
+     * birth, off a per-entity sub-stream so it is reproducible), and one head leaves the cohort. The
+     * inverse of {@see demote}; together they keep the population conserved across the LOD boundary.
+     *
+     * @return array{0: Agent, 1: Cohort} the new tracked agent and the cohort with one fewer soul
+     */
+    public static function promote(Cohort $cohort, Species $species, RegionProfile $region, Culture $culture, int $id, int $tick, Rng $rng, NameGenerator $names): array
+    {
+        $age = self::sampleAge($cohort, $rng);
+        $birthTick = $tick - $age * TharadiCalendar::HOURS_PER_DAY * TharadiCalendar::DAYS_PER_YEAR;
+        $agent = $species->birth($id, $birthTick, $region, $culture, $rng->stream('agent', $id), $names);
+
+        $byAge = $cohort->byAge;
+        $byAge[$age] = max(0.0, ($byAge[$age] ?? 0.0) - 1.0);
+
+        return [$agent, new Cohort($byAge)];
+    }
+
+    /** Demote a tracked agent back into the cohort — fold the individual into the count at its age, detail discarded. */
+    public static function demote(Cohort $cohort, Agent $agent, int $tick): Cohort
+    {
+        $age = $agent->ageInYears($tick);
+        $byAge = $cohort->byAge;
+        $byAge[$age] = ($byAge[$age] ?? 0.0) + 1.0;
+        ksort($byAge);
+
+        return new Cohort($byAge);
+    }
+
+    /** Draw an age from the cohort's distribution, weighted by how many people are that age. */
+    private static function sampleAge(Cohort $cohort, Rng $rng): int
+    {
+        $byAge = $cohort->byAge;
+        ksort($byAge);
+        $population = array_sum($byAge);
+        if ($population <= 0.0) {
+            return self::FERTILE_MIN; // an empty cohort has no one to promote; a safe default age
+        }
+
+        $target = $rng->float(0.0, $population);
+        $cumulative = 0.0;
+        foreach ($byAge as $age => $count) {
+            $cumulative += $count;
+            if ($target <= $cumulative) {
+                return $age;
+            }
+        }
+
+        return array_key_last($byAge) ?? self::FERTILE_MIN; // float-rounding safety
     }
 
     /**
