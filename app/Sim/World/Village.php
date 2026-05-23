@@ -162,6 +162,12 @@ final class Village
         return hypot($this->x - $other->x, $this->y - $other->y);
     }
 
+    /** A direction-independent key for the pair {this, other} — the canonical id for a route, relation, or feud. */
+    public function pairKey(self $other): string
+    {
+        return $this->name < $other->name ? "{$this->name}↔{$other->name}" : "{$other->name}↔{$this->name}";
+    }
+
     /** @return list<Agent> the settlement's living members */
     public function livingAgents(): array
     {
