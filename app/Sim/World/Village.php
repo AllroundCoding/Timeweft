@@ -72,6 +72,9 @@ final class Village
     /** Chronicle id of the most recent plague event, cited as the cause of illness deaths. */
     public ?int $lastPlagueEventId = null;
 
+    /** Whether the settlement is currently gripped by a spreading outbreak — latches the contagion chronicle beat (TWT-79). */
+    public bool $inOutbreak = false;
+
     /** Chronicle id of the standing institution's founding event, cited when it collapses. */
     public ?int $institutionEventId = null;
 

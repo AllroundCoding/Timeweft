@@ -141,7 +141,7 @@ final class TradeEngine
     }
 
     /** A route's maturity 0..1, from the number of distinct years it has carried goods. */
-    private static function routeMaturity(World $world, Village $a, Village $b): float
+    public static function routeMaturity(World $world, Village $a, Village $b): float
     {
         $age = $world->routes[self::routeKey($a, $b)]['ageYears'] ?? 0;
 
@@ -161,7 +161,7 @@ final class TradeEngine
     }
 
     /** A direction-independent key for the route between two settlements. */
-    private static function routeKey(Village $a, Village $b): string
+    public static function routeKey(Village $a, Village $b): string
     {
         return $a->name < $b->name ? "{$a->name}↔{$b->name}" : "{$b->name}↔{$a->name}";
     }
