@@ -26,6 +26,14 @@ final class Agent
     public ?int $lastBirthTick = null;
 
     /**
+     * Tally of jobs this agent has taken, by type (TWT-97) — the work history a profession settles out
+     * of (TWT-98). Job type => number of times taken.
+     *
+     * @var array<string,int>
+     */
+    public array $jobHistory = [];
+
+    /**
      * @param  array<string,float|string>  $traits
      * @param  array<string,Need>  $needs
      */
