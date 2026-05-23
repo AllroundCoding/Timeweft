@@ -55,6 +55,9 @@ final class JobMarket
         'building' => ['constitution', 'dexterity'],
         'water-bearing' => ['heatTolerance', 'agility'],
         'tending' => ['generosity', 'senses'],
+        // Trading is not posted as local work; it is the cross-settlement caravan action (TWT-99), but a
+        // trader settles into the role here all the same — the curious and the sociable take to the road.
+        'trading' => ['openness', 'sociability'],
     ];
 
     public static function runDay(World $world, int $tick): void
