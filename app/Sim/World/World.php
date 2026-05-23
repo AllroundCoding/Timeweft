@@ -14,6 +14,7 @@ use App\Sim\Direction\RuleDirector;
 use App\Sim\Economy\EconomyEngine;
 use App\Sim\Economy\GoodRegistry;
 use App\Sim\Economy\JobMarket;
+use App\Sim\Economy\ProfessionEngine;
 use App\Sim\Economy\RecipeBook;
 use App\Sim\Institutions\InstitutionEngine;
 use App\Sim\Projects\ProjectEngine;
@@ -195,6 +196,7 @@ final class World
                     CultureEngine::runDay($this, $this->tick, $date);
                     HealthEngine::runDay($this, $this->tick);
                     JobMarket::runDay($this, $this->tick);
+                    ProfessionEngine::runDay($this);
                     EmergenceEngine::runDay($this, $this->tick, $date);
                     ProjectEngine::runDay($this, $this->tick, $date);
                     InstitutionEngine::runDay($this, $this->tick, $date);

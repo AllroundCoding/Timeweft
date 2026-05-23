@@ -33,6 +33,9 @@ final class Agent
      */
     public array $jobHistory = [];
 
+    /** The trade this agent has settled into from the work it repeatedly does (TWT-98); null until it has one. */
+    public ?string $profession = null;
+
     /**
      * @param  array<string,float|string>  $traits
      * @param  array<string,Need>  $needs

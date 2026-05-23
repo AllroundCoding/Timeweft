@@ -46,6 +46,9 @@ final class JobMarket
     /** Participation weight at which an agent takes up the work it is most drawn to. */
     private const TAKE_THRESHOLD = 0.3;
 
+    /** How much an agent favours the work of its own profession (TWT-98) — the path-dependence that locks a role in. */
+    private const ROLE_PREFERENCE = 1.5;
+
     /** Each job type's trait affinity, so different agents drift to different work (the seed of professions). */
     private const AFFINITY = [
         'farming' => ['conscientiousness', 'constitution'],
@@ -146,7 +149,9 @@ final class JobMarket
         $best = $jobs[0];
         $bestScore = -1.0;
         foreach ($jobs as $job) {
-            $score = self::affinity($agent, $job->type) * (0.5 + 0.5 * $job->pull);
+            // Trait affinity, tilted toward the better-paid jobs, and again toward the agent's own trade.
+            $role = $agent->profession === $job->type ? self::ROLE_PREFERENCE : 1.0;
+            $score = self::affinity($agent, $job->type) * (0.5 + 0.5 * $job->pull) * $role;
             if ($score > $bestScore) {
                 $bestScore = $score;
                 $best = $job;
@@ -156,8 +161,15 @@ final class JobMarket
         return $best;
     }
 
+    /** The kinds of work this market knows — the job types a profession can settle into (TWT-98). */
+    /** @return list<string> */
+    public static function jobTypes(): array
+    {
+        return array_keys(self::AFFINITY);
+    }
+
     /** An agent's natural fit for a kind of work, 0..1 — the mean of the two traits that work leans on. */
-    private static function affinity(Agent $agent, string $type): float
+    public static function affinity(Agent $agent, string $type): float
     {
         $traits = self::AFFINITY[$type] ?? [];
         if ($traits === []) {
