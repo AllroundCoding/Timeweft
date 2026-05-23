@@ -71,7 +71,7 @@ class CausalProvenanceTest extends TestCase
     public function test_an_institution_founding_cites_the_storms_that_drove_it(): void
     {
         // A larger, longer settlement outgrows its cohesion and founds the Temple from a deficit.
-        $events = $this->chronicleOf('vaeris', 24, 40);
+        $events = $this->chronicleOf('vaeris', 30, 40);
         $byType = static fn (string $type) => array_values(array_filter($events, static fn (ChronicleEvent $e): bool => $e->type === $type));
 
         $foundings = $byType('institution-founded');

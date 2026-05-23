@@ -69,15 +69,19 @@ final class World
         $world->region = RegionProfile::tharados();
         $world->goods = GoodRegistry::tharados();
         $world->recipes = RecipeBook::tharados();
-        $world->names = new TharadiNameGenerator($rng);
+        $world->names = new TharadiNameGenerator;
         // Culture is generated from the region's materials first, so it can shape the founders it births.
         $culture = Culture::fromMaterialConditions('Tharadi', $world->region->scarcity(), $world->region->seasonalVolatility(), $world->region->landTenureConcentration());
         $ticksPerYear = TharadiCalendar::HOURS_PER_DAY * TharadiCalendar::DAYS_PER_YEAR;
 
         $agents = [];
         for ($i = 0; $i < $population; $i++) {
-            $birthTick = -$rng->int(18, 50) * $ticksPerYear;
-            $agents[] = $world->species->birth($world->nextId++, $birthTick, $world->region, $culture, $rng, $world->names);
+            // Each founder's age and traits are a pure function of its id, drawn off a per-entity
+            // sub-stream so adding/removing a draw elsewhere never shifts who is born here (TWT-118).
+            $id = $world->nextId++;
+            $entityRng = $rng->stream('agent', $id);
+            $birthTick = -$entityRng->int(18, 50) * $ticksPerYear;
+            $agents[] = $world->species->birth($id, $birthTick, $world->region, $culture, $entityRng, $world->names);
         }
 
         $world->village = new Village('Sunwell Oasis', $world->region->name, $agents, landYield: 22.0, culture: $culture);
@@ -109,8 +113,10 @@ final class World
 
         $agents = [];
         for ($i = 0; $i < $population; $i++) {
-            $birthTick = -$this->rng->int(18, 50) * $ticksPerYear;
-            $agents[] = $this->species->birth($this->nextId++, $birthTick, $region, $culture, $this->rng, $this->names);
+            $id = $this->nextId++;
+            $entityRng = $this->rng->stream('agent', $id);
+            $birthTick = -$entityRng->int(18, 50) * $ticksPerYear;
+            $agents[] = $this->species->birth($id, $birthTick, $region, $culture, $entityRng, $this->names);
         }
 
         $village = new Village($name, $region->name, $agents, landYield: $landYield, culture: $culture);
@@ -186,7 +192,9 @@ final class World
 
     public function spawnChild(Agent $mother, Agent $father, int $birthTick, TharadiDate $date): Agent
     {
-        $child = $this->species->breed($this->nextId++, $mother, $father, $birthTick, $this->rng, $this->names);
+        // The child's inherited traits are a pure function of its id, off a per-entity sub-stream.
+        $childId = $this->nextId++;
+        $child = $this->species->breed($childId, $mother, $father, $birthTick, $this->rng->stream('agent', $childId), $this->names);
         $this->village->agents[] = $child;
         $mother->lastBirthTick = $birthTick;
 

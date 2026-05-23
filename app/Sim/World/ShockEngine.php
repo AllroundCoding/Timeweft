@@ -27,7 +27,9 @@ final class ShockEngine
             return; // roll once a year, at the turn of the year
         }
 
-        $rng = $world->rng;
+        // The year's shock roll for this settlement is a function of (settlement, year), off its own
+        // sub-stream — so it neither rides the main emergence stream nor perturbs another settlement.
+        $rng = $world->rng->stream('shock', $world->village->name, $date->year);
         if (! $rng->chance(self::SHOCK_CHANCE_PER_YEAR)) {
             return;
         }
