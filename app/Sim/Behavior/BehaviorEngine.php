@@ -10,24 +10,52 @@ final class BehaviorEngine
 {
     private const HUNGER_OVERRIDE = 70.0;
 
+    /** @var ?list<array{when: \Closure, then: \Closure}> the priority stack, built once and cached */
+    private static ?array $priorityStack = null;
+
     public static function derive(Agent $agent, TharadiDate $date, bool $isFestival, bool $contributing = false): Activity
     {
-        if ($isFestival && $date->hour >= 8 && $date->hour < 20) {
-            return Activity::Celebrating;
-        }
-        if ($agent->needs['hunger']->value >= self::HUNGER_OVERRIDE) {
-            return Activity::Eating;
-        }
-
-        $routine = self::routineActivity($date);
-
-        // When the day's work goes to a communal project, surface it as Contributing so
-        // participation is visible in the roster, not just a number in the readiness math.
-        if ($routine === Activity::Working && $contributing) {
-            return Activity::Contributing;
+        foreach (self::priorityStack() as $rule) {
+            if (($rule['when'])($agent, $date, $isFestival, $contributing)) {
+                return ($rule['then'])($agent, $date, $isFestival, $contributing);
+            }
         }
 
-        return $routine;
+        return self::routineActivity($date); // the routine floor always matches; this is unreachable
+    }
+
+    /**
+     * The behavior priority stack (design doc 04): an ordered list of guard → activity rules. The
+     * first guard that matches wins, and the routine layer is the always-true floor. Expressed as
+     * data so the stack can be reordered or extended — a festival layer today, a player-input layer
+     * tomorrow (doc 16) — without re-threading an if-chain. A guard may declare only the parameters
+     * it reads; the extra arguments passed at the call site are ignored.
+     *
+     * @return list<array{when: \Closure, then: \Closure}>
+     */
+    private static function priorityStack(): array
+    {
+        return self::$priorityStack ??= [
+            // A festival takes the daylight hours.
+            [
+                'when' => static fn (Agent $a, TharadiDate $d, bool $isFestival): bool => $isFestival && $d->hour >= 8 && $d->hour < 20,
+                'then' => static fn (): Activity => Activity::Celebrating,
+            ],
+            // Acute hunger overrides the routine.
+            [
+                'when' => static fn (Agent $a): bool => $a->needs['hunger']->value >= self::HUNGER_OVERRIDE,
+                'then' => static fn (): Activity => Activity::Eating,
+            ],
+            // The base routine — work aimed at a communal project surfaces as Contributing.
+            [
+                'when' => static fn (): bool => true,
+                'then' => static function (Agent $a, TharadiDate $d, bool $isFestival, bool $contributing): Activity {
+                    $routine = self::routineActivity($d);
+
+                    return $routine === Activity::Working && $contributing ? Activity::Contributing : $routine;
+                },
+            ],
+        ];
     }
 
     /** The base routine layer: hour-of-day + season, ignoring needs and festivals. */
