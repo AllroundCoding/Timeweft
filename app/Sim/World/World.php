@@ -60,6 +60,10 @@ final class World
     /** @var array<string,array{ageYears:int,lastYear:int}> */
     public array $routes = [];
 
+    /** Inter-settlement relations, keyed "A↔B" → standing 0 (hostile) .. 1 (allied); drifts with kinship and competition (TWT-125). */
+    /** @var array<string,float> */
+    public array $relations = [];
+
     /** An optional retroactive edit replayed into this run (suppresses a recorded shock); null = the true history. */
     public ?Intervention $intervention = null;
 
@@ -199,6 +203,7 @@ final class World
             // World-level steps — story direction and cross-settlement migration — once a day.
             if ($date->hour === 8) {
                 $this->director->direct($this, $this->tick, $date);
+                RelationsEngine::runDay($this, $this->tick, $date);
                 TradeEngine::runDay($this, $this->tick, $date);
                 MigrationEngine::runDay($this, $this->tick, $date);
 

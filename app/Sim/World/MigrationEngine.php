@@ -104,6 +104,9 @@ final class MigrationEngine
             if ($village === $from) {
                 continue;
             }
+            if (RelationsEngine::hostile($world, $from, $village)) {
+                continue; // no refuge in a hostile settlement (TWT-125)
+            }
             // Room draws migrants, but distance discounts the pull — a close haven beats a far frontier.
             $score = self::desirability($village) * (self::DISTANCE_HALF_PULL / (self::DISTANCE_HALF_PULL + $from->distanceTo($village)));
             if ($score > $bestScore) {
