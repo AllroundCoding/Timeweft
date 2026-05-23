@@ -37,8 +37,11 @@ final class EconomyEngine
     /** How sharply mortality rises as the granary empties (the die-back of boom-bust). */
     private const STARVATION_SEVERITY = 5.0;
 
-    /** Days of food per head the granary can hold; beyond this, surplus spoils. */
-    private const STORAGE_DAYS = 30.0;
+    /** Days of food per head a basic, low-tech granary holds — the pre-preservation struggle baseline. */
+    private const BASE_STORAGE_DAYS = 30.0;
+
+    /** Days of storage each step of preservation technology (granaries, salting, cold storage) adds. */
+    private const PRESERVATION_DAYS_PER_TECH = 30.0;
 
     /** Boserup intensification: how fast sustained pressure × surplus × openness ratchets technology up. */
     private const INNOVATION_RATE = 0.08;
@@ -97,6 +100,17 @@ final class EconomyEngine
         return $region->averageYield();
     }
 
+    /**
+     * Days of food per head the granary can hold before the surplus spoils — and the buffer a
+     * settlement banks to ride out the lean season. It grows with preservation technology (granaries,
+     * salting, cold storage came late in our own history): a low-tech settlement struggles to keep
+     * food through a long Sandstorm, while an advanced one banks the brief harvest and smooths it.
+     */
+    public static function storageDays(float $technology): float
+    {
+        return self::BASE_STORAGE_DAYS + max(0.0, $technology - 1.0) * self::PRESERVATION_DAYS_PER_TECH;
+    }
+
     /** The region whose conditions this settlement lives under — its own, or the world's as a fallback. */
     public static function regionOf(World $world): RegionProfile
     {
@@ -112,7 +126,7 @@ final class EconomyEngine
     private static function produceBasket(World $world, int $adults, int $population, float $tech, float $seasonMult): void
     {
         $granary = $world->village->stockpile;
-        $cap = self::STORAGE_DAYS * $population;
+        $cap = self::storageDays($tech) * $population;
 
         foreach (self::regionOf($world)->basket() as $name => $perAdult) {
             $granary->add($name, $adults * $perAdult * $tech * $seasonMult);
@@ -390,7 +404,7 @@ final class EconomyEngine
         $granary->add('water', min($adults * self::WATER_PER_ADULT * $tech, $ceiling) * $harvest);
 
         // Stores are finite: a granary can only hold so much before the surplus spoils.
-        $storageCap = self::STORAGE_DAYS * $population;
+        $storageCap = self::storageDays($tech) * $population;
         $granary->withdraw('food', max(0.0, $granary->amount('food') - $storageCap));
         $granary->withdraw('water', max(0.0, $granary->amount('water') - $storageCap));
 
