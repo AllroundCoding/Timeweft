@@ -92,6 +92,34 @@ class DistressTest extends TestCase
         $this->assertSame([], $world->chronicle->all(), 'no famine, no exodus → no beats');
     }
 
+    public function test_an_allied_neighbour_digs_deeper_than_a_lukewarm_one(): void
+    {
+        // Same stricken settlement, same donor stores — only the cohesion to the donor differs (TWT-52).
+        $alliedRelief = $this->reliefFromDonorAt(0.9);
+        $lukewarmRelief = $this->reliefFromDonorAt(0.35); // amicable, but only just above enmity
+
+        $this->assertGreaterThan($lukewarmRelief, $alliedRelief, 'allies sacrifice more for a stricken neighbour');
+        $this->assertGreaterThan(0.0, $alliedRelief, 'and the ally does relieve it');
+    }
+
+    /** Run distress relief with a donor held at a given standing, and return the food the stricken ends with. */
+    private function reliefFromDonorAt(float $standing): float
+    {
+        $stricken = $this->village('Dusthold', 6, ['food' => 0.0]);
+        $stricken->inFamine = true;
+        $stricken->famineYears = 3;
+        $donor = $this->village('Breadbasket', 6, ['food' => 50.0]); // a modest surplus, so the keep-back bites
+
+        $world = new World(new Rng('aid'));
+        $world->villages = [$stricken, $donor];
+        $world->relations['Breadbasket↔Dusthold'] = $standing;
+
+        $tick = (int) self::TICKS_PER_YEAR;
+        DistressEngine::runDay($world, $tick, TharadiCalendar::fromTick($tick));
+
+        return $stricken->stockpile->amount('food');
+    }
+
     /** @param array<string,float> $stocks */
     private function village(string $name, int $pop, array $stocks): Village
     {
