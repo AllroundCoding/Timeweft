@@ -86,6 +86,9 @@ final class TradeEngine
                 if ($importer['need'] <= 0.0 || $exporter['offer'] <= 0.0) {
                     continue;
                 }
+                if (RelationsEngine::hostile($world, $exporter['village'], $importer['village'])) {
+                    continue; // no one ships grain to a sworn enemy (TWT-125)
+                }
                 $amount = min($importer['need'], $exporter['offer']);
                 self::ship($world, $exporter['village'], $importer['village'], $staple, $amount, $tick, $date);
                 $importer['need'] -= $amount;
