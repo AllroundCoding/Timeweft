@@ -3,8 +3,8 @@
 namespace App\Sim\World;
 
 use App\Sim\Culture\Culture;
+use App\Sim\Support\NameGenerator;
 use App\Sim\Support\Rng;
-use App\Sim\Support\TharadiNameGenerator;
 use App\Sim\Traits\TraitDefinition;
 use App\Sim\Traits\TraitRegistry;
 
@@ -45,13 +45,13 @@ final class Species
         RegionProfile $region,
         Culture $culture,
         Rng $rng,
-        TharadiNameGenerator $names,
+        NameGenerator $names,
     ): Agent {
         $traits = $this->traits->generate($region, $culture, $rng);
 
         return new Agent(
             id: $id,
-            name: $names->name($rng->stream('name')),
+            name: $names->name($rng->stream('name'), $culture->name),
             species: $this->name,
             region: $region->name,
             sex: $rng->chance(0.5) ? 'f' : 'm',
@@ -68,13 +68,14 @@ final class Species
         Agent $father,
         int $birthTick,
         Rng $rng,
-        TharadiNameGenerator $names,
+        NameGenerator $names,
+        string $cultureName,
     ): Agent {
         $traits = $this->traits->inherit($mother, $father, $rng);
 
         $child = new Agent(
             id: $id,
-            name: $names->name($rng->stream('name')),
+            name: $names->name($rng->stream('name'), $cultureName),
             species: $this->name,
             region: $mother->region,
             sex: $rng->chance(0.5) ? 'f' : 'm',

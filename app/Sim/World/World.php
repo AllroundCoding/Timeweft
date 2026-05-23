@@ -15,8 +15,8 @@ use App\Sim\Economy\GoodRegistry;
 use App\Sim\Economy\RecipeBook;
 use App\Sim\Institutions\InstitutionEngine;
 use App\Sim\Projects\ProjectEngine;
+use App\Sim\Support\NameGenerator;
 use App\Sim\Support\Rng;
-use App\Sim\Support\TharadiNameGenerator;
 use App\Sim\Time\TharadiCalendar;
 use App\Sim\Time\TharadiDate;
 
@@ -51,7 +51,7 @@ final class World
     /** An optional retroactive edit replayed into this run (suppresses a recorded shock); null = the true history. */
     public ?Intervention $intervention = null;
 
-    private TharadiNameGenerator $names;
+    private NameGenerator $names;
 
     private int $nextId = 1;
 
@@ -69,7 +69,7 @@ final class World
         $world->region = RegionProfile::tharados();
         $world->goods = GoodRegistry::tharados();
         $world->recipes = RecipeBook::tharados();
-        $world->names = new TharadiNameGenerator;
+        $world->names = NameGenerator::vaeris();
         // Culture is generated from the region's materials first, so it can shape the founders it births.
         $culture = Culture::fromMaterialConditions('Tharadi', $world->region->scarcity(), $world->region->seasonalVolatility(), $world->region->landTenureConcentration());
         $ticksPerYear = TharadiCalendar::HOURS_PER_DAY * TharadiCalendar::DAYS_PER_YEAR;
@@ -194,7 +194,7 @@ final class World
     {
         // The child's inherited traits are a pure function of its id, off a per-entity sub-stream.
         $childId = $this->nextId++;
-        $child = $this->species->breed($childId, $mother, $father, $birthTick, $this->rng->stream('agent', $childId), $this->names);
+        $child = $this->species->breed($childId, $mother, $father, $birthTick, $this->rng->stream('agent', $childId), $this->names, $this->village->culture->name);
         $this->village->agents[] = $child;
         $mother->lastBirthTick = $birthTick;
 
