@@ -36,6 +36,8 @@ final class ProjectEngine
 
     private const FAITH_STRENGTH = 0.12;        // how far devout faith lifts cooperation (eases, never erases, the deficit)
 
+    private const SICKNESS_LABOR_PENALTY = 0.75; // how far full sickness saps the capacity to work (TWT-115)
+
     public static function runDay(World $world, int $tick, TharadiDate $date): void
     {
         self::maybeOpenSandstormPrep($world, $tick, $date);
@@ -50,6 +52,8 @@ final class ProjectEngine
      *   faith     — the devout pitch in for the in-group unbidden (Big Gods, doc 11), per-agent adherence,
      *   forced-to — the institution's mandate (× its effectiveness),
      *   paid-to   — effort the settlement hires with money.
+     * The whole is then scaled by health: illness saps the *capacity* to work (TWT-115), so a sick
+     * agent contributes proportionally less however willing, paid, or compelled it is.
      */
     public static function participationWeight(Agent $agent, float $cohesion, ?Institution $institution = null, float $paidTo = 0.0, ?Faith $faith = null): float
     {
@@ -61,8 +65,13 @@ final class ProjectEngine
         $withFaith = $wantTo + $faithPull * (1.0 - $wantTo);
 
         $withForced = $institution?->liftedParticipation($withFaith) ?? $withFaith;
+        $effort = min(1.0, $withForced + $paidTo * (1.0 - $withForced));
 
-        return min(1.0, $withForced + $paidTo * (1.0 - $withForced));
+        // A plague- or famine-struck workforce prepares less, deepening the cooperation deficit that
+        // institutions rise to fill — the link from health through cooperation to rise-and-fall.
+        $sickness = isset($agent->needs['sickness']) ? $agent->needs['sickness']->value : 0.0;
+
+        return $effort * (1.0 - $sickness / 100.0 * self::SICKNESS_LABOR_PENALTY);
     }
 
     /**

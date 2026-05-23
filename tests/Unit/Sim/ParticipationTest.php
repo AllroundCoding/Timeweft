@@ -7,6 +7,7 @@ use App\Sim\Culture\Faith;
 use App\Sim\Institutions\Institution;
 use App\Sim\Projects\ProjectEngine;
 use App\Sim\World\Agent;
+use App\Sim\World\Need;
 use PHPUnit\Framework\TestCase;
 
 class ParticipationTest extends TestCase
@@ -55,6 +56,21 @@ class ParticipationTest extends TestCase
             0.55,
             ProjectEngine::participationWeight($this->agent(50.0), 0.5, null, 0.4),
             1e-9,
+        );
+    }
+
+    public function test_sickness_saps_the_capacity_to_work(): void
+    {
+        $healthy = new Agent(1, 'A', 'Vulpini', 'Tharados', 'f', 0, ['sociability' => 50.0], ['sickness' => new Need('sickness', 0.0, 0.0)]);
+        $sick = new Agent(2, 'B', 'Vulpini', 'Tharados', 'f', 0, ['sociability' => 50.0], ['sickness' => new Need('sickness', 80.0, 0.0)]);
+
+        // want-to is 0.25 for both; illness scales the effort down by sickness/100 × 0.75.
+        $this->assertEqualsWithDelta(0.25, ProjectEngine::participationWeight($healthy, 0.5), 1e-9, 'a well agent works at full want-to');
+        $this->assertEqualsWithDelta(0.1, ProjectEngine::participationWeight($sick, 0.5), 1e-9, 'a gravely ill one contributes far less (0.25 × 0.4)');
+        $this->assertLessThan(
+            ProjectEngine::participationWeight($healthy, 0.5),
+            ProjectEngine::participationWeight($sick, 0.5),
+            'illness saps the capacity to work, not just the will to live',
         );
     }
 
