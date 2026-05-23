@@ -1,3 +1,16 @@
+<!-- project-maintained — keep above the Boost block; `php artisan boost:install` regenerates everything below -->
+## Timeweft project guidelines
+
+This is a **deterministic simulation engine** hosted in Laravel — "do it the Laravel way" applies at
+the boundary, not in the pure `app/Sim` core. Two committed docs carry the project's conventions and
+are the reference for **cloud Claude Code sessions that have no Laravel Boost MCP**:
+
+- [`docs/conventions.md`](docs/conventions.md) — the two-zone rule, determinism invariants, the sweep.
+- [`docs/laravel-cheatsheet.md`](docs/laravel-cheatsheet.md) — version-pinned idioms (stands in for Boost's `search-docs`).
+
+Read both before working in this repo. The cheatsheet's version table is generated — run
+`php artisan docs:check-stack` after any dependency change.
+
 <laravel-boost-guidelines>
 === foundation rules ===
 

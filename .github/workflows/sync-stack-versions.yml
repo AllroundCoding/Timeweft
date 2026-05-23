@@ -1,0 +1,48 @@
+name: Sync stack cheatsheet versions
+
+# Keeps the version table in docs/laravel-cheatsheet.md honest against composer.lock — the
+# committed stand-in for Laravel Boost's search-docs that cloud Claude Code sessions read.
+# Regenerates the table and opens a PR when a dependency change leaves it stale.
+#
+# Requires "Allow GitHub Actions to create and approve pull requests" under
+# Settings → Actions → General.
+
+on:
+  workflow_dispatch: {}
+  schedule:
+    - cron: '0 6 * * 1' # weekly, Monday 06:00 UTC
+  push:
+    branches: [main]
+    paths:
+      - composer.lock
+      - composer.json
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+
+      - run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Regenerate the version table
+        run: php artisan docs:check-stack
+
+      - name: Open a PR if the cheatsheet changed
+        uses: peter-evans/create-pull-request@v6
+        with:
+          branch: chore/sync-stack-versions
+          title: 'docs: sync stack cheatsheet versions'
+          commit-message: 'docs: sync stack cheatsheet versions'
+          body: |
+            Automated refresh of the version table in docs/laravel-cheatsheet.md from composer.lock.
+            Review the prose for any version-specific guidance that needs updating, then merge.
+          labels: documentation

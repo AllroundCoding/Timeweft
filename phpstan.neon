@@ -1,0 +1,11 @@
+includes:
+    - vendor/larastan/larastan/extension.neon
+    - phpstan-baseline.neon
+
+parameters:
+    paths:
+        - app
+
+    # Start at 6 and ratchet toward 8/9 (TWT-186). Existing debt, if any, is captured
+    # in phpstan-baseline.neon so new code is held to the bar.
+    level: 6
