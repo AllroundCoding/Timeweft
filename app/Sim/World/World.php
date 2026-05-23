@@ -207,6 +207,7 @@ final class World
                 WarEngine::runDay($this, $this->tick, $date);
                 TradeEngine::runDay($this, $this->tick, $date);
                 MigrationEngine::runDay($this, $this->tick, $date);
+                DistressEngine::runDay($this, $this->tick, $date);
 
                 // The world guider checks the day's invariants and clamps any out-of-bounds state — a
                 // no-op on a well-behaved run, a safety floor when an edit or new system pushes too far.
