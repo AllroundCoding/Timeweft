@@ -44,6 +44,8 @@ final class EmergenceEngine
 
     private static function tryPairing(World $world, int $tick, TharadiDate $date, Rng $rng): void
     {
+        // The day's pairing roll is a function of (settlement, day), off its own sub-stream.
+        $rng = $rng->stream('pair', $world->village->name, $tick);
         if (! $rng->chance(self::PAIR_CHANCE_DAY)) {
             return;
         }
@@ -95,7 +97,9 @@ final class EmergenceEngine
             if ($mother->lastBirthTick !== null && ($tick - $mother->lastBirthTick) < self::BIRTH_SPACING_YEARS * $ticksPerYear) {
                 continue;
             }
-            if (! $rng->chance(self::BIRTH_CHANCE_DAY * $density)) {
+            // This mother's conception roll on this day is a pure function of (mother, day).
+            $motherRng = $rng->stream('birth', $mother->id, $tick);
+            if (! $motherRng->chance(self::BIRTH_CHANCE_DAY * $density)) {
                 continue;
             }
             $father = self::byId($world, $mother->partnerId);
@@ -107,7 +111,7 @@ final class EmergenceEngine
 
             // Childbirth is perilous: a frail, ill-fed mother may not survive the birth she just gave.
             $sickness = ($mother->needs['sickness'] ?? null)?->value ?? 0.0;
-            if ($rng->chance(self::maternalMortalityRisk($sickness, $world->village->dietQuality))) {
+            if ($motherRng->chance(self::maternalMortalityRisk($sickness, $world->village->dietQuality))) {
                 $mother->alive = false;
                 $mother->deathTick = $tick;
                 if ($mother->partnerId !== null) {
@@ -143,7 +147,9 @@ final class EmergenceEngine
             // Ill health compounds mortality — the sicker an agent, the likelier the end.
             $sickness = ($agent->needs['sickness'] ?? null)?->value ?? 0.0;
             $illness = 1.0 + ($sickness / 100.0) * self::SICKNESS_SEVERITY;
-            if (! $rng->chance(self::dailyMortality($age) * $famine * $starvation * $illness)) {
+            // This agent's death roll on this day is a pure function of (agent, day): suppressing a
+            // shock elsewhere never shifts it, so causally-independent deaths stay byte-identical.
+            if (! $rng->stream('death', $agent->id, $tick)->chance(self::dailyMortality($age) * $famine * $starvation * $illness)) {
                 continue;
             }
 

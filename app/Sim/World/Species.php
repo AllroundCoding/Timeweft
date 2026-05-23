@@ -51,7 +51,7 @@ final class Species
 
         return new Agent(
             id: $id,
-            name: $names->name(),
+            name: $names->name($rng->stream('name')),
             species: $this->name,
             region: $region->name,
             sex: $rng->chance(0.5) ? 'f' : 'm',
@@ -74,7 +74,7 @@ final class Species
 
         $child = new Agent(
             id: $id,
-            name: $names->name(),
+            name: $names->name($rng->stream('name')),
             species: $this->name,
             region: $mother->region,
             sex: $rng->chance(0.5) ? 'f' : 'm',

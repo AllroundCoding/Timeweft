@@ -33,7 +33,6 @@ final class MigrationEngine
             return; // nowhere to go
         }
 
-        $rng = $world->rng;
         foreach ($world->villages as $from) {
             $pressure = self::pushPressure($from);
             if ($pressure <= 0.0) {
@@ -49,7 +48,8 @@ final class MigrationEngine
                 if ($agent->partnerId !== null || $agent->ageInYears($tick) < self::ADULT_AGE) {
                     continue; // households stay; the unattached adult moves
                 }
-                if ($rng->chance($pressure * self::MIGRATION_RATE)) {
+                // This agent's leave-this-year roll is a pure function of (agent, year).
+                if ($world->rng->stream('migration', $agent->id, $date->year)->chance($pressure * self::MIGRATION_RATE)) {
                     $leavers[] = $agent;
                 }
             }

@@ -23,7 +23,7 @@ class FloodScenarioTest extends TestCase
 {
     private const SEED = 'vaeris';
 
-    private const POPULATION = 24;
+    private const POPULATION = 30;
 
     private const YEARS = 40;
 

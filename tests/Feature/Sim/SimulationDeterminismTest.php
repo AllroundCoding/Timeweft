@@ -82,7 +82,7 @@ class SimulationDeterminismTest extends TestCase
         // can stay cohesive and never need one), so the Temple emerges from the deficit,
         // ossifies into collapse, and rises again — the rise & fall of civilizations. The
         // founding cohort is sized to outgrow cohesion even under realistic child/maternal mortality.
-        $run = $this->simulate('vaeris', 24, 40);
+        $run = $this->simulate('vaeris', 30, 40);
 
         $foundings = array_filter(
             $run['chronicle'],
