@@ -1,0 +1,40 @@
+name: CI
+
+# The objective code-quality gate (TWT-186): style (Pint), static analysis (Larastan),
+# the cheatsheet version-table guard, and the test suite. Keeps the recurring QoL passes
+# from having to police style and types by hand.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: mbstring, dom, xml, xmlwriter, tokenizer, sqlite3, pdo_sqlite, bcmath
+          coverage: none
+          ini-values: memory_limit=1G
+
+      - run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Style — Pint
+        run: vendor/bin/pint --test
+
+      - name: Static analysis — Larastan
+        run: vendor/bin/phpstan analyse --no-progress --memory-limit=1G
+
+      - name: Docs cheatsheet in sync
+        run: php artisan docs:check-stack --check
+
+      - name: Tests
+        run: php artisan test --compact

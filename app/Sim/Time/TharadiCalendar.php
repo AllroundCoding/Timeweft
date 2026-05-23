@@ -13,9 +13,13 @@ namespace App\Sim\Time;
 final class TharadiCalendar
 {
     public const HOURS_PER_DAY = 24;   // not in canon — chosen default
+
     public const DAYS_PER_WEEK = 6;    // canon: 6-day week
+
     public const DAYS_PER_MONTH = 30;  // not in canon — chosen (5 weeks/month)
+
     public const MONTHS_PER_YEAR = 8;  // canon: 8 months
+
     public const DAYS_PER_YEAR = self::DAYS_PER_MONTH * self::MONTHS_PER_YEAR; // 240
 
     /**
