@@ -204,6 +204,7 @@ final class World
             if ($date->hour === 8) {
                 $this->director->direct($this, $this->tick, $date);
                 RelationsEngine::runDay($this, $this->tick, $date);
+                WarEngine::runDay($this, $this->tick, $date);
                 TradeEngine::runDay($this, $this->tick, $date);
                 MigrationEngine::runDay($this, $this->tick, $date);
 
