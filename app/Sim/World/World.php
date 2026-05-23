@@ -206,6 +206,7 @@ final class World
                 RelationsEngine::runDay($this, $this->tick, $date);
                 WarEngine::runDay($this, $this->tick, $date);
                 TradeEngine::runDay($this, $this->tick, $date);
+                ContagionEngine::runDay($this, $this->tick, $date);
                 MigrationEngine::runDay($this, $this->tick, $date);
                 DistressEngine::runDay($this, $this->tick, $date);
 
