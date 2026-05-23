@@ -71,7 +71,7 @@ final class World
         $world->recipes = RecipeBook::tharados();
         $world->names = NameGenerator::vaeris();
         // Culture is generated from the region's materials first, so it can shape the founders it births.
-        $culture = Culture::fromMaterialConditions('Tharadi', $world->region->scarcity(), $world->region->seasonalVolatility(), $world->region->landTenureConcentration());
+        $culture = Culture::fromMaterialConditions($world->region->cultureName(), $world->region->scarcity(), $world->region->seasonalVolatility(), $world->region->landTenureConcentration());
         $ticksPerYear = TharadiCalendar::HOURS_PER_DAY * TharadiCalendar::DAYS_PER_YEAR;
 
         $agents = [];
@@ -103,13 +103,19 @@ final class World
      * settlement is a different biome: its founders adapt to that land, its culture is generated from
      * that land's materials, and it grows a different basket — so it specializes apart from its
      * neighbours. Without one it defaults to the world's region (the canonical run is unchanged).
+     *
+     * A null name is coined from the settlement's culture (a per-settlement sub-stream) rather than
+     * defaulting to a canon string — canon scenarios pin a name by passing one (TWT-120).
      */
-    public function foundVillage(string $name, int $population, float $landYield = 22.0, ?RegionArchetype $archetype = null): Village
+    public function foundVillage(?string $name = null, int $population = 5, float $landYield = 22.0, ?RegionArchetype $archetype = null): Village
     {
         $region = $archetype?->toRegionProfile() ?? $this->region;
-        $cultureName = $archetype?->cultureName ?? 'Tharadi';
+        $cultureName = $region->cultureName();
         $culture = Culture::fromMaterialConditions($cultureName, $region->scarcity(), $region->seasonalVolatility(), $region->landTenureConcentration());
         $ticksPerYear = TharadiCalendar::HOURS_PER_DAY * TharadiCalendar::DAYS_PER_YEAR;
+
+        // An unnamed settlement is christened in its own culture's voice, off a per-settlement stream.
+        $name ??= $this->names->place($this->rng->stream('placename', count($this->villages)), $cultureName);
 
         $agents = [];
         for ($i = 0; $i < $population; $i++) {

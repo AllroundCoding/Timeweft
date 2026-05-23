@@ -120,6 +120,7 @@ final class RegionArchetype
             basket: $this->basket,
             resources: $this->resources,
             landTenureConcentration: $this->landTenureConcentration,
+            cultureName: $this->cultureName,
         );
     }
 }

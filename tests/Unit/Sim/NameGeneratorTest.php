@@ -59,6 +59,26 @@ class NameGeneratorTest extends TestCase
         }
     }
 
+    public function test_place_names_are_culture_styled_and_deterministic(): void
+    {
+        $generator = NameGenerator::vaeris();
+
+        // Deterministic off the place sub-stream.
+        $first = $generator->place((new Rng('vaeris'))->stream('placename', 3), 'Tharadi');
+        $second = $generator->place((new Rng('vaeris'))->stream('placename', 3), 'Tharadi');
+        $this->assertSame($first, $second);
+        $this->assertNotSame('', $first);
+
+        // Two cultures coin different places, just as they coin different people.
+        $tharadi = [];
+        $draknar = [];
+        for ($i = 1; $i <= 12; $i++) {
+            $tharadi[] = $generator->place((new Rng('vaeris'))->stream('placename', $i), 'Tharadi');
+            $draknar[] = $generator->place((new Rng('vaeris'))->stream('placename', $i), 'Draknar');
+        }
+        $this->assertNotSame($tharadi, $draknar, 'a desert oasis does not sound like a frost-hold');
+    }
+
     /** @return list<string> */
     private function batch(NameGenerator $generator, string $culture): array
     {
