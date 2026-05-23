@@ -8,8 +8,9 @@ use App\Sim\Causality\Intervention;
 use App\Sim\Chronicle\Chronicle;
 use App\Sim\Culture\Culture;
 use App\Sim\Culture\CultureEngine;
+use App\Sim\Direction\Director;
 use App\Sim\Direction\Milestone;
-use App\Sim\Direction\StoryDirector;
+use App\Sim\Direction\RuleDirector;
 use App\Sim\Economy\EconomyEngine;
 use App\Sim\Economy\GoodRegistry;
 use App\Sim\Economy\RecipeBook;
@@ -48,6 +49,9 @@ final class World
     /** @var list<Milestone> */
     public array $milestones = [];
 
+    /** The narrative author steering the world (pluggable). Defaults to the rule-based, human-authored director; swap NullDirector for pure emergence (TWT-89). */
+    public Director $director;
+
     /** An optional retroactive edit replayed into this run (suppresses a recorded shock); null = the true history. */
     public ?Intervention $intervention = null;
 
@@ -60,6 +64,7 @@ final class World
     public function __construct(public readonly Rng $rng)
     {
         $this->chronicle = new Chronicle;
+        $this->director = new RuleDirector;
     }
 
     public static function seedTharadosVillage(Rng $rng, int $population = 5): self
@@ -180,11 +185,7 @@ final class World
 
             // World-level steps — story direction and cross-settlement migration — once a day.
             if ($date->hour === 8) {
-                foreach ($this->milestones as $milestone) {
-                    // Each beat steers from its own sub-stream, so authoring an arc never reshuffles
-                    // the emergent world (the perturbation TWT-39 ran into).
-                    StoryDirector::evaluate($this, $milestone, $this->tick, $date, $this->rng->stream('director', $milestone->name, $this->tick));
-                }
+                $this->director->direct($this, $this->tick, $date);
                 TradeEngine::runDay($this, $this->tick, $date);
                 MigrationEngine::runDay($this, $this->tick, $date);
             }
