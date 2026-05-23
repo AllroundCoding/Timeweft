@@ -18,6 +18,14 @@ class EconomyEngineTest extends TestCase
 {
     private const TICKS_PER_YEAR = TharadiCalendar::HOURS_PER_DAY * TharadiCalendar::DAYS_PER_YEAR;
 
+    public function test_storage_capacity_grows_with_preservation_technology(): void
+    {
+        // A low-tech settlement keeps the 30-day struggle baseline; preservation tech banks more (TWT-183).
+        $this->assertEqualsWithDelta(30.0, EconomyEngine::storageDays(1.0), 1e-9, 'tech 1.0 is the baseline');
+        $this->assertEqualsWithDelta(60.0, EconomyEngine::storageDays(2.0), 1e-9, 'a step of preservation tech adds 30 days');
+        $this->assertGreaterThan(EconomyEngine::storageDays(1.5), EconomyEngine::storageDays(3.0), 'more tech, more storage');
+    }
+
     private const OASIS_TICK = 5 * TharadiCalendar::HOURS_PER_DAY;  // Naralis (Oasis), mid-month — not a year-turn, so the annual mechanics (harvest, tech, land) stay out of the daily-math tests
 
     private const SANDSTORM_TICK = 60 * TharadiCalendar::HOURS_PER_DAY; // Kalimos (Sandstorm)
