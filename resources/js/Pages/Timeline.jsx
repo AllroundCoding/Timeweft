@@ -1,4 +1,4 @@
-import { Head } from '@inertiajs/react';
+import { Deferred, Head } from '@inertiajs/react';
 
 const PX_PER_YEAR = 84;
 const ROW_H = 16;
@@ -24,7 +24,7 @@ function colorFor(type) {
     return PALETTE[h % PALETTE.length];
 }
 
-export default function Timeline({ run, axis, lives, world, milestones, counts }) {
+export default function Timeline({ run, axis, lives, world, milestones, counts, narrative }) {
     const { ticksPerYear, startTick, endTick, startYear } = axis;
     const spanYears = Math.max(1, Math.round((endTick - startTick) / ticksPerYear));
     const plotW = spanYears * PX_PER_YEAR;
@@ -64,6 +64,17 @@ export default function Timeline({ run, axis, lives, world, milestones, counts }
                         ))}
                     </ul>
                 </header>
+
+                <section className="mb-5 rounded-lg border border-stone-800 bg-stone-900/40 p-4">
+                    <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-stone-500">The chronicle, retold</h2>
+                    <Deferred data="narrative" fallback={<p className="text-sm italic text-stone-500">Narrating the saga…</p>}>
+                        <div className="max-w-3xl space-y-3 text-sm leading-relaxed text-stone-300">
+                            {(narrative ?? '').split('\n\n').map((para, i) => (
+                                <p key={i}>{para}</p>
+                            ))}
+                        </div>
+                    </Deferred>
+                </section>
 
                 <div className="overflow-x-auto rounded-lg border border-stone-800 bg-stone-900/40">
                     <svg width={width} height={height} className="block font-sans">
