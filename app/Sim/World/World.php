@@ -212,6 +212,13 @@ final class World
                     continue;
                 }
 
+                // An emptied settlement is mourned once (DistressEngine, world-level) and then simulated
+                // no more — no harvests, blights, or land/tech beats over a graveyard (TWT-253). The
+                // world-level engines below still run, so in-migration could later repopulate it.
+                if ($village->livingAgents() === []) {
+                    continue;
+                }
+
                 $projectOpen = $village->hasOpenProject();
                 foreach ($village->livingAgents() as $agent) {
                     $contributing = $projectOpen && $agent->ageInYears($this->tick) >= self::ADULT_AGE;
