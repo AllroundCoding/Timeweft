@@ -29,7 +29,7 @@ skills, per-need capacity. *v2-game* = the playable layer (doc 16). Tickets bloc
 milestone were moved out into a phase-2 milestone of their own topic (doc-18 concurrency, doc-16 game
 phase) — a ticket lives in the milestone whose work actually unblocks it.
 
-**The byte-identical invariant.** The canonical run `world:simulate --seed=vaeris --years=24` must stay
+**The byte-identical invariant.** The canonical run `world:simulate --seed=vaeris --years=22` must stay
 reproducible: same seed → same world, byte for byte. Additive, cross-settlement, or
 no-op-below-two-villages features keep the hash stable; features that deliberately change behavior
 (money TWT-135, sickness TWT-115) **re-baseline** the narrative on purpose. Golden tests assert on
