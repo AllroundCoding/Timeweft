@@ -11,6 +11,57 @@ are the reference for **cloud Claude Code sessions that have no Laravel Boost MC
 Read both before working in this repo. The cheatsheet's version table is generated — run
 `php artisan docs:check-stack` after any dependency change.
 
+## Project state & key decisions
+
+Knowledge transfer for any session picking this up cold. The **live plan is Linear** — this is the
+why, not the backlog. Filter Linear by the `v1-core` label for the current line of work.
+
+**Where we are.** The pure-sim core (M0–M5) is built: people, needs, relations, projects,
+institutions, trade/caravans, money & cost-of-living, war, disease/contagion, festivals, cohorts. The
+M6 persistence spine is built: skeleton/texture split (TWT-31), `Checkpoint` (TWT-32), `Timeline`
+derive-on-demand (TWT-38), the relational schema (TWT-28), `WorldStore` hybrid save/load (TWT-30), and
+the `Engine` façade (TWT-88). What remains to close **v1-core** is the view: the LLM flavor layer
+(TWT-53) and the minimal renderer (TWT-54) — order is the user's call.
+
+**Three tiers.** *v1-core* = engine + persistence + the `Engine` API + a minimal renderer/flavor view
+(the base app). *v1-depth* = worldgen geography (doc 13), culture (M8), goods (M9), deep realism,
+skills, per-need capacity. *v2-game* = the playable layer (doc 16). Tickets blocked by a later
+milestone were moved out into a phase-2 milestone of their own topic (doc-18 concurrency, doc-16 game
+phase) — a ticket lives in the milestone whose work actually unblocks it.
+
+**The byte-identical invariant.** The canonical run `world:simulate --seed=vaeris --years=24` must stay
+reproducible: same seed → same world, byte for byte. Additive, cross-settlement, or
+no-op-below-two-villages features keep the hash stable; features that deliberately change behavior
+(money TWT-135, sickness TWT-115) **re-baseline** the narrative on purpose. Golden tests assert on
+*invariants*, not snapshots, so they survive a re-baseline. This holds because RNG is drawn only
+through `App\Sim\Support\Rng` forked sub-streams keyed by (concern, entity, epoch) off the immutable
+seed — the main generator accumulates no draw-state, so **seed + boundary state is enough to resume**.
+That is what makes `Checkpoint` a plain `serialize()` and resume byte-identical.
+
+**Architecture in a breath.** Canonical events + entities are the persisted *skeleton*; per-tick
+activity and need values are *texture* — recomputed on demand, never stored (marker interfaces in
+`app/Sim/Persistence`). `Checkpoint::of(World)` captures boundary state for exact resume; `Timeline`
+reconstructs any past tick from the nearest checkpoint ≤ tick, then advances. `App\Sim\Engine` is the
+only public entry point (`seed · advance · query · steer`). `App\Persistence\WorldStore` is the
+boundary: relational rows for queryable projection **and** a checkpoint blob for byte-identical resume.
+LOD/cohorts (TWT-49/50/51) track salient individuals vs statistical cohorts — note the **LOD manager
+is not yet wired into the run loop**, which is the headline scaling gap (per-tick cost should scale
+with living salient cast + cohorts, not world age).
+
+**Database stance.** Postgres/Timescale for real use, sqlite for tests only; migrations are portable
+across sqlite/mysql/postgres (JSON via a portable helper, JSON queried through Eloquent/query-builder).
+Postgres-only perf (GIN, TimescaleDB) goes behind a driver gate. Perf tests run against real setups,
+never sqlite — deferred until there's a real need. Agent rows are typed scalar columns for the hot,
+queryable fields + JSONB for the flexible bags (traits, needs `{value,capacity}`, job history,
+parent ids). Species/race is data-driven (presets + world deltas, "sapience is a trait"), so the
+string `species` column + JSONB is forward-compatible (TWT-201).
+
+**Per-ticket rhythm.** One ticket per branch off `main` — never stack branches. The gate before push:
+tests + `vendor/bin/pint` + PHPStan + the byte-identical canonical hash + `php artisan docs:check-stack`.
+Push `-u origin <branch>`, set the Linear ticket to *In Review*, and the human merges before the next
+ticket starts. Don't open PRs unless asked. File gaps/follow-ups as Linear tickets named
+`Sim | Area: …` rather than letting scope creep into the current branch.
+
 <laravel-boost-guidelines>
 === foundation rules ===
 
