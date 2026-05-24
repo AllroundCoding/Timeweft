@@ -99,8 +99,16 @@ At the edges, follow the [Boost guidelines](../CLAUDE.md) and standard Laravel p
 
 - **Config, never `env()` outside `config/`.** Read configuration with `config('services.linear.key')`,
   as the console commands already do.
-- **Eloquent + migrations** over raw SQL once persistence lands ([TWT-28](https://linear.app/allroundcoding/issue/TWT-28));
+- **Eloquent + migrations** over raw SQL ([TWT-28](https://linear.app/allroundcoding/issue/TWT-28));
   JSONB trait bags keep the schema flexible as traits grow.
+- **Database portability — Postgres/Timescale for real, sqlite for tests.** The schema runs on
+  **PostgreSQL** (the target for real worlds — JSONB + GIN, and the dormant TimescaleDB option) and on
+  **sqlite** (tests only — `jsonb()` maps to `text`); MySQL works too. Keep it portable: migrations use
+  only Laravel's schema builder (no raw driver DDL), and queries go through Eloquent / the query-builder
+  JSON helpers (`whereJsonContains`, `col->key`), never hand-written Postgres SQL. Postgres-only
+  *optimizations* (GIN indexes, TimescaleDB hypertables) belong in **driver-gated** migrations as opt-in
+  performance, not correctness. Never run sqlite for real use, and run **performance tests against the
+  real database**, not sqlite.
 - **Artisan commands use attribute signatures** — `#[Signature]` / `#[Description]`, `handle(): int`,
   `self::SUCCESS` / `self::FAILURE`. See [`PullDesignDocs`](../app/Console/Commands/PullDesignDocs.php)
   for the house pattern.
