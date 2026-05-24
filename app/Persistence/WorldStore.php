@@ -129,6 +129,8 @@ final class WorldStore
     /** @return array<string,mixed> */
     private function villageRow(Village $village): array
     {
+        $cohort = $village->cohort;
+
         return [
             'name' => $village->name,
             'region' => $village->region,
@@ -149,6 +151,11 @@ final class WorldStore
                 'mutualAid' => $village->mutualAid,
                 'inOutbreak' => $village->inOutbreak,
             ],
+            // A folded settlement's statistical stand-in (TWT-247): its age distribution and mean
+            // sickness as a queryable bag; null for a tracked, per-agent settlement.
+            'cohort' => $cohort !== null
+                ? ['byAge' => $cohort->byAge, 'sickness' => $village->cohortSickness]
+                : null,
         ];
     }
 

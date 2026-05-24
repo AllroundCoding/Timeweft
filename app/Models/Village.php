@@ -21,6 +21,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property array<string,float> $culture
  * @property array<string,float>|null $stockpile
  * @property array<string,mixed>|null $state
+ * @property array{byAge:array<int,float>,sickness:float}|null $cohort
  */
 class Village extends Model
 {
@@ -38,6 +39,7 @@ class Village extends Model
             'culture' => 'array',
             'stockpile' => 'array',
             'state' => 'array',
+            'cohort' => 'array',
         ];
     }
 

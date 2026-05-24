@@ -55,6 +55,36 @@ class WorldStoreTest extends TestCase
         $this->assertSame(1, $record->checkpoints()->count(), 'with one resume checkpoint');
     }
 
+    public function test_a_folded_settlements_cohort_is_persisted_in_the_relational_projection(): void
+    {
+        $store = new WorldStore;
+        $world = World::seedTharadosVillage(new Rng('vaeris'), 8);
+
+        // A second settlement, folded by the LOD manager into its statistical stand-in (TWT-213):
+        // its living souls become the cohort, and no living agent rows remain.
+        $folded = $world->foundVillage('Granaria');
+        $folded->foldIntoCohort($world->tick);
+        $folded->cohortSickness = 12.5;
+        $expectedPopulation = $folded->cohort?->population() ?? 0.0;
+
+        $record = $store->save($world);
+
+        $row = $record->villages()->where('name', 'Granaria')->firstOrFail();
+        $this->assertNotNull($row->cohort, 'a folded settlement persists its cohort to the queryable rows, not only the checkpoint');
+        $this->assertEqualsWithDelta($expectedPopulation, array_sum($row->cohort['byAge']), 0.001, 'its population survives the round-trip');
+        $this->assertSame(12.5, $row->cohort['sickness'], 'as does its mean sickness');
+        $this->assertSame(0, $row->agents()->count(), 'and it keeps no living agent rows — its souls live in the cohort');
+
+        $tracked = $record->villages()->where('name', $world->villages[0]->name)->firstOrFail();
+        $this->assertNull($tracked->cohort, 'a tracked, per-agent settlement has no cohort projection (null = tracked)');
+
+        // The checkpoint half still carries it: a reloaded world resumes with the settlement folded.
+        $reloaded = $store->load($record->id);
+        $resumed = collect($reloaded->villages)->firstWhere('name', 'Granaria');
+        $this->assertNotNull($resumed, 'the reloaded world still has the second settlement');
+        $this->assertNotNull($resumed->cohort, 'resume restores the folded cohort from the checkpoint');
+    }
+
     /** @return list<string> */
     private function chronicle(World $world): array
     {
