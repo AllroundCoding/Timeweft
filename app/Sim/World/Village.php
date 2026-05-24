@@ -21,6 +21,9 @@ final class Village
     /** When folded by the LOD manager (TWT-213), the settlement's statistical stand-in; null = tracked per-agent. */
     public ?Cohort $cohort = null;
 
+    /** A folded settlement's mean sickness (0..100) — the cohort analogue of per-agent sickness (TWT-246). */
+    public float $cohortSickness = 0.0;
+
     /** The culture of this settlement's people; sets the cohesion baseline and institution type. Drifts with material security. */
     public Culture $culture;
 
@@ -175,6 +178,16 @@ final class Village
     public function isTracked(): bool
     {
         return $this->cohort === null;
+    }
+
+    /**
+     * The settlement's living head count, scale-polymorphic (TWT-246): the tracked roster when tracked,
+     * the cohort's expected population when folded. Equal to the {@see livingAgents()} count while
+     * tracked, so swapping it into the cross-settlement engines leaves an all-tracked run byte-identical.
+     */
+    public function headcount(): float
+    {
+        return $this->cohort !== null ? $this->cohort->population() : (float) count($this->livingAgents());
     }
 
     /** @return list<Agent> the settlement's living members — empty once folded into a cohort */

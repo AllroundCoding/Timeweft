@@ -51,8 +51,8 @@ final class DistressEngine
     /** Draw gratis relief from amicable neighbours with food to spare, up to a survivable ration. */
     private static function sendForHelp(World $world, Village $stricken, int $tick, TharadiDate $date): void
     {
-        $population = count($stricken->livingAgents());
-        if ($population === 0) {
+        $population = $stricken->headcount();
+        if ($population <= 0.0) {
             return; // no one left to save
         }
         $need = (self::RELIEF_TARGET_DAYS * $population) - $stricken->stockpile->amount('food');
@@ -65,8 +65,8 @@ final class DistressEngine
             if ($donor === $stricken || RelationsEngine::hostile($world, $donor, $stricken)) {
                 continue; // enemies let them starve
             }
-            $donorPop = count($donor->livingAgents());
-            if ($donorPop === 0) {
+            $donorPop = $donor->headcount();
+            if ($donorPop <= 0.0) {
                 continue;
             }
             // How deep a donor digs scales with its cohesion to the stricken (TWT-52): an allied, kindred
@@ -98,8 +98,8 @@ final class DistressEngine
     /** A settlement that has emptied — to death or exodus — is mourned once. */
     private static function mournIfCollapsed(World $world, Village $village, int $tick, TharadiDate $date): void
     {
-        if ($village->collapsed || $village->agents === [] || $village->livingAgents() !== []) {
-            return; // never settled, still inhabited, or already mourned
+        if ($village->collapsed || $village->agents === [] || $village->headcount() > 0.0) {
+            return; // never settled, still inhabited (tracked or cohort), or already mourned
         }
 
         $village->collapsed = true;

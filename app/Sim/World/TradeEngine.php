@@ -63,8 +63,8 @@ final class TradeEngine
         $importers = [];
         $exporters = [];
         foreach ($world->villages as $village) {
-            $population = count($village->livingAgents());
-            if ($population === 0) {
+            $population = $village->headcount();
+            if ($population <= 0.0) {
                 continue;
             }
             $perCapita = $village->stockpile->amount($staple) / $population;
@@ -105,8 +105,8 @@ final class TradeEngine
         // Price the trade at the midpoint of the two local markets, read *before* the goods move:
         // dear in the short settlement, cheap in the flush one — the gain from trade split between them.
         $base = $world->goods->get($staple)?->value ?? 1.0;
-        $buyerPrice = Pricing::localPrice($base, $to->stockpile->amount($staple), count($to->livingAgents()));
-        $sellerPrice = Pricing::localPrice($base, $from->stockpile->amount($staple), count($from->livingAgents()));
+        $buyerPrice = Pricing::localPrice($base, $to->stockpile->amount($staple), (int) round($to->headcount()));
+        $sellerPrice = Pricing::localPrice($base, $from->stockpile->amount($staple), (int) round($from->headcount()));
         $unitPrice = ($buyerPrice + $sellerPrice) / 2.0;
 
         $shipped = $from->stockpile->withdraw($staple, $amount);

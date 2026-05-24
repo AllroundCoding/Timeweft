@@ -292,6 +292,23 @@ final class World
     }
 
     /**
+     * Promote one migrant from a folded source settlement's cohort into a tracked agent at the
+     * destination (the LOD migration boundary; TWT-246/50). Draws off the given sub-stream so it never
+     * perturbs a tracked run; conserves population — the source cohort loses a head, the destination
+     * gains the agent.
+     */
+    public function migrantToTracked(Village $from, Village $to, Rng $rng): void
+    {
+        if ($from->cohort === null) {
+            return;
+        }
+        $region = $to->regionProfile ?? $this->region;
+        [$agent, $cohort] = CohortEngine::promote($from->cohort, $this->species, $region, $to->culture, $this->nextId++, $this->tick, $rng, $this->names);
+        $from->cohort = $cohort;
+        $to->agents[] = $agent;
+    }
+
+    /**
      * The world's canonical, persistable state (design doc 01; TWT-31) — the skeleton the rest of the
      * world's texture is derived from. A view, not a copy: persistence (TWT-28/30) maps it to storage and
      * a checkpoint (TWT-32) anchors it to this tick; the per-tick texture (activities, need values) is

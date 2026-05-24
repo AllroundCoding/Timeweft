@@ -65,7 +65,7 @@ final class WarEngine
 
         if ($rng->chance(self::RAID_CHANCE_PER_YEAR)) {
             // The stronger settlement raids the weaker.
-            [$raider, $victim] = count($a->livingAgents()) >= count($b->livingAgents()) ? [$a, $b] : [$b, $a];
+            [$raider, $victim] = $a->headcount() >= $b->headcount() ? [$a, $b] : [$b, $a];
             self::raid($world, $raider, $victim, $tick, $date);
         }
     }
@@ -93,7 +93,16 @@ final class WarEngine
     private static function war(World $world, Village $a, Village $b, Rng $rng, int $tick, TharadiDate $date): void
     {
         $fallen = [];
+        $cohortDeaths = 0;
         foreach ([$a, $b] as $side) {
+            if ($side->cohort !== null) {
+                // A folded side loses its share statistically — the cohort is culled, with no named dead.
+                $toll = ceil($side->cohort->population() * self::WAR_CASUALTY_RATE);
+                $side->cohort = CohortEngine::cull($side->cohort, $toll);
+                $cohortDeaths += (int) $toll;
+
+                continue;
+            }
             $pool = $side->livingAgents();
             $casualties = (int) ceil(count($pool) * self::WAR_CASUALTY_RATE);
             for ($k = 0; $k < $casualties && $pool !== []; $k++) {
@@ -106,13 +115,13 @@ final class WarEngine
                 self::widow($side, $victim);
             }
         }
-        if ($fallen === []) {
+        if ($fallen === [] && $cohortDeaths === 0) {
             return;
         }
 
         $world->chronicle->record($tick, sprintf(
             '%d %s, Year %d — war between %s and %s claims %d souls.',
-            $date->dayOfMonth, $date->monthName, $date->year, $a->name, $b->name, count($fallen),
+            $date->dayOfMonth, $date->monthName, $date->year, $a->name, $b->name, count($fallen) + $cohortDeaths,
         ), 'war', $fallen, [], ['war']);
     }
 

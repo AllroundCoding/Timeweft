@@ -24,6 +24,10 @@ final class MigrationEngine
 
     private const MIGRATION_RATE = 0.25; // a pushed single adult's yearly chance to leave, scaled by pressure
 
+    private const SINGLE_ADULT_FRACTION = 0.3; // the footloose, unattached share of adults — households stay rooted
+
+    private const MAX_AGE = 120;
+
     public static function runDay(World $world, int $tick, TharadiDate $date): void
     {
         if ($date->monthIndex !== 0 || $date->dayOfMonth !== 1) {
@@ -43,6 +47,12 @@ final class MigrationEngine
                 continue; // nowhere more inviting
             }
 
+            if ($from->cohort !== null) {
+                self::migrateFolded($world, $from, $destination, $pressure, $tick, $date);
+
+                continue;
+            }
+
             $leavers = [];
             foreach ($from->livingAgents() as $agent) {
                 if ($agent->partnerId !== null || $agent->ageInYears($tick) < self::ADULT_AGE) {
@@ -58,7 +68,7 @@ final class MigrationEngine
             }
 
             foreach ($leavers as $agent) {
-                self::relocate($from, $destination, $agent);
+                self::relocate($from, $destination, $agent, $tick);
             }
             $count = count($leavers);
             $world->chronicle->record($tick, sprintf(
@@ -71,7 +81,7 @@ final class MigrationEngine
     /** How hard a settlement pushes people out: crowding past a threshold of its ceiling, worse in famine. */
     public static function pushPressure(Village $village): float
     {
-        $population = count($village->livingAgents());
+        $population = $village->headcount();
         $crowding = $village->carryingCapacity > 0 ? $population / $village->carryingCapacity : 0.0;
         $push = max(0.0, $crowding - self::PUSH_THRESHOLD);
         if ($village->inFamine) {
@@ -87,7 +97,7 @@ final class MigrationEngine
         if ($village->inFamine) {
             return 0.0;
         }
-        $population = count($village->livingAgents());
+        $population = $village->headcount();
         $headroom = $village->carryingCapacity > 0 ? 1.0 - $population / $village->carryingCapacity : 0.0;
 
         return max(0.0, $headroom);
@@ -118,9 +128,94 @@ final class MigrationEngine
         return $best;
     }
 
-    private static function relocate(Village $from, Village $to, Agent $agent): void
+    private static function relocate(Village $from, Village $to, Agent $agent, int $tick): void
     {
         $from->agents = array_values(array_filter($from->agents, static fn (Agent $a): bool => $a !== $agent));
+        if ($to->cohort !== null) {
+            // Arriving into a folded settlement: the migrant folds into its cohort at the boundary (TWT-246).
+            $to->cohort = CohortEngine::demote($to->cohort, $agent, $tick);
+
+            return;
+        }
         $to->agents[] = $agent;
+    }
+
+    /**
+     * A folded source sheds migrants statistically: a share of its footloose adults leave as a cohort
+     * delta, delivered to the destination at its own level of detail — promoted to tracked agents if the
+     * destination is tracked, folded straight into its cohort if not. Population is conserved; the
+     * folded→folded path is RNG-free, and the folded→tracked promotion draws a dedicated sub-stream.
+     */
+    private static function migrateFolded(World $world, Village $from, Village $to, float $pressure, int $tick, TharadiDate $date): void
+    {
+        $cohort = $from->cohort;
+        if ($cohort === null) {
+            return;
+        }
+        $adults = $cohort->inAgeRange(self::ADULT_AGE, self::MAX_AGE);
+        $leaving = (int) floor($adults * self::SINGLE_ADULT_FRACTION * min(1.0, $pressure) * self::MIGRATION_RATE);
+        if ($leaving < 1) {
+            return;
+        }
+
+        if ($to->cohort !== null) {
+            // folded → folded: move adult heads from the source's bands into the destination's cohort.
+            [$moved, $reduced] = self::detachAdults($cohort, $leaving);
+            $from->cohort = $reduced;
+            $to->cohort = self::attach($to->cohort, $moved);
+        } else {
+            // folded → tracked: materialize the migrants as tracked agents at the destination.
+            $rng = $world->rng->stream('migration-folded', $from->pairKey($to), $date->year);
+            for ($k = 0; $k < $leaving; $k++) {
+                $world->migrantToTracked($from, $to, $rng);
+            }
+        }
+
+        $world->chronicle->record($tick, sprintf(
+            '%d %s, Year %d — %d soul%s leave %s for %s, chasing relief.',
+            $date->dayOfMonth, $date->monthName, $date->year, $leaving, $leaving === 1 ? '' : 's', $from->name, $to->name,
+        ), 'migration', [], [], ['migration']);
+    }
+
+    /**
+     * Detach `$count` adult heads from a cohort, proportionally across its adult bands.
+     *
+     * @return array{0: array<int,float>, 1: Cohort} the moved heads by age, and the source cohort with them removed
+     */
+    private static function detachAdults(Cohort $cohort, int $count): array
+    {
+        $adultTotal = $cohort->inAgeRange(self::ADULT_AGE, self::MAX_AGE);
+        if ($adultTotal <= 0.0) {
+            return [[], $cohort];
+        }
+        $fraction = min(1.0, $count / $adultTotal);
+
+        $moved = [];
+        $byAge = $cohort->byAge;
+        foreach ($byAge as $age => $headcount) {
+            if ($age >= self::ADULT_AGE) {
+                $take = $headcount * $fraction;
+                $moved[$age] = $take;
+                $byAge[$age] = $headcount - $take;
+            }
+        }
+
+        return [$moved, new Cohort($byAge)];
+    }
+
+    /**
+     * Add migrant heads (by age) into a destination cohort.
+     *
+     * @param  array<int,float>  $moved
+     */
+    private static function attach(Cohort $cohort, array $moved): Cohort
+    {
+        $byAge = $cohort->byAge;
+        foreach ($moved as $age => $headcount) {
+            $byAge[$age] = ($byAge[$age] ?? 0.0) + $headcount;
+        }
+        ksort($byAge);
+
+        return new Cohort($byAge);
     }
 }

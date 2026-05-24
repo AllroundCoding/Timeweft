@@ -90,6 +90,27 @@ final class CohortEngine
         return new Cohort($byAge);
     }
 
+    /**
+     * Remove a death toll from a cohort, spread proportionally across its age bands (TWT-246) — the
+     * statistical analogue of war or plague culling individuals. RNG-free; the cohort loses exactly
+     * `$deaths` heads (clamped to its current population).
+     */
+    public static function cull(Cohort $cohort, float $deaths): Cohort
+    {
+        $population = $cohort->population();
+        if ($population <= 0.0 || $deaths <= 0.0) {
+            return $cohort;
+        }
+        $survival = max(0.0, 1.0 - min($deaths, $population) / $population);
+
+        $byAge = [];
+        foreach ($cohort->byAge as $age => $count) {
+            $byAge[$age] = $count * $survival;
+        }
+
+        return new Cohort($byAge);
+    }
+
     /** Draw an age from the cohort's distribution, weighted by how many people are that age. */
     private static function sampleAge(Cohort $cohort, Rng $rng): int
     {
