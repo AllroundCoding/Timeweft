@@ -30,6 +30,8 @@ final class World
 {
     private const ADULT_AGE = 16;
 
+    private const TICKS_PER_YEAR = TharadiCalendar::HOURS_PER_DAY * TharadiCalendar::DAYS_PER_YEAR;
+
     public int $tick = 0;
 
     /** The settlement currently in focus — the engines operate on it; reset to the primary after a run. */
@@ -181,9 +183,26 @@ final class World
 
             $seasonMultiplier = $date->season === 'Sandstorm' ? 1.4 : 1.0;
 
+            // Level of detail (TWT-213): once a year, fold any settlement that has outgrown the salience
+            // threshold into a cohort. A no-op while every settlement is tracked, so an all-tracked world
+            // (the canonical run) advances byte-identically.
+            if ($this->tick % self::TICKS_PER_YEAR === 8) {
+                LodManager::reconcile($this, $this->tick);
+            }
+
             // Each settlement is simulated in turn; the engines read whichever is currently in focus.
             foreach ($this->villages as $village) {
                 $this->village = $village;
+
+                if (! $village->isTracked()) {
+                    // Folded: advance once a year as a cohort (O(age bands)); skip the per-agent day.
+                    if ($this->tick % self::TICKS_PER_YEAR === 8) {
+                        LodManager::advanceYear($village);
+                    }
+
+                    continue;
+                }
+
                 $projectOpen = $village->hasOpenProject();
                 foreach ($village->livingAgents() as $agent) {
                     $contributing = $projectOpen && $agent->ageInYears($this->tick) >= self::ADULT_AGE;
@@ -245,6 +264,31 @@ final class World
         ), 'birth', [$child->id, $mother->id, $father->id], array_values(array_filter([$mother->pairingEventId])));
 
         return $child;
+    }
+
+    /**
+     * Materialize a folded settlement back into tracked individuals (LOD promotion; TWT-213/50) — the
+     * inverse of {@see Village::foldIntoCohort}. Draws fresh agents from the cohort's age distribution
+     * off a dedicated sub-stream (so it never perturbs a tracked run's seeded draws), conserving
+     * population. For when a cohort settlement becomes salient (e.g. the focus moves to it).
+     */
+    public function materialize(Village $village): void
+    {
+        if ($village->cohort === null) {
+            return;
+        }
+
+        $region = $village->regionProfile ?? $this->region;
+        $cohort = $village->cohort;
+        $count = (int) round($cohort->population());
+        $rng = $this->rng->stream('lod-materialize', $village->name);
+
+        for ($k = 0; $k < $count; $k++) {
+            [$agent, $cohort] = CohortEngine::promote($cohort, $this->species, $region, $village->culture, $this->nextId++, $this->tick, $rng, $this->names);
+            $village->agents[] = $agent;
+        }
+
+        $village->cohort = null;
     }
 
     /**

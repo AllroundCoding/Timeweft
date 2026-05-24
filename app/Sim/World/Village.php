@@ -18,6 +18,9 @@ final class Village
     /** The institution this settlement founds once its cooperation deficit persists. */
     public ?Institution $institution = null;
 
+    /** When folded by the LOD manager (TWT-213), the settlement's statistical stand-in; null = tracked per-agent. */
+    public ?Cohort $cohort = null;
+
     /** The culture of this settlement's people; sets the cohesion baseline and institution type. Drifts with material security. */
     public Culture $culture;
 
@@ -168,10 +171,38 @@ final class Village
         return $this->name < $other->name ? "{$this->name}↔{$other->name}" : "{$other->name}↔{$this->name}";
     }
 
-    /** @return list<Agent> the settlement's living members */
+    /** A tracked settlement runs per-agent (the default); a folded one advances as its {@see $cohort}. */
+    public function isTracked(): bool
+    {
+        return $this->cohort === null;
+    }
+
+    /** @return list<Agent> the settlement's living members — empty once folded into a cohort */
     public function livingAgents(): array
     {
+        if ($this->cohort !== null) {
+            return [];
+        }
+
         return array_values(array_filter($this->agents, static fn (Agent $a): bool => $a->alive));
+    }
+
+    /**
+     * Fold the living individuals into a {@see Cohort} (their age distribution) and drop them from the
+     * tracked roster — the LOD demotion (TWT-213/50). RNG-free; population is conserved, one cohort head
+     * per living soul. The dead stay as history, and events keep their subjects in the chronicle.
+     */
+    public function foldIntoCohort(int $tick): void
+    {
+        $byAge = [];
+        foreach ($this->livingAgents() as $agent) {
+            $age = $agent->ageInYears($tick);
+            $byAge[$age] = ($byAge[$age] ?? 0.0) + 1.0;
+        }
+        ksort($byAge);
+
+        $this->cohort = new Cohort($byAge);
+        $this->agents = array_values(array_filter($this->agents, static fn (Agent $a): bool => ! $a->alive));
     }
 
     public function hasOpenProject(): bool
