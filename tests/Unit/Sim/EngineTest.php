@@ -64,6 +64,16 @@ class EngineTest extends TestCase
         $this->assertContains($beat, $engine->world()->milestones, 'the pinned beat is registered for the director to steer toward');
     }
 
+    public function test_attending_marks_settlements_salient_to_steer_detail(): void
+    {
+        $engine = Engine::seed('vaeris', 8);
+
+        $result = $engine->attend('Khoradun', 'Aetheria');
+
+        $this->assertSame($engine, $result, 'attend is chainable');
+        $this->assertSame(['Khoradun' => true, 'Aetheria' => true], $engine->world()->salient, 'the named settlements are marked salient for the LOD manager');
+    }
+
     public function test_it_is_deterministic(): void
     {
         $a = Engine::seed('vaeris', 8)->advance(self::YEAR * 6);

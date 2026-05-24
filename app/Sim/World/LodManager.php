@@ -16,29 +16,46 @@ namespace App\Sim\World;
 final class LodManager
 {
     /**
-     * A settlement with more living souls than this folds into a cohort (unless it is the focus). Set
-     * far above any current scenario, so wiring LOD in is a no-op for every existing run: the canonical
-     * hash holds while the world is all-tracked.
+     * A settlement with more living souls than this folds into a cohort once attention leaves it. Set far
+     * above any current scenario, so wiring LOD in is a no-op for every existing run: the canonical hash
+     * holds while the world is all-tracked.
      */
     public const COHORT_THRESHOLD = 200;
 
-    /** Tracked (per-agent, as before) iff salient: the focus settlement, or one under the cohort threshold. */
-    public static function isSalient(Village $village, bool $isFocus): bool
+    /**
+     * Whether a settlement currently holds attention: the primary settlement (the camera's home, always
+     * tracked) or one the boundary has marked salient — the renderer's focus, a director pin, the player's
+     * seat (TWT-248). Attention is supplied from outside ({@see World::$salient}), never sensed here, so
+     * the core stays pure.
+     *
+     * @param  array<string,true>  $salient  the set of salient settlement names
+     */
+    public static function isSalient(Village $village, bool $isFocus, array $salient): bool
     {
-        return $isFocus || count($village->livingAgents()) <= self::COHORT_THRESHOLD;
+        return $isFocus || isset($salient[$village->name]);
     }
 
     /**
-     * Reconcile each settlement's detail level against its salience: fold an oversized, non-focus,
-     * still-tracked settlement into a cohort. A no-op for everything under the threshold — no state
-     * changes, no RNG — so an all-tracked world advances byte-identically to before LOD existed.
+     * Reconcile each settlement's detail level against attention, both ways (TWT-213 fold + TWT-248
+     * promote): an oversized settlement no longer attended folds into a cheap cohort, and a folded
+     * settlement that regains attention materializes back into tracked individuals. Detail follows
+     * attention. With nothing marked salient and everything under the threshold this changes no state and
+     * draws no RNG, so an all-tracked world (the canonical run) advances byte-identically to before LOD.
      */
     public static function reconcile(World $world, int $tick): void
     {
+        $salient = $world->salient;
         foreach ($world->villages as $index => $village) {
-            $isFocus = $index === 0; // the primary settlement is the camera's home — always tracked
-            if ($village->isTracked() && ! self::isSalient($village, $isFocus)) {
-                $village->foldIntoCohort($tick);
+            $attended = self::isSalient($village, $index === 0, $salient);
+
+            if ($village->isTracked()) {
+                // Demote: an oversized settlement no one is watching folds into a statistical cohort.
+                if (! $attended && count($village->livingAgents()) > self::COHORT_THRESHOLD) {
+                    $village->foldIntoCohort($tick);
+                }
+            } elseif ($attended) {
+                // Promote: attention has reached a folded settlement — bring its people back as individuals.
+                $world->materialize($village);
             }
         }
     }
