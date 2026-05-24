@@ -89,6 +89,25 @@ final class Engine
         return count($this->livingAgents());
     }
 
+    /** @return list<Agent> every agent across all settlements — living and dead (the full cast a timeline renders) */
+    public function agents(): array
+    {
+        $all = [];
+        foreach ($this->world->villages as $village) {
+            foreach ($village->agents as $agent) {
+                $all[] = $agent;
+            }
+        }
+
+        return $all;
+    }
+
+    /** @return list<Milestone> the authored beats the story director is steering the world toward */
+    public function milestones(): array
+    {
+        return $this->world->milestones;
+    }
+
     /** The canonical persistable state right now (for persistence/inspection). */
     public function skeleton(): WorldSkeleton
     {
