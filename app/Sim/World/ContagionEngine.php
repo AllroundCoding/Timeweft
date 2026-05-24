@@ -52,8 +52,7 @@ final class ContagionEngine
         }
 
         foreach ($world->villages as $i => $target) {
-            $living = $target->livingAgents();
-            if ($living === []) {
+            if ($target->headcount() <= 0.0) {
                 continue;
             }
 
@@ -76,10 +75,15 @@ final class ContagionEngine
             }
 
             $delta = self::INFECTIOUSNESS * $incoming;
-            foreach ($living as $agent) {
-                $need = $agent->needs['sickness'] ?? null;
-                if ($need !== null) {
-                    $need->value = max(0.0, min(100.0, $need->value + $delta));
+            if ($target->cohort !== null) {
+                // Folded: the outbreak rides a cohort-level mean sickness rather than per-agent needs.
+                $target->cohortSickness = max(0.0, min(100.0, $target->cohortSickness + $delta));
+            } else {
+                foreach ($target->livingAgents() as $agent) {
+                    $need = $agent->needs['sickness'] ?? null;
+                    if ($need !== null) {
+                        $need->value = max(0.0, min(100.0, $need->value + $delta));
+                    }
                 }
             }
 
@@ -127,6 +131,10 @@ final class ContagionEngine
     /** A settlement's infectious pressure: the mean sickness of its living members (0..100). */
     private static function meanSickness(Village $village): float
     {
+        if ($village->cohort !== null) {
+            return $village->cohortSickness; // folded: the cohort-level mean stands in for per-agent needs
+        }
+
         $total = 0.0;
         $counted = 0;
         foreach ($village->livingAgents() as $agent) {
