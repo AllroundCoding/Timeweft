@@ -41,4 +41,19 @@ return [
         'project_id' => env('LINEAR_PROJECT_ID', '1dadabd7-ee65-4587-a6b1-53fbb447d1cd'),
     ],
 
+    'narrator' => [
+        // The flavor layer's driver (TWT-53): 'template' (deterministic, the default), 'claude_code'
+        // (your Claude subscription via the local `claude` CLI — browser login, no API billing), or
+        // 'api' (the Anthropic API, separate pay-as-you-go billing).
+        'driver' => env('NARRATOR_DRIVER', 'template'),
+        'claude_bin' => env('CLAUDE_CODE_BIN', 'claude'),
+        'claude_model' => env('CLAUDE_CODE_MODEL'),
+    ],
+
+    'anthropic' => [
+        // The 'api' driver — the Anthropic Developer Platform (billed separately from a subscription).
+        'key' => env('ANTHROPIC_API_KEY'),
+        'model' => env('ANTHROPIC_MODEL', 'claude-opus-4-7'),
+    ],
+
 ];
