@@ -40,6 +40,15 @@ final class World
     /** @var list<Village> every settlement in the world (the village above is whichever is being simulated) */
     public array $villages = [];
 
+    /**
+     * Settlements the boundary has marked salient, by name — the attention the LOD manager promotes a
+     * folded settlement back to tracked for (TWT-248). Supplied from outside (renderer focus, the player's
+     * seat, a director pin); empty by default, so an all-tracked run is untouched.
+     *
+     * @var array<string,true>
+     */
+    public array $salient = [];
+
     public Chronicle $chronicle;
 
     public Species $species;
@@ -264,6 +273,17 @@ final class World
         ), 'birth', [$child->id, $mother->id, $father->id], array_values(array_filter([$mother->pairingEventId])));
 
         return $child;
+    }
+
+    /**
+     * Declare which settlements currently hold attention, by name — replacing the prior set. The salience
+     * signal the LOD manager reads to promote a folded settlement back to tracked (TWT-248), supplied by
+     * the boundary (renderer focus, the player's seat, a director pin). The primary settlement is always
+     * attended regardless.
+     */
+    public function setSalient(string ...$names): void
+    {
+        $this->salient = array_fill_keys($names, true);
     }
 
     /**

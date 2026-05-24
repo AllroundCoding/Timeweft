@@ -130,6 +130,18 @@ final class Engine
         return $this;
     }
 
+    /**
+     * Mark settlements salient (by name) so the LOD manager keeps — or makes — them tracked at full
+     * per-agent detail: a folded settlement regains its individuals on the next reconcile (TWT-248).
+     * Replaces the prior set each call; the primary settlement is always tracked. Detail follows attention.
+     */
+    public function attend(string ...$names): self
+    {
+        $this->world->setSalient(...$names);
+
+        return $this;
+    }
+
     // ── escape hatch ────────────────────────────────────────────────────────────────────────────────
 
     /** The live world — for the boundary to persist (WorldStore) or checkpoint; not for reaching past the API. */
