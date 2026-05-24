@@ -135,6 +135,35 @@ At the edges, follow the [Boost guidelines](../CLAUDE.md) and standard Laravel p
 The version table in [`laravel-cheatsheet.md`](laravel-cheatsheet.md) is generated from
 `composer.lock`. After any dependency change, run:
 
+## Linear conventions (for agents)
+
+The backlog lives in Linear (project **Timeweft**); cloud sessions have no Boost MCP, so
+these are the rules a session follows when reading or writing tickets.
+
+### Label every ticket on create
+Each new issue gets three labels so it stays filterable:
+- **Area** — one of the title-prefix words: `Architecture` `Time` `Agents` `Behavior`
+  `Population` `Economy` `Cooperation` `Direction` `Causality` `Persistence` `Culture`
+  `Worldgen` `World` `Society` `Politics` `Magic`, plus cross-cutting `Tooling` /
+  `Presentation`. The label must match the `Sim | <Area>:` prefix in the title.
+- **Tier** — `v1-core` (the base app: engine, persistence, Engine API, minimal
+  renderer/flavor), `v1-depth` (worldgen geography, culture/M8, goods/M9, deep realism,
+  skills, concurrency), or `v2-game` (doc 16 play + doc 21 management).
+- **Type** — `Bug`, `Feature`, or `Improvement`. (`Work out` = needs design before build.)
+
+### Querying efficiently
+- **Narrow before listing**: combine `label` + `milestone` + `state` + `parentId`. An
+  unfiltered `list_issues` of the whole project is ~190 KB and overflows context.
+- Filter `state` to drop `Done`/`Canceled`/`Duplicate` for a live-work view; walk an epic
+  with `parentId` instead of listing everything.
+
+### The mirror gotcha (TWT-252)
+The GitHub issue sync round-trips Linear tickets back as **project-less, team-only twins**
+(they're invisible to `project=Timeweft` queries — they show as gaps in the id sequence).
+The in-project original is canonical; mark the mirror `duplicateOf` it. The sync also
+**reverts parent/state edits** to match GitHub (labels are unaffected) — pause it before
+relying on structural Linear edits.
+
 ```bash
 php artisan docs:check-stack          # regenerate the version table
 php artisan docs:check-stack --check  # CI mode: fail if the committed table is stale
