@@ -17,6 +17,7 @@ use App\Sim\Economy\JobMarket;
 use App\Sim\Economy\ProfessionEngine;
 use App\Sim\Economy\RecipeBook;
 use App\Sim\Institutions\InstitutionEngine;
+use App\Sim\Persistence\Checkpoint;
 use App\Sim\Persistence\WorldSkeleton;
 use App\Sim\Projects\ProjectEngine;
 use App\Sim\Support\NameGenerator;
@@ -263,6 +264,16 @@ final class World
             relations: $this->relations,
             routes: $this->routes,
         );
+    }
+
+    /**
+     * Snapshot the world's boundary state at the current tick (design doc 01; TWT-32) — a deep, immutable
+     * copy from which history replays deterministically. The live world may keep advancing afterward
+     * without disturbing the checkpoint.
+     */
+    public function checkpoint(): Checkpoint
+    {
+        return Checkpoint::of($this);
     }
 
     /** @return list<Agent> the living members of the settlement currently in focus */
