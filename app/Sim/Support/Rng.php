@@ -22,6 +22,12 @@ final class Rng
         $this->r = new Randomizer(new Mt19937($this->seed));
     }
 
+    /** The integer seed this generator was built from — the reproducible handle a skeleton/checkpoint stores (doc 01). */
+    public function seed(): int
+    {
+        return $this->seed;
+    }
+
     /**
      * An independent deterministic sub-stream, salted off this one's seed. Sampling the fork never
      * advances this generator, so a new RNG consumer can be added without perturbing existing streams
