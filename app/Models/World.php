@@ -57,4 +57,10 @@ class World extends Model
     {
         return $this->hasMany(Event::class);
     }
+
+    /** @return HasMany<WorldCheckpoint, $this> */
+    public function checkpoints(): HasMany
+    {
+        return $this->hasMany(WorldCheckpoint::class);
+    }
 }
