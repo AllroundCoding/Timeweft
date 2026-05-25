@@ -6,29 +6,46 @@ use App\Sim\Support\Rng;
 
 final class SubstrateGenerator
 {
-    private const CONTINENTAL_FRACTION = 0.29;
-    private const CONTINENTAL_BASE = 0.8;
-    private const OCEANIC_BASE = -3.7;
-    private const UPLIFT_SCALE = 4;
+    /** Higher value is more land */
+    private const float CONTINENTAL_FRACTION = 0.45; // 0.29 earth-like default
+
+    /** Higher value is higher base landmass */
+    private const float CONTINENTAL_BASE = 0.8; // 0.8 earth-like default
+
+    /** Oceanic floor level */
+    private const float OCEANIC_BASE = -3.7; // -3.7 earth-like default
+
+    /** Mountain multiplier, higher value is higher mountains */
+    private const float UPLIFT_SCALE = 1.0; // 4 earth-like default
 
     /** Narrow band for sharp mountains and trenches */
-    private const BOUNDARY_BAND = 0.12;
+    private const float BOUNDARY_BAND = 0.015; // 0.12 earth-like default
 
-    /** NEW: Massive band for wide, sweeping continental slopes */
-    private const SHELF_BAND = 0.35;
+    /** Massive band for wide, sweeping continental slopes */
+    private const float SHELF_BAND = 0.12; // 0.35 earth-like default
 
-    private const RELIEF_AMPLITUDE = 0.24;
-    private const RELIEF_FREQUENCY = 0.07;
+    /** Noise amplitude, higher value is more noisy terrain */
+    private const float RELIEF_AMPLITUDE = 0.24; // 0.24 earth-like default
 
-    private const MACRO_WARP_AMPLITUDE_PCT = 0.20;
-    private const MACRO_WARP_FREQUENCY = 0.0015;
-    private const MICRO_WARP_AMPLITUDE = 25.0;
-    private const MICRO_WARP_FREQUENCY = 0.04;
+    /** Base spatial frequency of that relief (cells⁻¹). Raise for many small hills; lower for fewer, broader landforms. */
+    private const float RELIEF_FREQUENCY = 0.07; // 0.07 earth-like default
 
-    public static function generate(Rng $rng, int $width = 64, int $height = 48, int $plateCount = 8): Substrate
+    /** Macro warp breaks the overall straightness of the plates. Values of 0.1 to 0.25 (10-25% of map size) work best. */
+    private const float MACRO_WARP_AMPLITUDE_PCT = 0.25; // 20% of map size for huge sweeping curves is default
+
+    /** Low frequency creates large sweeping curves and vast peninsulas. */
+    private const float MACRO_WARP_FREQUENCY = 0.0015; // 0.0015 earth-like default
+
+    /** Micro warp adds the local jaggedness and fractal rough edges. */
+    private const float MICRO_WARP_AMPLITUDE = 25.0; // 25 earth-like default
+
+    /** High frequency creates rapid, tight variations. */
+    private const float MICRO_WARP_FREQUENCY = 0.04; // 0.04 earth-like default
+
+    public static function generate(Rng $rng, int $width = 2560, int $height = 1440, int $plateCount = 70): Substrate
     {
         $plates = [];
-        // Define how many plates are massive world-spanning continents/oceans
+        // Define how many plates are massive world-spanning continents/oceans, default is 20%
         $majorPlateCount = max(3, (int)($plateCount * 0.20));
 
         for ($i = 0; $i < $plateCount; $i++) {
@@ -47,7 +64,7 @@ final class SubstrateGenerator
                 continental: $seed->chance(self::CONTINENTAL_FRACTION),
                 driftX: $seed->float(-1.0, 1.0),
                 driftY: $seed->float(-1.0, 1.0),
-                weight: $weight // <-- Pass the weight
+                weight: $weight
             );
         }
 
@@ -144,7 +161,7 @@ final class SubstrateGenerator
         $nextDist = INF;
 
         foreach ($plates as $plate) {
-            // NEW: Divide the physical distance by the plate's weight!
+            // Divide the physical distance by the plate's weight!
             // A weight of 4.0 means the plate's "influence" reaches 4x further.
             $distance = hypot($plate->x - $x, $plate->y - $y) / $plate->weight;
 

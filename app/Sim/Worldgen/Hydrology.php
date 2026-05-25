@@ -17,6 +17,7 @@ readonly class Hydrology
      * @param  list<list<float>>  $flow  accumulated upstream water passing through each cell
      * @param  list<list<bool>>  $river  cells carrying a river (flow past the channel threshold, on land)
      * @param  list<list<bool>>  $lake  cells holding standing inland water (a sink that gathers real drainage)
+     * @param  list<list<bool>>  $delta  cells where a major river meets the sea (river mouths)
      */
     public function __construct(
         public int $width,
@@ -24,6 +25,7 @@ readonly class Hydrology
         public array $flow,
         public array $river,
         public array $lake,
+        public array $delta,
     ) {}
 
     public function flowAt(int $x, int $y): float
@@ -39,5 +41,10 @@ readonly class Hydrology
     public function isLake(int $x, int $y): bool
     {
         return $this->lake[$y][$x];
+    }
+
+    public function isDelta(int $x, int $y): bool
+    {
+        return $this->delta[$y][$x];
     }
 }

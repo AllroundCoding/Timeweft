@@ -39,28 +39,46 @@ final class HydrologyGenerator
         // Each land cell starts with its own rainfall; sea contributes nothing to the channels.
         $accumulation = [];
         $cells = [];
+
+        // Parallel arrays for high-speed multisort
+        $elevations = [];
+        $distances = [];
+        $ys = [];
+        $xs = [];
+
+        $i = 0;
         for ($y = 0; $y < $height; $y++) {
             $accumulation[$y] = [];
             for ($x = 0; $x < $width; $x++) {
                 $land = $substrate->isLand($x, $y);
                 $accumulation[$y][$x] = $land ? $climate->precipitationAt($x, $y) : 0.0;
+
                 if ($land) {
-                    $cells[] = [$x, $y];
+                    $cells[$i] = [$x, $y];
+                    $elevations[$i] = $substrate->elevationAt($x, $y);
+                    $distances[$i] = $distance[$y][$x];
+                    $ys[$i] = $y;
+                    $xs[$i] = $x;
+                    $i++;
                 }
             }
         }
 
-        // Highest first (ties: further from the sea first), so a cell's water has all arrived before it drains.
-        usort($cells, static function (array $a, array $b) use ($substrate, $distance): int {
-            $keyA = [$substrate->elevationAt($b[0], $b[1]), $distance[$b[1]][$b[0]], $b[1], $b[0]];
-            $keyB = [$substrate->elevationAt($a[0], $a[1]), $distance[$a[1]][$a[0]], $a[1], $a[0]];
-
-            return $keyA <=> $keyB;
-        });
+        // PERFORMANCE MASSIVE BOOST: array_multisort runs in native C.
+        // Sort Highest first. Ties broken by distance (furthest from sea flows first).
+        array_multisort(
+            $elevations, SORT_DESC, SORT_NUMERIC,
+            $distances, SORT_DESC, SORT_NUMERIC,
+            $ys, SORT_DESC, SORT_NUMERIC,
+            $xs, SORT_DESC, SORT_NUMERIC,
+            $cells
+        );
 
         $sink = [];
+        $targetMap = []; // We use this to figure out where rivers touch the sea
         for ($y = 0; $y < $height; $y++) {
             $sink[$y] = array_fill(0, $width, false);
+            $targetMap[$y] = array_fill(0, $width, null);
         }
 
         foreach ($cells as [$x, $y]) {
@@ -68,6 +86,7 @@ final class HydrologyGenerator
             $coast = $distance[$y][$x];
             $targetX = -1;
             $targetY = -1;
+
             foreach (self::NEIGHBORS as [$dx, $dy]) {
                 $nx = $x + $dx;
                 $ny = $y + $dy;
@@ -87,6 +106,7 @@ final class HydrologyGenerator
 
             if ($targetX >= 0) {
                 $accumulation[$targetY][$targetX] += $accumulation[$y][$x];
+                $targetMap[$y][$x] = [$targetX, $targetY]; // Save where the water went
             } else {
                 $sink[$y][$x] = true; // a basin floor with nowhere lower or seaward to go
             }
@@ -95,22 +115,40 @@ final class HydrologyGenerator
         $flow = [];
         $river = [];
         $lake = [];
+        $delta = [];
+
+        // Initialize delta array
+        for ($y = 0; $y < $height; $y++) {
+            $delta[$y] = array_fill(0, $width, false);
+        }
+
         for ($y = 0; $y < $height; $y++) {
             $flowRow = [];
             $riverRow = [];
             $lakeRow = [];
             for ($x = 0; $x < $width; $x++) {
                 $gathered = $accumulation[$y][$x];
+                $isRiver = $substrate->isLand($x, $y) && $gathered > self::RIVER_THRESHOLD;
+
                 $flowRow[] = $gathered;
-                $riverRow[] = $substrate->isLand($x, $y) && $gathered > self::RIVER_THRESHOLD;
+                $riverRow[] = $isRiver;
                 $lakeRow[] = $sink[$y][$x] && $gathered > self::LAKE_THRESHOLD;
+
+                // DELTA DETECTION: If a river flows into a non-land cell, it's a delta!
+                if ($isRiver && $targetMap[$y][$x] !== null) {
+                    [$tx, $ty] = $targetMap[$y][$x];
+                    if (!$substrate->isLand($tx, $ty)) {
+                        $delta[$y][$x] = true; // The coastal land cell
+                        $delta[$ty][$tx] = true; // The shallow sea cell
+                    }
+                }
             }
             $flow[] = $flowRow;
             $river[] = $riverRow;
             $lake[] = $lakeRow;
         }
 
-        return new Hydrology($width, $height, $flow, $river, $lake);
+        return new Hydrology($width, $height, $flow, $river, $lake, $delta);
     }
 
     /**

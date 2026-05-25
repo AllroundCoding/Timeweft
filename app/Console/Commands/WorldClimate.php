@@ -6,7 +6,7 @@ use App\Sim\Support\Rng;
 use App\Sim\Worldgen\Biome;
 use App\Sim\Worldgen\Climate;
 use App\Sim\Worldgen\ClimateGenerator;
-use App\Sim\Worldgen\CirculationGenerator; // <-- ADDED
+use App\Sim\Worldgen\CirculationGenerator;
 use App\Sim\Worldgen\Hydrology;
 use App\Sim\Worldgen\HydrologyGenerator;
 use App\Sim\Worldgen\Substrate;
@@ -17,7 +17,7 @@ use Illuminate\Console\Command;
 use Illuminate\Support\Facades\File;
 use RuntimeException;
 
-#[Signature('world:climate {--seed=vaeris : RNG seed for a reproducible world} {--width=320 : Grid columns} {--height=160 : Grid rows} {--plates=18 : Number of tectonic plate seeds} {--cell=6 : Pixels per cell in the PNG} {--layer=biome : Which layer to paint — biome|temperature|precipitation|fertility} {--hide-water : Hide the rivers & lakes overlay} {--out= : PNG output path (default: storage/app/climate-SEED-LAYER.png)}')]
+#[Signature('world:climate {--seed=vaeris : RNG seed for a reproducible world} {--width=2560 : Grid columns} {--height=1440 : Grid rows} {--plates=70 : Number of tectonic plate seeds} {--cell=1 : Pixels per cell in the PNG} {--layer=biome : Which layer to paint — biome|temperature|precipitation|fertility} {--hide-water : Hide the rivers & lakes overlay} {--out= : PNG output path (default: storage/app/climate-SEED-LAYER.png)}')]
 #[Description('Derive the climate (TWT-132) + hydrology (TWT-131) from a generated substrate and render a layer — biome, temperature, rainfall, or fertility — with rivers & lakes, as a PNG + an ASCII biome map.')]
 class WorldClimate extends Command
 {
@@ -45,7 +45,7 @@ class WorldClimate extends Command
         $out = (string) $this->option('out');
         if ($out === '') {
             $slug = preg_replace('/[^A-Za-z0-9._-]+/', '_', $seed) ?? 'world';
-            $out = storage_path('app/climate-'.$slug.'-'.$layer.'.png');
+            $out = storage_path('app/'.$slug.'-climate-'.$layer.'.png');
         }
 
         $substrate = SubstrateGenerator::generate(new Rng($seed), $width, $height, $plates);

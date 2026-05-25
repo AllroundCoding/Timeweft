@@ -11,7 +11,7 @@ use Illuminate\Console\Command;
 use Illuminate\Support\Facades\File;
 use RuntimeException;
 
-#[Signature('world:substrate {--seed=vaeris : RNG seed for a reproducible world} {--width=320 : Grid columns} {--height=160 : Grid rows} {--plates=18 : Number of tectonic plate seeds} {--cell=6 : Pixels per cell in the PNG} {--out= : PNG output path (default: storage/app/substrate-{seed}.png)}')]
+#[Signature('world:substrate {--seed=vaeris : RNG seed for a reproducible world} {--width=2560 : Grid columns} {--height=1440 : Grid rows} {--plates=70 : Number of tectonic plate seeds} {--cell=1 : Pixels per cell in the PNG} {--out= : PNG output path (default: storage/app/substrate-{seed}.png)}')]
 #[Description('Generate a solid-earth substrate (TWT-130) and render it as a colored elevation PNG + an ASCII preview — eyeball worldgen before the full map view (TWT-134).')]
 class WorldSubstrate extends Command
 {
@@ -45,7 +45,7 @@ class WorldSubstrate extends Command
         $out = (string) $this->option('out');
         if ($out === '') {
             $slug = preg_replace('/[^A-Za-z0-9._-]+/', '_', $seed) ?? 'world';
-            $out = storage_path('app/substrate-'.$slug.'.png');
+            $out = storage_path('app/'.$slug.'-substrate'.'.png');
         }
 
         $substrate = SubstrateGenerator::generate(new Rng($seed), $width, $height, $plates);
