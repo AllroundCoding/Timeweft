@@ -4,9 +4,9 @@
 
 - **Skeleton (sparse, persisted):** the canonical events — births, foundings, wars,
   falls. Forward-simulated, path-dependent, finite. This *is* the timeline.
-- **Texture (dense, derived):** "what is X doing at noon on day 3?" — computed on demand
-  from the nearest checkpoint, seeded, and **materialized on observation** (written back
-  as canon once it is looked at or edited).
+- **Texture (dense, derived):** "what is X doing at noon on day 3?" — recomputed on demand
+  from the nearest checkpoint, seeded, and then **discarded** — never persisted, even after it is
+  looked at or edited; the canonical skeleton stays the only source of truth.
 
 Forward-sim writes the history; derive-on-demand fills the life between the lines.
 Storage grows with **attention**, not with time × population.

@@ -1,4 +1,4 @@
-# 09 · Causality, Editing & Ripple  🟡 designed
+# 09 · Causality, Editing & Ripple  🟢 built (provenance graph, retroactive ripple, undo/redo)
 
 ## The timeline is a causal graph
 
@@ -22,8 +22,9 @@ independent reproduces identically, so only what the edit truly touched diverges
 
 ## Undo & non-destructive editing
 
-Event-sourcing: events are never destroyed, they are **tombstoned** (active/retracted); world
-state is a fold over the active events. Two distinct histories:
+Editing is **non-destructive** but the world is *recomputed*, not folded: an edit is applied as an
+**intervention** and the world is rebuilt by seeded replay from the nearest checkpoint with that
+intervention in effect, recomputing only the affected downstream cone. Two distinct histories:
 
 - the **in-world** timeline (year 590, 612…);
 - the **edit log** — the sequence of authoring actions (the one genuinely append-only

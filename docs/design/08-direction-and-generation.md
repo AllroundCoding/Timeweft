@@ -1,4 +1,4 @@
-# 08 · Story Direction & Generation  🟢 director built · 🟡 generation designed
+# 08 · Story Direction & Generation  🟢 built (director + two-direction generation)
 
 ## Milestones — top-down steering  🟢
 
@@ -14,7 +14,7 @@ population that never reached it).
 **hard pins** ("sacred" beats the rebuild must route around). The same dial governs milestone
 steering, pacing, and ripple-conflict resolution ([09](09-causality-editing-ripple.md)).
 
-## Authored end-state generation  🟡
+## Authored end-state generation  🟢
 
 Authors usually imagine a world *already further along* (Vaeris has living empires and ruined
 ones). So generation is a **boundary-value** problem, not just forward-from-seed:

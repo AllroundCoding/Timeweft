@@ -25,14 +25,16 @@ Each phase builds on the last; the order is dependency-aware so prerequisites la
 - **M2 · Pressure → relief loop** *(the next big payoff)* — resources and a carrying capacity
   computed from them, so growth strains the settlement; institutions that relieve the strain;
   then upkeep and ossification that drag it back down. Rise and fall, emergent.
-- **M3 · Persistence** — move from pure in-memory to a persisted skeleton (Postgres), with
-  events carrying their causal provenance. Sets up editing.
-- **M4 · Editing** — the headline trick: edit a past event and watch the consequences ripple
-  forward through the causal graph, with undo.
-- **M5 · Generation** — run the graph backward: from an authored end-state, generate a plausible
-  past that justifies it.
-- **M6 · Scale** — many settlements, trade, and migration; level-of-detail so the world can grow
+- **M3 · Editing** — the headline trick: edit a past event and watch the consequences ripple
+  forward through the causal graph — every event carries its provenance — with linear and
+  selective undo/redo.
+- **M4 · Generation** — run the graph backward: from an authored end-state, generate a plausible
+  past that justifies it, with a lore checker that refuses a present it can't reach in time.
+- **M5 · Scale** — many settlements, trade, and migration; level-of-detail so the world can grow
   from a village to a civilization without simulating every soul.
+- **M6 · Persistence** — move from pure in-memory to a persisted skeleton (Postgres) plus
+  checkpoints, so worlds survive between runs and resume byte-identically; the causal provenance
+  edges persist with the events.
 - **M7 · Presentation** — the visual phase: a narrative flavor layer and a timeline → 2D map
   renderer over the deterministic engine.
 - **M8 · Culture & social model** — the deep cultural/social layer ([11](11-cultural-and-social-model.md))
@@ -41,20 +43,18 @@ Each phase builds on the last; the order is dependency-aware so prerequisites la
   thematic bucket whose pieces interleave with the economy rather than strictly following M7.
 - **M9 · Goods, tastes & trade** — produce and equipment become *items with stats*; regions
   generate their own goods from material conditions; tastes (seeded from scarcity) turn trade
-  from moving-surplus into spice routes and luxury demand. Deepens M6's trade. See
-  [12](12-goods-tastes-tech-conflict.md).
-- **M10 · Technology & conflict** — the `technology` scalar becomes a tree of advances (the Boserup
-  ratchet); military items give a kingdom a *strength factor*; wars resolve by strength × a
-  counter-matrix, opening the **external** door to rise-and-fall alongside internal institutional
-  collapse. See [12](12-goods-tastes-tech-conflict.md).
+  from moving-surplus into spice routes and luxury demand. Deepens M5's trade. See
+  [12](12-goods-tastes-tech-conflict.md). **Technology** (the `technology` scalar growing into a tree
+  of advances) and **inter-kingdom conflict** (the external rise-and-fall) fold into this track and
+  the Deep Realism work rather than standing as a separate milestone.
 
-M9–M10 build on **M6**'s scale-polymorphic kingdoms; **M7** (presentation) and **M8** (culture) are
+M9 builds on **M5**'s scale-polymorphic kingdoms; **M7** (presentation) and **M8** (culture) are
 overlays that can interleave whenever there's enough to support them. The numbering is dependency
 order, not strict sequence.
 
 Beneath all of this sits a **world-generation substrate** ([13](13-world-generation-geography.md)):
 geology that generates terrain, climate, and minerals — the root of "generate from materials" —
-landing around M6/M7 when the map outgrows hand-authored regions. Slow geology is frozen at
+landing around M5/M7 when the map outgrows hand-authored regions. Slow geology is frozen at
 worldgen; fast hazards (quakes, eruptions) run as emergent shocks, and the same engine could one
 day widen its timestep into deep-time, prehistoric ages.
 

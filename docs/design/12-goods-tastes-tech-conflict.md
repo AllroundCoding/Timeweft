@@ -1,4 +1,4 @@
-# 12 · Goods, Tastes, Technology & Conflict  ⚪ future (new milestone area)
+# 12 · Goods, Tastes, Technology & Conflict  🟡 goods partly built; tastes / technology / conflict future
 
 This extends the economy ([06](06-resources-economy-trade.md)) and cultural model
 ([11](11-cultural-and-social-model.md)) from **scalar resources** to **itemized goods with

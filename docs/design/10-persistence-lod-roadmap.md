@@ -1,6 +1,6 @@
 # 10 · Persistence, LOD & Roadmap
 
-## Persistence  🟡
+## Persistence  🟢 built
 
 Plain **PostgreSQL**:
 
