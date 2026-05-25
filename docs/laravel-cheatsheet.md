@@ -14,7 +14,7 @@ The table below is generated from `composer.lock` — do not edit it by hand. Ru
 | Package | Version |
 | --- | --- |
 | `php` | `^8.3` |
-| `laravel/framework` | `v13.11.1` |
+| `laravel/framework` | `v13.11.2` |
 | `laravel/tinker` | `v3.0.2` |
 | `laravel/prompts` | `v0.3.18` |
 | `laravel/pail` | `v1.2.6` |
@@ -23,7 +23,7 @@ The table below is generated from `composer.lock` — do not edit it by hand. Ru
 | `laravel/pint` | `v1.29.1` |
 | `larastan/larastan` | `v3.9.6` |
 | `rector/rector` | `2.4.4` |
-| `phpunit/phpunit` | `12.5.25` |
+| `phpunit/phpunit` | `12.5.27` |
 | `mockery/mockery` | `1.6.12` |
 | `nunomaduro/collision` | `v8.9.4` |
 | `fakerphp/faker` | `v1.24.1` |
