@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * live in {@see EventDependency}.
  *
  * @property int $id
+ * @property int $world_id
  * @property int $sim_id
  * @property int $tick
  * @property string $type

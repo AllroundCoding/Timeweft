@@ -20,8 +20,10 @@ why, not the backlog. Filter Linear by the `v1-core` label for the current line 
 institutions, trade/caravans, money & cost-of-living, war, disease/contagion, festivals, cohorts. The
 M6 persistence spine is built: skeleton/texture split (TWT-31), `Checkpoint` (TWT-32), `Timeline`
 derive-on-demand (TWT-38), the relational schema (TWT-28), `WorldStore` hybrid save/load (TWT-30), and
-the `Engine` façade (TWT-88). What remains to close **v1-core** is the view: the LLM flavor layer
-(TWT-53) and the minimal renderer (TWT-54) — order is the user's call.
+the `Engine` façade (TWT-88). The view is built too: the LLM flavor layer (TWT-53, `app/Narrative`) and
+the minimal timeline renderer (TWT-54, `app/Http/Timeline`). **v1-core's base app is complete** — what
+remains under the `v1-core` label is low-priority polish (a QoL pass, the on-demand detail registry, the
+world-creation flow); the next line of work is v1-depth.
 
 **Three tiers.** *v1-core* = engine + persistence + the `Engine` API + a minimal renderer/flavor view
 (the base app). *v1-depth* = worldgen geography (doc 13), culture (M8), goods (M9), deep realism,
@@ -44,9 +46,11 @@ activity and need values are *texture* — recomputed on demand, never stored (m
 reconstructs any past tick from the nearest checkpoint ≤ tick, then advances. `App\Sim\Engine` is the
 only public entry point (`seed · advance · query · steer`). `App\Persistence\WorldStore` is the
 boundary: relational rows for queryable projection **and** a checkpoint blob for byte-identical resume.
-LOD/cohorts (TWT-49/50/51) track salient individuals vs statistical cohorts — note the **LOD manager
-is not yet wired into the run loop**, which is the headline scaling gap (per-tick cost should scale
-with living salient cast + cohorts, not world age).
+LOD/cohorts (TWT-49/50/51) track salient individuals vs statistical cohorts, and the **LOD manager is
+wired into the run loop** (TWT-213): once a year `LodManager::reconcile()` folds a settlement past the
+salience threshold into a cohort, and folded settlements advance O(age bands), not per-agent. Salience
+is supplied from the boundary (`World::$salient`, promoted on focus — TWT-248); an all-tracked run (the
+canonical seed) is a no-op, so it stays byte-identical.
 
 **Database stance.** Postgres/Timescale for real use, sqlite for tests only; migrations are portable
 across sqlite/mysql/postgres (JSON via a portable helper, JSON queried through Eloquent/query-builder).

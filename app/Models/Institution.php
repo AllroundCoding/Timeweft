@@ -10,6 +10,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * with the mandate/effectiveness that drive its rise and fall.
  *
  * @property int $id
+ * @property int $world_id
+ * @property int $village_id
  * @property string $name
  * @property string $type
  * @property int $founded_tick
