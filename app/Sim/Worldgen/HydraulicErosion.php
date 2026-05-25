@@ -18,15 +18,20 @@ namespace App\Sim\Worldgen;
  */
 final class HydraulicErosion
 {
-    private const EPSILON = 1.0e-4;       // the slight downhill slope enforced across a filled basin
+    /** Slight downhill slope enforced across a filled basin so water keeps moving. Rarely needs tuning. */
+    private const EPSILON = 1.0e-4;
 
-    private const FILL_SWEEPS = 60;       // cap on relaxation passes (it breaks early once stable)
+    /** Safety cap on basin-filling passes (it stops early once stable). Raise only if very large flat basins fail to drain. */
+    private const FILL_SWEEPS = 60;
 
-    private const INCISION = 0.006;       // stream-power coefficient — how hard flow cuts down
+    /** The master erosion-strength dial — how hard flowing water cuts down. Raise for deeper, more dramatic valleys. */
+    private const INCISION = 0.006;
 
-    private const INCISION_EXPONENT = 0.5; // sub-linear in flow, so trunk rivers don't runaway into chasms
+    /** How much carving favours big rivers over headwaters (flow exponent). Raise so only major rivers carve; lower so even small streams bite. */
+    private const INCISION_EXPONENT = 0.5;
 
-    private const MAX_INCISION = 0.20;    // deepest a single channel may cut, relative to sea-level units
+    /** Hard cap on how deep one channel may cut. Lower to stop trunk rivers gouging canyons; raise to allow deep gorges. */
+    private const MAX_INCISION = 0.20;
 
     /** 8-connected neighbour offsets, fixed order for deterministic tie-breaks. */
     private const NEIGHBORS = [[-1, -1], [0, -1], [1, -1], [-1, 0], [1, 0], [-1, 1], [0, 1], [1, 1]];

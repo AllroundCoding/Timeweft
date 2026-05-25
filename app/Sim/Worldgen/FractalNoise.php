@@ -10,11 +10,14 @@ namespace App\Sim\Worldgen;
  */
 final class FractalNoise
 {
-    private const OCTAVES = 5;
+    /** How many layers of detail are summed. Raise for finer, busier detail; lower for smoother, simpler shapes. */
+    private const OCTAVES = 15;
 
-    private const PERSISTENCE = 0.5;   // amplitude falloff per octave
+    /** How fast each finer layer fades out. Below 0.5 reads smoother; above 0.5 reads rougher and more jagged. */
+    private const PERSISTENCE = 0.6;
 
-    private const LACUNARITY = 2.0;    // frequency growth per octave
+    /** How much smaller each successive layer's features are (the frequency step). 2.0 is the usual value. */
+    private const LACUNARITY = 2.2;
 
     private const MASK = 0xFFFFFFFF;   // keep the hash in 32 bits so products never spill into floats
 
