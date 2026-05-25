@@ -73,6 +73,8 @@ final class SubstrateGenerator
             }
         }
 
+        $elevation = HydraulicErosion::erode($elevation, $width, $height); // rivers carve the relief into valleys
+
         return new Substrate($width, $height, $elevation, $plateId, $minerals, $plates);
     }
 
