@@ -16,6 +16,12 @@ final class Chronicle
 
     private int $nextId = 1;
 
+    /** Start the event-id counter at a base — the per-region id block a decomposed sub-chronicle records into (TWT-112); default 1 is the normal single-stream world. */
+    public function __construct(int $nextId = 1)
+    {
+        $this->nextId = $nextId;
+    }
+
     /**
      * @param  list<int>  $subjects  ids of the agents this event is about
      * @param  list<int>  $causes  ids of prior events that led to this one
@@ -44,5 +50,17 @@ final class Chronicle
     public function last(): ?ChronicleEvent
     {
         return $this->events === [] ? null : $this->events[array_key_last($this->events)];
+    }
+
+    /** The next event id this chronicle would assign — the base a decomposed sub-chronicle starts above (TWT-112). */
+    public function nextId(): int
+    {
+        return $this->nextId;
+    }
+
+    /** Append an already-formed event — folds a decomposed region's epoch events back in, in a deterministic order (TWT-112). */
+    public function append(ChronicleEvent $event): void
+    {
+        $this->events[] = $event;
     }
 }

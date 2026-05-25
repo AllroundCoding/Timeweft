@@ -35,6 +35,14 @@ final class Village
 
     public float $y = 0.0;
 
+    /**
+     * Which decomposition region this settlement belongs to (TWT-112) — distinct from {@see $regionProfile}
+     * (its biome). The concurrency partition: settlements sharing a regionId couple daily and exactly,
+     * while cross-region flows batch at the yearly sync barrier. Default 0 → a single region, so the
+     * canonical run is one region and byte-identical.
+     */
+    public int $regionId = 0;
+
     /** Culture-set baseline cooperation strength (0..1), derived from the culture's collectivism. */
     public float $baselineCohesion;
 
