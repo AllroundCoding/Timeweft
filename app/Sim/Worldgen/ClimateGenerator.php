@@ -2,52 +2,21 @@
 
 namespace App\Sim\Worldgen;
 
-/**
- * Derives the {@see Climate} surface from the frozen {@see Substrate} (design doc 13; TWT-132).
- *
- * Temperature falls from a warm equator to cold poles and drops with elevation (lapse rate).
- * Precipitation starts from latitude bands — wet at the equator (ITCZ), dry in the subtropics, wetter at
- * mid-latitudes — then a prevailing west wind carries moisture inland: it recharges over sea, wrings out
- * climbing windward slopes (so ranges are wet on the upwind face) and runs dry in their lee and across
- * deep continental interiors. Fertility is high where warmth and moisture meet on workable ground.
- *
- * Deterministic and framework-free: a pure function of the substrate, so the same seed reproduces the
- * same climate. A first pass — a fixed prevailing wind stands in for the circulation model (TWT-76), and
- * climate zones / cryosphere / soil-from-rock / disease are left for later.
- */
 final class ClimateGenerator
 {
-    /** Sea-level temperature on the equator, °C. Raise for a hotter world overall. */
-    private const EQUATOR_TEMP = 40.0; // 32.0
+    // TODO allow adjustments when GUI is build for world generation (within limits), earth like defaults for now
+    private const EQUATOR_TEMP = 27.0;
+    private const POLE_TEMP = -25.0;
+    private const LATITUDE_FALLOFF = 1.8;
+    private const LAPSE = 6.5;
+    private const CONTINENTAL_DRYING = 0.005;
+    private const OROGRAPHIC_WRINGING = 0.8;
+    private const OROGRAPHIC_LIFT = 5.0;
+    private const FERTILITY_OPTIMUM = 15.0;
+    private const FERTILITY_SPREAD = 14.0;
 
-    /** Sea-level temperature at the poles, °C. Lower for bigger ice caps. */
-    private const POLE_TEMP = -15.0; // -15.0
-
-    /** Shape of the equator→pole falloff: above 1 keeps mid-latitudes temperate and concentrates cold at the poles; 1 is a straight gradient. */
-    private const LATITUDE_FALLOFF = 1.6; // 1.4
-
-    /** °C lost per unit of elevation (lapse rate). Raise for colder mountains — more alpine snow and tundra. */
-    private const LAPSE = 4.0; // 7.0
-
-    /** Moisture the air regains crossing each sea cell. Raise for wetter coasts and a wetter world. */
-    private const SEA_RECHARGE = 0.35; // 0.30
-
-    /** Moisture lost crossing each flat land cell. Raise for drier continental interiors — bigger inland deserts. */
-    private const CONTINENTAL_DRYING = 0.04; // 0.02
-
-    /** Extra moisture wrung out climbing a windward slope. Raise for stronger rain shadows — drier leeward deserts. */
-    private const OROGRAPHIC_WRINGING = 1.8; // 1.5
-
-    /** Rainfall boost on a windward upslope. Raise for wetter mountain faces. */
-    private const OROGRAPHIC_LIFT = 5.0; // 4.0
-
-    /** Temperature of peak farmland suitability, °C. Shifts which latitude band is most fertile. */
-    private const FERTILITY_OPTIMUM = 20.0; // 18.0
-
-    /** How far from that optimum land stays farmable. Raise so more of the world is arable; lower for a narrow fertile band. */
-    private const FERTILITY_SPREAD = 18.0; // 18.0
-
-    public static function generate(Substrate $substrate): Climate
+    // CHANGED: Added Circulation parameter
+    public static function generate(Substrate $substrate, Circulation $circulation): Climate
     {
         $temperature = [];
         $precipitation = [];
@@ -56,31 +25,97 @@ final class ClimateGenerator
 
         $equator = ($substrate->height - 1) / 2.0;
 
-        for ($y = 0; $y < $substrate->height; $y++) {
-            $latitude = $equator > 0.0 ? abs($y - $equator) / $equator : 0.0; // 0 at the equator … 1 at a pole
-            $precipLat = self::clamp(0.5 + 0.4 * cos(3.0 * M_PI * $latitude), 0.20, 0.95);
-            $baseTemp = self::EQUATOR_TEMP + (self::POLE_TEMP - self::EQUATOR_TEMP) * $latitude ** self::LATITUDE_FALLOFF;
+        // Wobble maps to break straight latitudinal bands
+        $tempNoise = new FractalNoise(42, 0.015);
+        $precipNoise = new FractalNoise(43, 0.02);
 
-            $moisture = 1.0; // air enters saturated at the upwind (west) edge
+        for ($y = 0; $y < $substrate->height; $y++) {
+            $baseLatitude = $equator > 0.0 ? abs($y - $equator) / $equator : 0.0;
+
             $temperatureRow = [];
             $precipitationRow = [];
             $fertilityRow = [];
             $biomeRow = [];
 
             for ($x = 0; $x < $substrate->width; $x++) {
+
+                // 1. LATITUDINAL WOBBLES
+                $tWobble = $tempNoise->fbm((float)$x, (float)$y) * 0.15;
+                $wobbledTempLat = self::clamp($baseLatitude + $tWobble, 0.0, 1.0);
+                $baseTemp = self::EQUATOR_TEMP + (self::POLE_TEMP - self::EQUATOR_TEMP) * $wobbledTempLat ** self::LATITUDE_FALLOFF;
+
+                $pWobble = $precipNoise->fbm((float)$x, (float)$y) * 0.20;
+                $wobbledPrecipLat = self::clamp($baseLatitude + $pWobble, 0.0, 1.0);
+                $precipLat = self::clamp(0.5 + 0.4 * cos(3.0 * M_PI * $wobbledPrecipLat), 0.20, 0.95);
+
                 $elevation = $substrate->elevationAt($x, $y);
                 $land = $elevation > 0.0;
                 $height = max(0.0, $elevation);
 
-                $cellTemperature = $baseTemp - self::LAPSE * $height;
+                // Fetch dynamic wind vector
+                [$u, $v] = $circulation->windAt($x, $y);
+
+                $moisture = 1.0;
+                $upslope = 0.0;
+                $coastalModeration = 0.0;
 
                 if ($land) {
-                    $upwind = $x > 0 ? max(0.0, $substrate->elevationAt($x - 1, $y)) : 0.0;
-                    $upslope = max(0.0, $height - $upwind);
+                    // 2. RAYCAST RAIN SHADOWS
+                    // Look "upwind" to see if we are blocked by mountains or deep inland
+                    $oceanFound = false;
+                    $mountainBlocks = 0.0;
+                    $raySteps = 12; // Look up to 12 cells back into the wind
+
+                    for ($step = 1; $step <= $raySteps; $step++) {
+                        $checkX = (int)round($x - ($u * $step));
+                        $checkY = (int)round($y - ($v * $step));
+
+                        // If wind is coming from off-map, assume it's wet ocean air
+                        if ($checkX < 0 || $checkX >= $substrate->width || $checkY < 0 || $checkY >= $substrate->height) {
+                            $oceanFound = true;
+                            break;
+                        }
+
+                        $checkElev = $substrate->elevationAt($checkX, $checkY);
+                        if ($checkElev <= 0.0) {
+                            $oceanFound = true; // Found the ocean!
+                            break;
+                        } else {
+                            $mountainBlocks += max(0.0, $checkElev); // Accumulate rain shadow
+                        }
+                    }
+
+                    if (!$oceanFound) {
+                        $moisture = max(0.0, 1.0 - ($raySteps * self::CONTINENTAL_DRYING) - ($mountainBlocks * self::OROGRAPHIC_WRINGING));
+                    }
+
+                    // Calculate immediate localized upslope for rain dumps
+                    $immediateUpwindX = (int)round($x - $u);
+                    $immediateUpwindY = (int)round($y - $v);
+                    $immediateUpwindElev = ($immediateUpwindX >= 0 && $immediateUpwindX < $substrate->width && $immediateUpwindY >= 0 && $immediateUpwindY < $substrate->height)
+                        ? max(0.0, $substrate->elevationAt($immediateUpwindX, $immediateUpwindY)) : 0.0;
+
+                    $upslope = max(0.0, $height - $immediateUpwindElev);
+
+                    // 3. COASTAL CURRENT TEMPERATURE MODERATION
+                    // Check adjacent cells for ocean to see if a warm/cold current hits this coast
+                    foreach ([[-1,0],[1,0],[0,-1],[0,1]] as [$dx, $dy]) {
+                        $nx = $x + $dx; $ny = $y + $dy;
+                        if ($nx >= 0 && $nx < $substrate->width && $ny >= 0 && $ny < $substrate->height) {
+                            if ($substrate->elevationAt($nx, $ny) <= 0.0) {
+                                $coastalModeration += $circulation->currentTemp[$ny][$nx];
+                            }
+                        }
+                    }
+                }
+
+                // 4. FINAL CLIMATE ASSIGNMENT
+                // Base Temp - Altitude Drop + Current Moderation
+                $cellTemperature = $baseTemp - (self::LAPSE * $height) + ($coastalModeration * 4.0);
+
+                if ($land) {
                     $cellPrecipitation = self::clamp($precipLat * (0.45 + 0.55 * $moisture) * (1.0 + self::OROGRAPHIC_LIFT * $upslope), 0.0, 1.0);
-                    $moisture = max(0.0, $moisture - self::CONTINENTAL_DRYING - self::OROGRAPHIC_WRINGING * $upslope);
                 } else {
-                    $moisture = min(1.0, $moisture + self::SEA_RECHARGE);
                     $cellPrecipitation = 0.6 * $precipLat;
                 }
 
@@ -99,21 +134,15 @@ final class ClimateGenerator
         return new Climate($substrate->width, $substrate->height, $temperature, $precipitation, $fertility, $biome);
     }
 
-    /** Agrarian potential: warmth near the optimum, enough rain, on ground gentle enough to work. */
     private static function fertility(float $temperature, float $precipitation, float $slope): float
     {
-        if ($temperature < -10.0) {
-            return 0.0; // frozen ground yields nothing
-        }
-
+        if ($temperature < -10.0) return 0.0;
         $warmth = exp(-(($temperature - self::FERTILITY_OPTIMUM) / self::FERTILITY_SPREAD) ** 2);
         $moisture = self::smoothstep(0.10, 0.60, $precipitation);
-        $workable = 1.0 - self::clamp($slope * 0.6, 0.0, 0.8); // steep ground is hard to farm
-
+        $workable = 1.0 - self::clamp($slope * 0.6, 0.0, 0.8);
         return self::clamp($warmth * $moisture * $workable, 0.0, 1.0);
     }
 
-    /** A coarse biome from temperature, precipitation, and whether the cell is land. */
     private static function classify(bool $land, float $temperature, float $precipitation): Biome
     {
         return match (true) {
@@ -128,14 +157,10 @@ final class ClimateGenerator
         };
     }
 
-    /** Hermite smoothstep — a soft 0→1 ramp between two edges. */
     private static function smoothstep(float $edge0, float $edge1, float $value): float
     {
-        if ($edge0 === $edge1) {
-            return $value < $edge0 ? 0.0 : 1.0;
-        }
+        if ($edge0 === $edge1) return $value < $edge0 ? 0.0 : 1.0;
         $t = self::clamp(($value - $edge0) / ($edge1 - $edge0), 0.0, 1.0);
-
         return $t * $t * (3.0 - 2.0 * $t);
     }
 
