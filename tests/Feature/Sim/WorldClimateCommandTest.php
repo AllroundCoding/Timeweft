@@ -80,4 +80,21 @@ class WorldClimateCommandTest extends TestCase
 
         $this->assertFileEquals($first, $second, 'same seed → the same climate, pixel for pixel');
     }
+
+    public function test_it_overlays_water_by_default_and_hides_it_on_request(): void
+    {
+        $this->artisan('world:climate', [
+            '--seed' => 'vaeris', '--width' => 64, '--height' => 40, '--plates' => 10, '--cell' => 2,
+            '--out' => $this->dir.'/with-water.png',
+        ])
+            ->expectsOutputToContain('water')
+            ->assertExitCode(0);
+        $this->assertFileExists($this->dir.'/with-water.png');
+
+        $this->artisan('world:climate', [
+            '--seed' => 'vaeris', '--width' => 64, '--height' => 40, '--plates' => 10, '--cell' => 2,
+            '--hide-water' => true, '--out' => $this->dir.'/dry.png',
+        ])->assertExitCode(0);
+        $this->assertFileExists($this->dir.'/dry.png');
+    }
 }

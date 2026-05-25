@@ -6,6 +6,8 @@ use App\Sim\Support\Rng;
 use App\Sim\Worldgen\Biome;
 use App\Sim\Worldgen\Climate;
 use App\Sim\Worldgen\ClimateGenerator;
+use App\Sim\Worldgen\Hydrology;
+use App\Sim\Worldgen\HydrologyGenerator;
 use App\Sim\Worldgen\Substrate;
 use App\Sim\Worldgen\SubstrateGenerator;
 use Illuminate\Console\Attributes\Description;
@@ -14,8 +16,8 @@ use Illuminate\Console\Command;
 use Illuminate\Support\Facades\File;
 use RuntimeException;
 
-#[Signature('world:climate {--seed=vaeris : RNG seed for a reproducible world} {--width=320 : Grid columns} {--height=160 : Grid rows} {--plates=18 : Number of tectonic plate seeds} {--cell=6 : Pixels per cell in the PNG} {--layer=biome : Which layer to paint — biome|temperature|precipitation|fertility} {--out= : PNG output path (default: storage/app/climate-SEED-LAYER.png)}')]
-#[Description('Derive the climate (TWT-132) from a generated substrate and render a layer — biome, temperature, rainfall, or fertility — as a PNG + an ASCII biome map.')]
+#[Signature('world:climate {--seed=vaeris : RNG seed for a reproducible world} {--width=320 : Grid columns} {--height=160 : Grid rows} {--plates=18 : Number of tectonic plate seeds} {--cell=6 : Pixels per cell in the PNG} {--layer=biome : Which layer to paint — biome|temperature|precipitation|fertility} {--hide-water : Hide the rivers & lakes overlay} {--out= : PNG output path (default: storage/app/climate-SEED-LAYER.png)}')]
+#[Description('Derive the climate (TWT-132) + hydrology (TWT-131) from a generated substrate and render a layer — biome, temperature, rainfall, or fertility — with rivers & lakes, as a PNG + an ASCII biome map.')]
 class WorldClimate extends Command
 {
     private const LAYERS = ['biome', 'temperature', 'precipitation', 'fertility'];
@@ -49,24 +51,27 @@ class WorldClimate extends Command
 
         $substrate = SubstrateGenerator::generate(new Rng($seed), $width, $height, $plates);
         $climate = ClimateGenerator::generate($substrate);
+        $hydrology = $this->option('hide-water') ? null : HydrologyGenerator::generate($substrate, $climate);
 
-        $this->renderSummary($climate, $substrate, $seed, $layer);
+        $this->renderSummary($climate, $substrate, $hydrology, $seed, $layer);
         $this->newLine();
         foreach (self::asciiBiomeMap($climate, 100, 34) as $row) {
             $this->line($row);
         }
         $this->newLine();
 
-        self::writePng($climate, $substrate, $layer, $out, $cell);
+        self::writePng($climate, $substrate, $hydrology, $layer, $out, $cell);
         $this->info('PNG → '.$out);
 
         return self::SUCCESS;
     }
 
-    private function renderSummary(Climate $climate, Substrate $substrate, string $seed, string $layer): void
+    private function renderSummary(Climate $climate, Substrate $substrate, ?Hydrology $hydrology, string $seed, string $layer): void
     {
         $landCells = 0;
         $fertile = 0;
+        $rivers = 0;
+        $lakes = 0;
         $temperatureSum = 0.0;
         $counts = [];
         for ($y = 0; $y < $climate->height; $y++) {
@@ -80,6 +85,12 @@ class WorldClimate extends Command
                         $fertile++;
                     }
                 }
+                if ($hydrology !== null && $hydrology->isRiver($x, $y)) {
+                    $rivers++;
+                }
+                if ($hydrology !== null && $hydrology->isLake($x, $y)) {
+                    $lakes++;
+                }
             }
         }
         arsort($counts);
@@ -89,6 +100,9 @@ class WorldClimate extends Command
         $this->line(sprintf('  mean temp   %.1f°C', $temperatureSum / max(1, $cells)));
         $this->line(sprintf('  arable land %.1f%% of land is good farmland', $landCells > 0 ? $fertile / $landCells * 100 : 0.0));
         $this->line('  biomes      '.implode(' · ', self::topBiomes($counts, $cells)));
+        if ($hydrology !== null) {
+            $this->line(sprintf('  water       %d river cells · %d lake cells', $rivers, $lakes));
+        }
     }
 
     /**
@@ -129,7 +143,7 @@ class WorldClimate extends Command
         return $lines;
     }
 
-    private static function writePng(Climate $climate, Substrate $substrate, string $layer, string $path, int $cell): void
+    private static function writePng(Climate $climate, Substrate $substrate, ?Hydrology $hydrology, string $layer, string $path, int $cell): void
     {
         File::ensureDirectoryExists(dirname($path));
 
@@ -140,7 +154,7 @@ class WorldClimate extends Command
 
         for ($y = 0; $y < $climate->height; $y++) {
             for ($x = 0; $x < $climate->width; $x++) {
-                [$r, $g, $b] = self::colorFor($layer, $climate, $substrate, $x, $y);
+                [$r, $g, $b] = self::colorFor($layer, $climate, $substrate, $hydrology, $x, $y);
                 $colour = imagecolorallocate($image, $r, $g, $b);
                 imagefilledrectangle($image, $x * $cell, $y * $cell, ($x + 1) * $cell - 1, ($y + 1) * $cell - 1, $colour === false ? 0 : $colour);
             }
@@ -151,8 +165,15 @@ class WorldClimate extends Command
     }
 
     /** @return array{0: int, 1: int, 2: int} */
-    private static function colorFor(string $layer, Climate $climate, Substrate $substrate, int $x, int $y): array
+    private static function colorFor(string $layer, Climate $climate, Substrate $substrate, ?Hydrology $hydrology, int $x, int $y): array
     {
+        if ($hydrology !== null && $hydrology->isLake($x, $y)) {
+            return [36, 78, 148];
+        }
+        if ($hydrology !== null && $hydrology->isRiver($x, $y)) {
+            return [54, 120, 210];
+        }
+
         $sea = [22, 42, 78];
         $land = $substrate->isLand($x, $y);
 
