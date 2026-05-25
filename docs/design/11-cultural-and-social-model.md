@@ -1,4 +1,4 @@
-# 11 · Cultural & Social Model  🟡 designed
+# 11 · Cultural & Social Model  🟢 built (culture, faith, Big Five)
 
 How a culture is represented, where its values come from, and how individuals vary within
 it. This is the variable set behind cooperation ([07](07-cooperation-projects-institutions.md)),

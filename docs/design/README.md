@@ -24,8 +24,8 @@ handful of reused mechanisms:
    an authored present.
 3. **Steering toward goals on a time budget** — top-down (author milestones) and
    bottom-up (group projects) are the *same* mechanism.
-4. **Derive-on-demand + materialize-on-observation** — a sparse canonical *skeleton* is
-   persisted; dense *texture* is computed when looked at, then crystallized into canon.
+4. **Derive-on-demand** — a sparse canonical *skeleton* is persisted; dense *texture* is
+   recomputed when looked at and never stored, so storage grows with attention, not time × population.
 5. **Seeded determinism** — same seed → same world, which makes both editing and
    generation *legible* rather than chaotic.
 6. **Cohesion & carrying capacity** — the social and material limits that bound and
@@ -40,13 +40,13 @@ handful of reused mechanisms:
 | [03](03-agents-traits-needs.md) | Agents, traits & needs | 🟢/🟡 |
 | [04](04-behavior-and-resolution.md) | Behavior & time resolution | 🟢/🟡 |
 | [05](05-population-and-emergence.md) | Population & emergence | 🟢/🟡 |
-| [06](06-resources-economy-trade.md) | Resources, economy & trade | 🟡 |
-| [07](07-cooperation-projects-institutions.md) | Cooperation, projects & institutions | 🟢/🟡 |
-| [08](08-direction-and-generation.md) | Story direction & generation | 🟢/🟡 |
-| [09](09-causality-editing-ripple.md) | Causality, editing & ripple | 🟡 |
-| [10](10-persistence-lod-roadmap.md) | Persistence, LOD & roadmap | 🟡/⚪ |
-| [11](11-cultural-and-social-model.md) | Cultural & social model | 🟡 |
-| [12](12-goods-tastes-tech-conflict.md) | Goods, tastes, technology & conflict | ⚪ |
+| [06](06-resources-economy-trade.md) | Resources, economy & trade | 🟢 built |
+| [07](07-cooperation-projects-institutions.md) | Cooperation, projects & institutions | 🟢 built |
+| [08](08-direction-and-generation.md) | Story direction & generation | 🟢 built |
+| [09](09-causality-editing-ripple.md) | Causality, editing & ripple | 🟢 built |
+| [10](10-persistence-lod-roadmap.md) | Persistence, LOD & roadmap | 🟢 built |
+| [11](11-cultural-and-social-model.md) | Cultural & social model | 🟢 built |
+| [12](12-goods-tastes-tech-conflict.md) | Goods, tastes, technology & conflict | 🟡 goods partly built |
 | [13](13-world-generation-geography.md) | World generation & geography | ⚪ |
 
 See **[ROADMAP.md](ROADMAP.md)** for the broad-strokes build arc (the phases M0–M9). The

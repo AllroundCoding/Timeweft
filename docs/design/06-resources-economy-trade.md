@@ -1,4 +1,4 @@
-# 06 · Resources, Economy & Trade  🟡 designed (carrying capacity built as a fixed value)
+# 06 · Resources, Economy & Trade  🟢 built (economy, dynamic carrying capacity, trade, caravans, shocks)
 
 ## Stockpiles at every scale
 

@@ -1,4 +1,4 @@
-# 07 · Cooperation, Projects & Institutions  🟢 projects v1 + institution emergence built · 🟡 upkeep/collapse designed
+# 07 · Cooperation, Projects & Institutions  🟢 built (projects, institutions, rise & fall)
 
 ## Projects — bottom-up steering  🟢
 
@@ -37,7 +37,7 @@ full effort — relieving the deficit until further growth outpaces it again. Cu
 stands in for the culture vector (11) until that lands; the institution's *type* is picked from
 the region.
 
-## Complexity ratchet → rise & fall  🟡
+## Complexity ratchet → rise & fall  🟢
 
 Institution raises capacity → bigger projects → bigger settlement → thinner cohesion → demands
 *more* institutions (climbs on its own). But institutions **cost** (upkeep) and **ossify**

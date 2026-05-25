@@ -1,4 +1,4 @@
-# 09 · Causality, Editing & Ripple  🟡 designed
+# 09 · Causality, Editing & Ripple  🟢 built (provenance graph, retroactive ripple, undo/redo)
 
 ## The timeline is a causal graph
 

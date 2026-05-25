@@ -8,10 +8,10 @@ and zoom in to watch life happen. Characters — and households, villages, kingd
 about their lives; history emerges on its own; the author pins the key moments and the world fills a
 plausible past and future around them.
 
-The generate–edit–explain core is built today, at the scale of a single settlement. It is a
-headless, deterministic engine on **Laravel**; scaling it to a world of many settlements you can
-_see_ and keep is what comes next. A timeline / 2-D map renderer is a _view_ onto the engine — the
-engine comes first.
+The generate–edit–explain core is built today, and the world has grown past a single settlement:
+many settlements trade, migrate, war, and spread disease across a map, the world persists between
+runs, and a first timeline renderer gives it a face. It is a headless, deterministic engine on
+**Laravel**; the renderer is a _view_ onto the engine — the engine comes first.
 
 ---
 
@@ -105,7 +105,7 @@ The scope is enormous but the machinery stays small. Every system reduces to a h
 1. **Scale-polymorphic agents** — a person, household, village, or kingdom are all entities with traits, needs, and a lifecycle (rise → live → fall), run by one engine at different levels of detail.
 2. **A causal dependency graph** — events carry their preconditions. Run it _forward_ for emergence; run it _backward_ to generate a past that justifies an authored present.
 3. **Steering toward goals on a time budget** — top-down (author milestones) and bottom-up (group projects) are the _same_ mechanism.
-4. **Derive-on-demand** — a sparse canonical skeleton is persisted; dense texture is computed when observed, then crystallized into canon.
+4. **Derive-on-demand** — a sparse canonical skeleton is persisted; dense texture is recomputed when observed and never stored, so storage grows with attention, not time × population.
 5. **Seeded determinism** — same seed → same world.
 6. **Cohesion & carrying capacity** — the social and material limits that bound and shape everything else.
 
@@ -117,18 +117,20 @@ The north star is a **worldbuilder's tool**: generate, edit, and explore a coher
 history. That core is built — at the scale of one settlement.
 
 **Built so far:** the headless engine and its foundations (**M0/M1**); the full **pressure → relief →
-rise & fall** loop (**M2**); the **cultural & social model** with faith (**M8**); a **diet & health**
+rise & fall** loop (**M2**); the **edit-history & ripple** machinery — provenance graph, retroactive
+ripple, edit log, undo/redo (**M3**); **two-direction generation** — forward and end-state-backward,
+with author pins and a lore checker (**M4**); **scale (M5)** — many settlements with trade, caravans,
+migration, inter-settlement relations, war, and contagion across a map, plus level-of-detail cohorts
+so the world grows without simulating every soul; **persistence (M6)** — a queryable database
+projection and byte-identical checkpoints, so worlds survive and resume; the first **renderer and
+LLM flavor layer (M7)**; the **cultural & social model** with faith (**M8**); and a **diet & health**
 layer plus a realism pass (endogenous technology, land degradation, harvest variance, lifelike
-mortality); the **edit-history & ripple** machinery — provenance graph, retroactive ripple, edit log,
-undo/redo (**M3**); and **two-direction generation** — forward and end-state-backward, with author
-pins and a lore checker (**M4**). The single settlement is now a richly interlocked, editable,
-generatable living world.
+mortality). What was a single settlement is now a small, interlocked, editable, generatable world.
 
-**Next — make the core a world you can use:**
+**Next — deepen the world and make it playable:**
 
-- **Scale (M5)** — one settlement → many, with trade, migration, and regional specialization. The village becomes a *world*.
-- **Persistence (M6)** — a database so worlds survive between runs (and can be scrubbed and resumed).
-- **Presentation (M7)** — *see* the timeline: a gantt → 2-D map renderer, and an optional LLM flavor layer.
+- **Depth (v1-depth)** — worldgen geography (terrain, climate, minerals), a deeper culture & history engine, **goods as items with stats** with taste-driven trade, richer biographical lives, and the scaling push (parallel region execution).
+- **The 2-D map view** — grow the timeline renderer into the map the engine has been waiting for.
 
 **Act II — someday, deliberately downstream:** "world sim to the max" — a real-time, **playable**
 layer where you walk the world as an agent (and maybe with others), an **ecology** of animal and herd
