@@ -9,6 +9,8 @@ use App\Sim\Chronicle\Chronicle;
 use App\Sim\Chronicle\ChronicleEvent;
 use App\Sim\Culture\Culture;
 use App\Sim\Culture\CultureEngine;
+use App\Sim\Culture\Legend;
+use App\Sim\Culture\LegendEngine;
 use App\Sim\Direction\Director;
 use App\Sim\Direction\Milestone;
 use App\Sim\Direction\RuleDirector;
@@ -67,6 +69,17 @@ final class World
 
     /** @var list<Milestone> */
     public array $milestones = [];
+
+    /**
+     * In-world legends the chronicle's turning points have passed into (TWT-143) — a separate, additive
+     * corpus from the factual record, mythologised and drifting with age.
+     *
+     * @var list<Legend>
+     */
+    public array $legends = [];
+
+    /** High-water mark: the tick through which the chronicle has been weighed for legends (TWT-143). */
+    public int $legendsThroughTick = 0;
 
     /** The narrative author steering the world (pluggable). Defaults to the rule-based, human-authored director; swap NullDirector for pure emergence (TWT-89). */
     public Director $director;
@@ -272,6 +285,9 @@ final class World
                     foreach (WorldGuider::inspect($this, $this->tick) as $violation) {
                         $this->guardLog[] = $violation;
                     }
+                    // The chronicle's turning points pass into legend (TWT-143) — a global author reading
+                    // the whole history; additive, byte-identical (its own forked stream, never the chronicle).
+                    LegendEngine::runDay($this, $this->tick, $date);
                 }
             }
         }

@@ -66,6 +66,16 @@ class WorldSimulate extends Command
         }
         $this->newLine();
 
+        $this->comment('Legends — what the chronicle became (myth & memory):');
+        if ($world->legends === []) {
+            $this->line('  (none yet — a longer, more eventful run mythologizes its turning points)');
+        } else {
+            foreach ($world->legends as $legend) {
+                $this->line(sprintf('  "%s" — %s', $legend->title, $legend->telling));
+            }
+        }
+        $this->newLine();
+
         $all = $world->village->agents;
         $born = count(array_filter($all, fn (Agent $a) => $a->parentIds !== []));
         $died = count(array_filter($all, fn (Agent $a) => ! $a->alive));
