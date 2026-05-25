@@ -133,6 +133,9 @@ final class CaravanEngine
             if ($village === $needy || RelationsEngine::hostile($world, $village, $needy)) {
                 continue; // no caravan crosses to a sworn enemy (TWT-125)
             }
+            if ($world->crossRegionBarrier && RegionPartition::sameRegion($village, $needy)) {
+                continue; // intra-region caravans already ran inside the region (TWT-112)
+            }
             $population = count($village->livingAgents());
             if ($population === 0) {
                 continue;

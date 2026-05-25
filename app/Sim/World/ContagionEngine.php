@@ -63,6 +63,9 @@ final class ContagionEngine
                 if ($i === $j || $sickness[$j] <= 0.0) {
                     continue;
                 }
+                if ($world->crossRegionBarrier && RegionPartition::sameRegion($target, $neighbour)) {
+                    continue; // intra-region spread already happened inside the region (TWT-112)
+                }
                 $carried = self::transmission($world, $neighbour, $target) * $sickness[$j];
                 $incoming += $carried;
                 if ($carried > $strongest) {

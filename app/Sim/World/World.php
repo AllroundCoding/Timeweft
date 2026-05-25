@@ -6,6 +6,7 @@ use App\Sim\Behavior\BehaviorEngine;
 use App\Sim\Behavior\FestivalCalendar;
 use App\Sim\Causality\Intervention;
 use App\Sim\Chronicle\Chronicle;
+use App\Sim\Chronicle\ChronicleEvent;
 use App\Sim\Culture\Culture;
 use App\Sim\Culture\CultureEngine;
 use App\Sim\Direction\Director;
@@ -31,6 +32,9 @@ final class World
     private const ADULT_AGE = 16;
 
     private const TICKS_PER_YEAR = TharadiCalendar::HOURS_PER_DAY * TharadiCalendar::DAYS_PER_YEAR;
+
+    /** Stride between regions' agent- and event-id blocks when decomposed — wide enough that no region's epoch births or events overrun into the next (TWT-112). */
+    private const ID_BLOCK = 1_000_000_000;
 
     public int $tick = 0;
 
@@ -66,6 +70,12 @@ final class World
 
     /** The narrative author steering the world (pluggable). Defaults to the rule-based, human-authored director; swap NullDirector for pure emergence (TWT-89). */
     public Director $director;
+
+    /** When false, the global narrative authors (director + world guider) are suppressed: set on a decomposed sub-world, which advances its region in isolation while the authors run once on the merged world at the barrier (TWT-112). */
+    public bool $worldAuthorsEnabled = true;
+
+    /** True only during the sync barrier (TWT-112): the cross-settlement engines then couple solely inter-region pairs — intra-region pairs were already advanced inside each region. False everywhere else, so a normal run is unchanged. */
+    public bool $crossRegionBarrier = false;
 
     /** Invariant breaches the world guider has flagged or clamped this run (TWT-90); empty on a healthy run. */
     /** @var list<GuardViolation> */
@@ -243,7 +253,11 @@ final class World
 
             // World-level steps — story direction and cross-settlement migration — once a day.
             if ($date->hour === 8) {
-                $this->director->direct($this, $this->tick, $date);
+                // The global narrative authors run on the whole world; a decomposed sub-world suppresses
+                // them and lets the barrier run them once on the merged world (TWT-112).
+                if ($this->worldAuthorsEnabled) {
+                    $this->director->direct($this, $this->tick, $date);
+                }
                 RelationsEngine::runDay($this, $this->tick, $date);
                 WarEngine::runDay($this, $this->tick, $date);
                 TradeEngine::runDay($this, $this->tick, $date);
@@ -254,8 +268,10 @@ final class World
 
                 // The world guider checks the day's invariants and clamps any out-of-bounds state — a
                 // no-op on a well-behaved run, a safety floor when an edit or new system pushes too far.
-                foreach (WorldGuider::inspect($this, $this->tick) as $violation) {
-                    $this->guardLog[] = $violation;
+                if ($this->worldAuthorsEnabled) {
+                    foreach (WorldGuider::inspect($this, $this->tick) as $violation) {
+                        $this->guardLog[] = $violation;
+                    }
                 }
             }
         }
@@ -264,6 +280,96 @@ final class World
         if ($this->villages !== []) {
             $this->village = $this->villages[0];
         }
+    }
+
+    /**
+     * Split this world into one sub-world per region for isolated, parallelisable advance (TWT-112).
+     * Each sub-world is a deep copy holding only its region's settlements, with a disjoint agent- and
+     * event-id block — so births and events never collide on merge — and the global authors disabled
+     * (they run once on the merged world at the barrier). The shared seed is copied intact, so each
+     * region draws its own entity/pair-keyed sub-streams independently and deterministically.
+     *
+     * @return array<int, self> regionId => sub-world, ascending by region id (the fixed merge order)
+     */
+    public function splitByRegion(): array
+    {
+        $agentBase = $this->nextId;
+        $eventBase = $this->chronicle->nextId();
+
+        $subs = [];
+        $block = 0;
+        foreach (array_keys(RegionPartition::regionsOf($this)) as $regionId) {
+            $sub = unserialize(serialize($this));
+            assert($sub instanceof self);
+            $sub->villages = array_values(array_filter($sub->villages, static fn (Village $v): bool => $v->regionId === $regionId));
+            $sub->village = $sub->villages[0] ?? $sub->village;
+            $sub->nextId = $agentBase + $block * self::ID_BLOCK;
+            $sub->chronicle = new Chronicle($eventBase + $block * self::ID_BLOCK);
+            $sub->milestones = [];
+            $sub->guardLog = [];
+            $sub->worldAuthorsEnabled = false;
+            $subs[$regionId] = $sub;
+            $block++;
+        }
+
+        return $subs;
+    }
+
+    /**
+     * Merge advanced sub-worlds back into this world (TWT-112): re-collect their settlements, fold their
+     * epoch events into the chronicle in a deterministic (tick, then ascending region) order, adopt each
+     * region's evolved relations and routes, and lift the id counters past everything allocated. Region
+     * order is fixed, so the merge is independent of which sub-world finished first — a parallel run
+     * reduces to the serial result.
+     *
+     * @param  array<int, self>  $subs  regionId => advanced sub-world
+     */
+    public function absorbRegions(array $subs): void
+    {
+        ksort($subs); // ascending region id — the fixed, order-independent merge schedule
+
+        $relationsBefore = $this->relations;
+        $routesBefore = $this->routes;
+
+        $this->villages = [];
+        $maxAgentId = $this->nextId - 1;
+        $regionOrder = 0;
+        /** @var list<array{tick:int,region:int,seq:int,event:ChronicleEvent}> $epochEvents */
+        $epochEvents = [];
+
+        foreach ($subs as $sub) {
+            foreach ($sub->villages as $village) {
+                $this->villages[] = $village;
+            }
+            $seq = 0;
+            foreach ($sub->chronicle->all() as $event) {
+                $epochEvents[] = ['tick' => $event->tick, 'region' => $regionOrder, 'seq' => $seq, 'event' => $event];
+                $seq++;
+            }
+            // A region evolved only its own (name-keyed, disjoint) intra-region pairs; adopt those, and
+            // leave inter-region pairs at their pre-epoch value for the barrier to reconcile.
+            foreach ($sub->relations as $key => $value) {
+                if (! array_key_exists($key, $relationsBefore) || $relationsBefore[$key] !== $value) {
+                    $this->relations[$key] = $value;
+                }
+            }
+            foreach ($sub->routes as $key => $value) {
+                if (! array_key_exists($key, $routesBefore) || $routesBefore[$key] !== $value) {
+                    $this->routes[$key] = $value;
+                }
+            }
+            $maxAgentId = max($maxAgentId, $sub->nextId - 1);
+            $this->tick = $sub->tick;
+            $regionOrder++;
+        }
+
+        usort($epochEvents, static fn (array $a, array $b): int => [$a['tick'], $a['region'], $a['seq']] <=> [$b['tick'], $b['region'], $b['seq']]);
+        foreach ($epochEvents as $entry) {
+            $this->chronicle->append($entry['event']);
+        }
+
+        $this->nextId = $maxAgentId + 1;
+        $this->village = $this->villages[0] ?? $this->village;
     }
 
     public function spawnChild(Agent $mother, Agent $father, int $birthTick, TharadiDate $date): Agent
