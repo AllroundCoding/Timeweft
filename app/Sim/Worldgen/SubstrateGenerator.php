@@ -4,41 +4,26 @@ namespace App\Sim\Worldgen;
 
 use App\Sim\Support\Rng;
 
-/**
- * Derives the solid-earth substrate from a handful of plate seeds (design doc 13; TWT-130).
- *
- * The chain: scatter plates → each cell belongs to its nearest plate (a coarse plate graph, Voronoi);
- * continental crust floats high, oceanic sits low → near a plate boundary the relative drift of the
- * two plates lifts the crust where they converge (mountains, the orogeny that pools ore and gems) and
- * drops it where they pull apart (rifts) → the resulting field is the DEM, its sub-sea part the
- * bathymetry. LOD-adjustable: a small grid and a few plates suffice to start.
- *
- * Deterministic and framework-free: every authored seed is drawn from a per-plate sub-stream of the
- * supplied {@see Rng}, so the same seed reproduces the same world and adding a plate can't perturb the
- * others.
- */
 final class SubstrateGenerator
 {
-    /** Share of plate seeds that are continental (the rest are ocean floor). Raise for more land, lower for more sea. */
-    private const CONTINENTAL_FRACTION = 0.55; // 0.45
+    private const CONTINENTAL_FRACTION = 0.29;
+    private const CONTINENTAL_BASE = 0.8;
+    private const OCEANIC_BASE = -3.7;
+    private const UPLIFT_SCALE = 4;
 
-    /** Resting height of continental crust (sea level = 0). Raise to lift the land table — more, higher land. */
-    private const CONTINENTAL_BASE = 0.2; // 0.25
+    /** Narrow band for sharp mountains and trenches */
+    private const BOUNDARY_BAND = 0.12;
 
-    /** Resting depth of oceanic crust, below the waterline. Lower to deepen the oceans. */
-    private const OCEANIC_BASE = -1.6; // -0.6
+    /** NEW: Massive band for wide, sweeping continental slopes */
+    private const SHELF_BAND = 0.35;
 
-    /** How strongly converging plates lift (and diverging plates drop) the crust. Raise for taller mountains and deeper rifts. */
-    private const UPLIFT_SCALE = 1.7; // 1.2
+    private const RELIEF_AMPLITUDE = 0.24;
+    private const RELIEF_FREQUENCY = 0.07;
 
-    /** Width of the deformed zone along a plate boundary, as a fraction of the smaller map side. Raise for broad, gentle ranges; lower for narrow, sharp ones. */
-    private const BOUNDARY_BAND = 0.12; // 0.08
-
-    /** Height of the fractal relief layered onto the crust (TWT-262). Raise for hillier, rougher land and craggier coasts; lower for smoother terrain. */
-    private const RELIEF_AMPLITUDE = 0.24; // 0.18
-
-    /** Base spatial frequency of that relief (cells⁻¹). Raise for many small hills; lower for fewer, broader landforms. */
-    private const RELIEF_FREQUENCY = 0.07; // 0.05
+    private const MACRO_WARP_AMPLITUDE_PCT = 0.20;
+    private const MACRO_WARP_FREQUENCY = 0.0015;
+    private const MICRO_WARP_AMPLITUDE = 25.0;
+    private const MICRO_WARP_FREQUENCY = 0.04;
 
     public static function generate(Rng $rng, int $width = 64, int $height = 48, int $plateCount = 8): Substrate
     {
@@ -56,7 +41,14 @@ final class SubstrateGenerator
         }
 
         $band = max(1.0, min($width, $height) * self::BOUNDARY_BAND);
+        // Calculate the massive wide band for continental slopes
+        $shelfBandDist = max(1.0, min($width, $height) * self::SHELF_BAND);
+
         $relief = new FractalNoise($rng->stream('relief', 0)->int(0, 2_000_000_000), self::RELIEF_FREQUENCY);
+        $macroNoise = new FractalNoise($rng->stream('warp_macro', 0)->int(0, 2_000_000_000), self::MACRO_WARP_FREQUENCY);
+        $microNoise = new FractalNoise($rng->stream('warp_micro', 0)->int(0, 2_000_000_000), self::MICRO_WARP_FREQUENCY);
+        $macroWarpAmp = min($width, $height) * self::MACRO_WARP_AMPLITUDE_PCT;
+
         $elevation = [];
         $plateId = [];
         $minerals = [];
@@ -66,31 +58,74 @@ final class SubstrateGenerator
             $plateId[$y] = [];
             $minerals[$y] = [];
             for ($x = 0; $x < $width; $x++) {
-                [$near, $nearDist, $next, $nextDist] = self::twoNearest($plates, $x, $y);
 
-                $base = $near->continental ? self::CONTINENTAL_BASE : self::OCEANIC_BASE;
-                // How close the cell sits to the boundary between its plate and the next nearest one.
+                $warpX = ($macroNoise->fbm((float) $x, (float) $y) * $macroWarpAmp) +
+                    ($microNoise->fbm((float) $x, (float) $y) * self::MICRO_WARP_AMPLITUDE);
+
+                $warpY = ($macroNoise->fbm((float) $x + 1000.0, (float) $y + 1000.0) * $macroWarpAmp) +
+                    ($microNoise->fbm((float) $x + 1000.0, (float) $y + 1000.0) * self::MICRO_WARP_AMPLITUDE);
+
+                [$near, $nearDist, $next, $nextDist] = self::twoNearest($plates, $x + $warpX, $y + $warpY);
+
+                // 1. Tectonic Boundary (Narrow, for mountains)
                 $boundary = max(0.0, 1.0 - ($nextDist - $nearDist) / $band);
-                $tectonic = self::convergence($near, $next) * $boundary * self::UPLIFT_SCALE;
 
-                $elevation[$y][$x] = $base + $tectonic + self::RELIEF_AMPLITUDE * $relief->fbm((float) $x, (float) $y);
+                // 2. Shelf Boundary (Wide, for gradual slopes)
+                $shelfBoundary = max(0.0, 1.0 - ($nextDist - $nearDist) / $shelfBandDist);
+                // Smooth the slope using a Hermite curve so it eases in and out
+                $shelfBlend = $shelfBoundary * $shelfBoundary * (3.0 - 2.0 * $shelfBoundary);
+
+                $convergence = self::convergence($near, $next);
+
+                // 3. Calculate Base with Wide Slopes
+                $nearBase = $near->continental ? self::CONTINENTAL_BASE : self::OCEANIC_BASE;
+                $nextBase = $next->continental ? self::CONTINENTAL_BASE : self::OCEANIC_BASE;
+                // Interpolate so continents gently roll into oceans over vast distances
+                $base = $nearBase + ($nextBase - $nearBase) * ($shelfBlend * 0.5);
+
+                // 4. Differentiated Plate Tectonics (using the narrow $boundary)
+                $tectonic = 0.0;
+                if ($boundary > 0.0) {
+                    if ($near->continental && $next->continental) {
+                        $tectonic = max(0.0, $convergence) * $boundary * self::UPLIFT_SCALE * 2.0;
+                    } elseif (!$near->continental && !$next->continental) {
+                        $tectonic = $convergence * ($boundary ** 1.5) * self::UPLIFT_SCALE * 1.2;
+                    } else {
+                        if ($convergence > 0) {
+                            if ($near->continental) {
+                                $tectonic = $convergence * $boundary * self::UPLIFT_SCALE * 1.5;
+                            } else {
+                                $tectonic = -$convergence * ($boundary ** 0.5) * self::UPLIFT_SCALE * 0.8;
+                            }
+                        } else {
+                            $tectonic = $convergence * $boundary * self::UPLIFT_SCALE;
+                        }
+                    }
+                }
+
+                $rawElevation = $base + $tectonic + self::RELIEF_AMPLITUDE * $relief->fbm((float) $x, (float) $y);
+
+                // 5. Bathymetric Flattening (The true "Continental Shelf" effect)
+                // If we are just below sea level (0.0 to -1.0), flatten the depth curve.
+                if ($rawElevation < 0.0 && $rawElevation > -1.0) {
+                    $depth = abs($rawElevation); // Convert to positive 0.0 to 1.0
+                    // A power of 2.5 means a depth of 0.5 gets compressed up to 0.17!
+                    // This creates wide, shallow seas that eventually plunge.
+                    $rawElevation = -($depth ** 2.5);
+                }
+
+                $elevation[$y][$x] = $rawElevation;
                 $plateId[$y][$x] = $near->id;
-                $minerals[$y][$x] = min(1.0, abs($tectonic)); // ore pools where the crust is worked
+                $minerals[$y][$x] = min(1.0, abs($tectonic));
             }
         }
 
-        $elevation = HydraulicErosion::erode($elevation, $width, $height); // rivers carve the relief into valleys
+        $elevation = HydraulicErosion::erode($elevation, $width, $height);
 
         return new Substrate($width, $height, $elevation, $plateId, $minerals, $plates);
     }
 
-    /**
-     * The nearest and second-nearest plate to a cell, with their distances.
-     *
-     * @param  list<Plate>  $plates
-     * @return array{0: Plate, 1: float, 2: Plate, 3: float}
-     */
-    private static function twoNearest(array $plates, int $x, int $y): array
+    private static function twoNearest(array $plates, float $x, float $y): array
     {
         $near = $plates[0];
         $nearDist = INF;
@@ -108,21 +143,15 @@ final class SubstrateGenerator
                 $nextDist = $distance;
             }
         }
-
         return [$near, $nearDist, $next, $nextDist];
     }
 
-    /** Positive when two plates drive toward each other (uplift), negative when they pull apart (rift). */
     private static function convergence(Plate $a, Plate $b): float
     {
         $dx = $b->x - $a->x;
         $dy = $b->y - $a->y;
         $length = hypot($dx, $dy);
-        if ($length <= 0.0) {
-            return 0.0;
-        }
-
-        // Relative drift projected onto the axis between the two plate seeds.
+        if ($length <= 0.0) return 0.0;
         return (($a->driftX - $b->driftX) * $dx + ($a->driftY - $b->driftY) * $dy) / $length;
     }
 }

@@ -6,6 +6,7 @@ use App\Sim\Support\Rng;
 use App\Sim\Worldgen\Biome;
 use App\Sim\Worldgen\Climate;
 use App\Sim\Worldgen\ClimateGenerator;
+use App\Sim\Worldgen\CirculationGenerator; // <-- ADDED
 use App\Sim\Worldgen\Hydrology;
 use App\Sim\Worldgen\HydrologyGenerator;
 use App\Sim\Worldgen\Substrate;
@@ -22,7 +23,6 @@ class WorldClimate extends Command
 {
     private const LAYERS = ['biome', 'temperature', 'precipitation', 'fertility'];
 
-    /** ASCII glyph per biome, roughly by vegetation density, for the console map. */
     private const GLYPHS = [
         'ocean' => ' ', 'ice' => '*', 'tundra' => '.', 'desert' => ':',
         'shrubland' => ';', 'grassland' => '-', 'forest' => '#', 'rainforest' => '@',
@@ -33,7 +33,6 @@ class WorldClimate extends Command
         $layer = strtolower((string) $this->option('layer'));
         if (! in_array($layer, self::LAYERS, true)) {
             $this->error('Unknown --layer "'.$layer.'". Choose one of: '.implode(', ', self::LAYERS).'.');
-
             return self::FAILURE;
         }
 
@@ -50,7 +49,13 @@ class WorldClimate extends Command
         }
 
         $substrate = SubstrateGenerator::generate(new Rng($seed), $width, $height, $plates);
-        $climate = ClimateGenerator::generate($substrate);
+
+        // --- NEW CIRCULATION GENERATION STEP ---
+        $circulation = CirculationGenerator::generate(new Rng($seed), $substrate);
+
+        // --- PASS IT TO THE CLIMATE GENERATOR ---
+        $climate = ClimateGenerator::generate($substrate, $circulation);
+
         $hydrology = $this->option('hide-water') ? null : HydrologyGenerator::generate($substrate, $climate);
 
         $this->renderSummary($climate, $substrate, $hydrology, $seed, $layer);
@@ -68,12 +73,7 @@ class WorldClimate extends Command
 
     private function renderSummary(Climate $climate, Substrate $substrate, ?Hydrology $hydrology, string $seed, string $layer): void
     {
-        $landCells = 0;
-        $fertile = 0;
-        $rivers = 0;
-        $lakes = 0;
-        $temperatureSum = 0.0;
-        $counts = [];
+        $landCells = 0; $fertile = 0; $rivers = 0; $lakes = 0; $temperatureSum = 0.0; $counts = [];
         for ($y = 0; $y < $climate->height; $y++) {
             for ($x = 0; $x < $climate->width; $x++) {
                 $temperatureSum += $climate->temperatureAt($x, $y);
@@ -81,16 +81,10 @@ class WorldClimate extends Command
                 $counts[$biome->value] = ($counts[$biome->value] ?? 0) + 1;
                 if ($substrate->isLand($x, $y)) {
                     $landCells++;
-                    if ($climate->fertilityAt($x, $y) > 0.25) {
-                        $fertile++;
-                    }
+                    if ($climate->fertilityAt($x, $y) > 0.25) $fertile++;
                 }
-                if ($hydrology !== null && $hydrology->isRiver($x, $y)) {
-                    $rivers++;
-                }
-                if ($hydrology !== null && $hydrology->isLake($x, $y)) {
-                    $lakes++;
-                }
+                if ($hydrology !== null && $hydrology->isRiver($x, $y)) $rivers++;
+                if ($hydrology !== null && $hydrology->isLake($x, $y)) $lakes++;
             }
         }
         arsort($counts);
@@ -100,30 +94,18 @@ class WorldClimate extends Command
         $this->line(sprintf('  mean temp   %.1f°C', $temperatureSum / max(1, $cells)));
         $this->line(sprintf('  arable land %.1f%% of land is good farmland', $landCells > 0 ? $fertile / $landCells * 100 : 0.0));
         $this->line('  biomes      '.implode(' · ', self::topBiomes($counts, $cells)));
-        if ($hydrology !== null) {
-            $this->line(sprintf('  water       %d river cells · %d lake cells', $rivers, $lakes));
-        }
+        if ($hydrology !== null) $this->line(sprintf('  water       %d river cells · %d lake cells', $rivers, $lakes));
     }
 
-    /**
-     * @param  array<string,int>  $counts
-     * @return list<string>
-     */
     private static function topBiomes(array $counts, int $cells): array
     {
         $parts = [];
         foreach (array_slice($counts, 0, 5, true) as $name => $count) {
             $parts[] = sprintf('%s %.0f%%', $name, $count / max(1, $cells) * 100);
         }
-
         return $parts;
     }
 
-    /**
-     * Downsample the biome grid to a terminal-sized ASCII map (rows halved — console glyphs are tall).
-     *
-     * @return list<string>
-     */
     private static function asciiBiomeMap(Climate $climate, int $maxColumns, int $maxRows): array
     {
         $columns = min($maxColumns, $climate->width);
@@ -139,7 +121,6 @@ class WorldClimate extends Command
             }
             $lines[] = $line;
         }
-
         return $lines;
     }
 
@@ -148,9 +129,7 @@ class WorldClimate extends Command
         File::ensureDirectoryExists(dirname($path));
 
         $image = imagecreatetruecolor($climate->width * $cell, $climate->height * $cell);
-        if ($image === false) {
-            throw new RuntimeException('Could not allocate the image canvas (is the GD extension enabled?).');
-        }
+        if ($image === false) throw new RuntimeException('Could not allocate the image canvas.');
 
         for ($y = 0; $y < $climate->height; $y++) {
             for ($x = 0; $x < $climate->width; $x++) {
@@ -159,20 +138,14 @@ class WorldClimate extends Command
                 imagefilledrectangle($image, $x * $cell, $y * $cell, ($x + 1) * $cell - 1, ($y + 1) * $cell - 1, $colour === false ? 0 : $colour);
             }
         }
-
         imagepng($image, $path);
         imagedestroy($image);
     }
 
-    /** @return array{0: int, 1: int, 2: int} */
     private static function colorFor(string $layer, Climate $climate, Substrate $substrate, ?Hydrology $hydrology, int $x, int $y): array
     {
-        if ($hydrology !== null && $hydrology->isLake($x, $y)) {
-            return [36, 78, 148];
-        }
-        if ($hydrology !== null && $hydrology->isRiver($x, $y)) {
-            return [54, 120, 210];
-        }
+        if ($hydrology !== null && $hydrology->isLake($x, $y)) return [36, 78, 148];
+        if ($hydrology !== null && $hydrology->isRiver($x, $y)) return [54, 120, 210];
 
         $sea = [22, 42, 78];
         $land = $substrate->isLand($x, $y);
@@ -185,7 +158,6 @@ class WorldClimate extends Command
         };
     }
 
-    /** @return array{0: int, 1: int, 2: int} */
     private static function biomeColor(Biome $biome): array
     {
         return match ($biome) {
@@ -200,27 +172,10 @@ class WorldClimate extends Command
         };
     }
 
-    /** Cold→hot. @var list<array{0: float, 1: array{0: int, 1: int, 2: int}}> */
-    private const TEMPERATURE_STOPS = [
-        [0.0, [30, 60, 140]], [0.4, [120, 180, 220]], [0.6, [236, 232, 170]], [0.8, [220, 130, 50]], [1.0, [170, 32, 32]],
-    ];
+    private const TEMPERATURE_STOPS = [[0.0, [30, 60, 140]], [0.4, [120, 180, 220]], [0.6, [236, 232, 170]], [0.8, [220, 130, 50]], [1.0, [170, 32, 32]]];
+    private const PRECIPITATION_STOPS = [[0.0, [214, 196, 128]], [1.0, [30, 100, 170]]];
+    private const FERTILITY_STOPS = [[0.0, [210, 200, 162]], [1.0, [28, 122, 44]]];
 
-    /** Dry→wet. @var list<array{0: float, 1: array{0: int, 1: int, 2: int}}> */
-    private const PRECIPITATION_STOPS = [
-        [0.0, [214, 196, 128]], [1.0, [30, 100, 170]],
-    ];
-
-    /** Barren→lush. @var list<array{0: float, 1: array{0: int, 1: int, 2: int}}> */
-    private const FERTILITY_STOPS = [
-        [0.0, [210, 200, 162]], [1.0, [28, 122, 44]],
-    ];
-
-    /**
-     * Interpolate a colour through an ascending list of stops.
-     *
-     * @param  list<array{0: float, 1: array{0: int, 1: int, 2: int}}>  $stops
-     * @return array{0: int, 1: int, 2: int}
-     */
     private static function gradient(array $stops, float $value): array
     {
         $value = self::clamp($value, 0.0, 1.0);
@@ -230,21 +185,12 @@ class WorldClimate extends Command
                 [$p1, $c1] = $stops[$i];
                 $span = $p1 - $p0;
                 $f = $span > 0.0 ? ($value - $p0) / $span : 0.0;
-
                 return [self::lerp($c0[0], $c1[0], $f), self::lerp($c0[1], $c1[1], $f), self::lerp($c0[2], $c1[2], $f)];
             }
         }
-
         return $stops[count($stops) - 1][1];
     }
 
-    private static function lerp(int $from, int $to, float $f): int
-    {
-        return (int) round($from + ($to - $from) * $f);
-    }
-
-    private static function clamp(float $value, float $low, float $high): float
-    {
-        return max($low, min($high, $value));
-    }
+    private static function lerp(int $from, int $to, float $f): int { return (int) round($from + ($to - $from) * $f); }
+    private static function clamp(float $value, float $low, float $high): float { return max($low, min($high, $value)); }
 }
