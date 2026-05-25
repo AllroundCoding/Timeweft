@@ -117,6 +117,9 @@ final class MigrationEngine
             if (RelationsEngine::hostile($world, $from, $village)) {
                 continue; // no refuge in a hostile settlement (TWT-125)
             }
+            if ($world->crossRegionBarrier && RegionPartition::sameRegion($from, $village)) {
+                continue; // intra-region migration already happened inside the region (TWT-112)
+            }
             // Room draws migrants, but distance discounts the pull — a close haven beats a far frontier.
             $score = self::desirability($village) * (self::DISTANCE_HALF_PULL / (self::DISTANCE_HALF_PULL + $from->distanceTo($village)));
             if ($score > $bestScore) {

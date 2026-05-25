@@ -37,14 +37,20 @@ final class DistressEngine
             return; // reckoned at the turn of the year
         }
 
-        foreach ($world->villages as $village) {
-            $village->famineYears = $village->inFamine ? $village->famineYears + 1 : 0;
+        if (! $world->crossRegionBarrier) {
+            // Per-settlement bookkeeping (the famine tally, the collapse beat) belongs to each region's
+            // own advance — the barrier only carries aid across region lines, never re-runs it (TWT-112).
+            foreach ($world->villages as $village) {
+                $village->famineYears = $village->inFamine ? $village->famineYears + 1 : 0;
+            }
         }
         foreach ($world->villages as $village) {
             if ($village->famineYears >= self::DISTRESS_YEARS) {
                 self::sendForHelp($world, $village, $tick, $date);
             }
-            self::mournIfCollapsed($world, $village, $tick, $date);
+            if (! $world->crossRegionBarrier) {
+                self::mournIfCollapsed($world, $village, $tick, $date);
+            }
         }
     }
 
@@ -64,6 +70,9 @@ final class DistressEngine
         foreach ($world->villages as $donor) {
             if ($donor === $stricken || RelationsEngine::hostile($world, $donor, $stricken)) {
                 continue; // enemies let them starve
+            }
+            if ($world->crossRegionBarrier && RegionPartition::sameRegion($donor, $stricken)) {
+                continue; // intra-region aid already given inside the region (TWT-112)
             }
             $donorPop = $donor->headcount();
             if ($donorPop <= 0.0) {

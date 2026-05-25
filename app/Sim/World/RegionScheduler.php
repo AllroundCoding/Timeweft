@@ -40,8 +40,36 @@ final class RegionScheduler
                 $sub->advance($chunk); // isolated; order-independent (a parallel worker would do this)
             }
             $world->absorbRegions($subs);
+            self::barrier($world);
 
             $remaining -= $chunk;
+        }
+    }
+
+    /**
+     * The sync barrier: with the regions merged, couple the slow flows that cross region lines — relations,
+     * war, trade, caravans, contagion, migration, aid — then run the global narrative authors once on the
+     * whole world. The engines run with {@see World::$crossRegionBarrier} set, so they touch only
+     * inter-region pairs; the intra-region coupling already happened inside each region (TWT-112).
+     */
+    private static function barrier(World $world): void
+    {
+        $date = TharadiCalendar::fromTick($world->tick);
+
+        $world->crossRegionBarrier = true;
+        RelationsEngine::runDay($world, $world->tick, $date);
+        WarEngine::runDay($world, $world->tick, $date);
+        TradeEngine::runDay($world, $world->tick, $date);
+        CaravanEngine::runDay($world, $world->tick, $date);
+        ContagionEngine::runDay($world, $world->tick, $date);
+        MigrationEngine::runDay($world, $world->tick, $date);
+        DistressEngine::runDay($world, $world->tick, $date);
+        $world->crossRegionBarrier = false;
+
+        // The global authors were suppressed inside each region; run them once on the merged world.
+        $world->director->direct($world, $world->tick, $date);
+        foreach (WorldGuider::inspect($world, $world->tick) as $violation) {
+            $world->guardLog[] = $violation;
         }
     }
 }

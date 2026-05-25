@@ -45,6 +45,9 @@ final class WarEngine
 
         for ($i = 0; $i < $count; $i++) {
             for ($j = $i + 1; $j < $count; $j++) {
+                if ($world->crossRegionBarrier && RegionPartition::sameRegion($villages[$i], $villages[$j])) {
+                    continue; // intra-region clashes already resolved inside the region (TWT-112)
+                }
                 if (RelationsEngine::hostile($world, $villages[$i], $villages[$j])) {
                     self::clash($world, $villages[$i], $villages[$j], $tick, $date);
                 }

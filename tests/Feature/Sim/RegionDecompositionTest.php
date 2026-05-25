@@ -85,6 +85,34 @@ class RegionDecompositionTest extends TestCase
         $this->assertSame(count($ids), count(array_unique($ids)), 'no agent-id collisions across regions');
     }
 
+    public function test_regions_interact_across_the_barrier(): void
+    {
+        $world = $this->multiRegionWorld('vaeris');
+        RegionScheduler::advance($world, self::YEAR * 4);
+
+        // A settlement in each region, and the standing the barrier put on record between them — proof the
+        // cross-region engines coupled across region lines (without the barrier this pair never meets).
+        $regionZero = $this->aVillageInRegion($world, 0);
+        $regionOne = $this->aVillageInRegion($world, 1);
+
+        $this->assertArrayHasKey(
+            $regionZero->pairKey($regionOne),
+            $world->relations,
+            'an inter-region pair has a standing — the barrier coupled the regions',
+        );
+    }
+
+    private function aVillageInRegion(World $world, int $regionId): Village
+    {
+        foreach ($world->villages as $village) {
+            if ($village->regionId === $regionId) {
+                return $village;
+            }
+        }
+
+        $this->fail("no village in region {$regionId}");
+    }
+
     private function multiRegionWorld(string $seed): World
     {
         $world = World::seedTharadosVillage(new Rng($seed), 8);

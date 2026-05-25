@@ -74,6 +74,9 @@ final class World
     /** When false, the global narrative authors (director + world guider) are suppressed: set on a decomposed sub-world, which advances its region in isolation while the authors run once on the merged world at the barrier (TWT-112). */
     public bool $worldAuthorsEnabled = true;
 
+    /** True only during the sync barrier (TWT-112): the cross-settlement engines then couple solely inter-region pairs — intra-region pairs were already advanced inside each region. False everywhere else, so a normal run is unchanged. */
+    public bool $crossRegionBarrier = false;
+
     /** Invariant breaches the world guider has flagged or clamped this run (TWT-90); empty on a healthy run. */
     /** @var list<GuardViolation> */
     public array $guardLog = [];

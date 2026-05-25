@@ -46,6 +46,9 @@ final class RelationsEngine
 
         for ($i = 0; $i < $count; $i++) {
             for ($j = $i + 1; $j < $count; $j++) {
+                if ($world->crossRegionBarrier && RegionPartition::sameRegion($villages[$i], $villages[$j])) {
+                    continue; // intra-region standing already drifted inside the region (TWT-112)
+                }
                 self::settle($world, $villages[$i], $villages[$j], $tick, $date);
             }
         }
