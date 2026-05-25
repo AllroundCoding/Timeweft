@@ -43,6 +43,29 @@ final class FractalNoise
         return $norm > 0.0 ? ($sum / $norm) * 2.0 - 1.0 : 0.0; // value() is [0,1] → remap to [-1,1]
     }
 
+    /** * Instead of: $noise->fbm($x, $y)
+     * Use this wrapper to evaluate noise that wraps seamlessly on the X-axis:
+     */
+    public function fbmWrapped(float $x, float $y, float $width): float
+    {
+        // Map X to a 0.0 - 2PI circle
+        $angle = ($x / $width) * 2.0 * M_PI;
+
+        // The "radius" of our noise field
+        $radius = $width / (2.0 * M_PI);
+
+        // Project X into two dimensions so it wraps
+        $wrappedX = cos($angle) * $radius;
+        $wrappedY = sin($angle) * $radius;
+
+        // If your FBM implementation isn't perfectly seamless, add this:
+        $wrappedX = fmod($wrappedX, $width);
+        if ($wrappedX < 0) $wrappedX += $width;
+
+        // Evaluate noise using these circular coordinates
+        return $this->fbm($wrappedX, $wrappedY + ($y * 0.05));
+    }
+
     /** Smooth value noise on the integer lattice, in [0, 1]. */
     private function value(float $x, float $y, int $octave): float
     {

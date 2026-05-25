@@ -90,9 +90,10 @@ final class HydrologyGenerator
             foreach (self::NEIGHBORS as [$dx, $dy]) {
                 $nx = $x + $dx;
                 $ny = $y + $dy;
-                if ($nx < 0 || $ny < 0 || $nx >= $width || $ny >= $height) {
-                    continue;
+                if ($ny < 0 || $ny >= $height) {
+                    continue; // Poles don't wrap
                 }
+                $nx = ($nx + $width) % $width;
                 $neighbourElevation = $substrate->elevationAt($nx, $ny);
                 // Downhill if lower ground, or — on the flat — nearer the coast than where we've settled.
                 if ($neighbourElevation < $elevation - self::FLAT_EPSILON

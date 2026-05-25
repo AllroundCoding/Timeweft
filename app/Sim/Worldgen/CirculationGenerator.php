@@ -60,8 +60,8 @@ final class CirculationGenerator
                 }
 
                 // Add organic meandering
-                $u += $noiseU->fbm((float)$x, (float)$y) * 0.5;
-                $v += $noiseV->fbm((float)$x, (float)$y) * 0.5;
+                $u += $noiseU->fbmWrapped((float)$x, (float)$y, (float)$width) * 0.5;
+                $v += $noiseV->fbmWrapped((float)$x, (float)$y, (float)$width) * 0.5;
 
                 // Normalize wind vector
                 $len = hypot($u, $v) ?: 1.0;
@@ -72,9 +72,14 @@ final class CirculationGenerator
 
                 if ($isLand) {
                     // 2. TERRAIN DEFLECTION
-                    // Very simple gradient check: look at neighbors to find uphill direction
-                    $dx = $substrate->elevationAt(min($width - 1, $x + 1), $y) - $substrate->elevationAt(max(0, $x - 1), $y);
-                    $dy = $substrate->elevationAt($x, min($height - 1, $y + 1)) - $substrate->elevationAt($x, max(0, $y - 1));
+                    // X wraps around the globe, Y caps at the poles
+                    $nextX = ($x + 1) % $width;
+                    $prevX = ($x - 1 + $width) % $width;
+                    $nextY = min($height - 1, $y + 1);
+                    $prevY = max(0, $y - 1);
+
+                    $dx = $substrate->elevationAt($nextX, $y) - $substrate->elevationAt($prevX, $y);
+                    $dy = $substrate->elevationAt($x, $nextY) - $substrate->elevationAt($x, $prevY);
 
                     // Dot product of wind vector and slope gradient
                     $facingSlope = ($u * $dx) + ($v * $dy);
@@ -108,8 +113,8 @@ final class CirculationGenerator
                     $lookX = (int)round($x + $cU * 2.0);
                     $lookY = (int)round($y + $cV * 2.0);
 
-                    // Bound checks
-                    $lookX = max(0, min($width - 1, $lookX));
+                    // Bound checks: X wraps securely (handling negative PHP modulo), Y caps
+                    $lookX = (($lookX % $width) + $width) % $width;
                     $lookY = max(0, min($height - 1, $lookY));
 
                     // If the current is about to hit land, deflect it 90 degrees
