@@ -2,6 +2,7 @@
 
 namespace App\Sim\World;
 
+use App\Sim\Culture\LegendEngine;
 use App\Sim\Time\TharadiCalendar;
 
 /**
@@ -68,6 +69,7 @@ final class RegionScheduler
 
         // The global authors were suppressed inside each region; run them once on the merged world.
         $world->director->direct($world, $world->tick, $date);
+        LegendEngine::runDay($world, $world->tick, $date);
         foreach (WorldGuider::inspect($world, $world->tick) as $violation) {
             $world->guardLog[] = $violation;
         }
