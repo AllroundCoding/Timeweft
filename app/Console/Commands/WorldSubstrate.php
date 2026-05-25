@@ -11,7 +11,7 @@ use Illuminate\Console\Command;
 use Illuminate\Support\Facades\File;
 use RuntimeException;
 
-#[Signature('world:substrate {--seed=vaeris : RNG seed for a reproducible world} {--width=120 : Grid columns} {--height=72 : Grid rows} {--plates=10 : Number of tectonic plate seeds} {--cell=8 : Pixels per cell in the PNG} {--out= : PNG output path (default: storage/app/substrate-{seed}.png)}')]
+#[Signature('world:substrate {--seed=vaeris : RNG seed for a reproducible world} {--width=320 : Grid columns} {--height=160 : Grid rows} {--plates=18 : Number of tectonic plate seeds} {--cell=6 : Pixels per cell in the PNG} {--out= : PNG output path (default: storage/app/substrate-{seed}.png)}')]
 #[Description('Generate a solid-earth substrate (TWT-130) and render it as a colored elevation PNG + an ASCII preview — eyeball worldgen before the full map view (TWT-134).')]
 class WorldSubstrate extends Command
 {
