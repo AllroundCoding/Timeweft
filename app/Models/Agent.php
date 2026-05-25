@@ -11,8 +11,12 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * commoner masses are statistical cohorts elsewhere, not rows here.
  *
  * @property int $id
+ * @property int $world_id
+ * @property int|null $village_id
  * @property int $sim_id
+ * @property string $name
  * @property string $species
+ * @property string $sex
  * @property int $birth_tick
  * @property int|null $death_tick
  * @property bool $alive

@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * stockpile, and flag/event-id state as JSONB.
  *
  * @property int $id
+ * @property int $world_id
  * @property string $name
  * @property string $region
  * @property float $x
