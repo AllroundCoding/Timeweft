@@ -17,5 +17,6 @@ readonly class Plate
         public bool $continental,
         public float $driftX,
         public float $driftY,
+        public float $weight = 1.0,
     ) {}
 }

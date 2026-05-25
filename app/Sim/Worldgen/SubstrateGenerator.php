@@ -28,8 +28,18 @@ final class SubstrateGenerator
     public static function generate(Rng $rng, int $width = 64, int $height = 48, int $plateCount = 8): Substrate
     {
         $plates = [];
+        // Define how many plates are massive world-spanning continents/oceans
+        $majorPlateCount = max(3, (int)($plateCount * 0.20));
+
         for ($i = 0; $i < $plateCount; $i++) {
             $seed = $rng->stream('plate', $i);
+
+            // Assign weights based on Major vs Micro status
+            $isMajor = $i < $majorPlateCount;
+            $weight = $isMajor
+                ? $seed->float(2.0, 4.0)   // Major plates swallow huge territory
+                : $seed->float(0.2, 0.6);  // Microplates get squished into complex borders
+
             $plates[] = new Plate(
                 id: $i,
                 x: $seed->float(0.0, $width),
@@ -37,6 +47,7 @@ final class SubstrateGenerator
                 continental: $seed->chance(self::CONTINENTAL_FRACTION),
                 driftX: $seed->float(-1.0, 1.0),
                 driftY: $seed->float(-1.0, 1.0),
+                weight: $weight // <-- Pass the weight
             );
         }
 
@@ -131,8 +142,12 @@ final class SubstrateGenerator
         $nearDist = INF;
         $next = $plates[0];
         $nextDist = INF;
+
         foreach ($plates as $plate) {
-            $distance = hypot($plate->x - $x, $plate->y - $y);
+            // NEW: Divide the physical distance by the plate's weight!
+            // A weight of 4.0 means the plate's "influence" reaches 4x further.
+            $distance = hypot($plate->x - $x, $plate->y - $y) / $plate->weight;
+
             if ($distance < $nearDist) {
                 $next = $near;
                 $nextDist = $nearDist;
@@ -143,6 +158,7 @@ final class SubstrateGenerator
                 $nextDist = $distance;
             }
         }
+
         return [$near, $nearDist, $next, $nextDist];
     }
 
