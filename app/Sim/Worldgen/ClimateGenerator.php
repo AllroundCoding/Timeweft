@@ -17,25 +17,35 @@ namespace App\Sim\Worldgen;
  */
 final class ClimateGenerator
 {
-    private const EQUATOR_TEMP = 32.0;          // °C at sea level on the equator
+    /** Sea-level temperature on the equator, °C. Raise for a hotter world overall. */
+    private const EQUATOR_TEMP = 32.0;
 
-    private const POLE_TEMP = -15.0;            // °C at sea level at the poles
+    /** Sea-level temperature at the poles, °C. Lower for bigger ice caps. */
+    private const POLE_TEMP = -15.0;
 
-    private const LATITUDE_FALLOFF = 1.4;       // >1 keeps mid-latitudes temperate, concentrating cold at the poles
+    /** Shape of the equator→pole falloff: above 1 keeps mid-latitudes temperate and concentrates cold at the poles; 1 is a straight gradient. */
+    private const LATITUDE_FALLOFF = 1.4;
 
-    private const LAPSE = 7.0;                  // °C lost per unit of elevation above sea level
+    /** °C lost per unit of elevation (lapse rate). Raise for colder mountains — more alpine snow and tundra. */
+    private const LAPSE = 7.0;
 
-    private const SEA_RECHARGE = 0.30;          // moisture the air regains crossing a sea cell
+    /** Moisture the air regains crossing each sea cell. Raise for wetter coasts and a wetter world. */
+    private const SEA_RECHARGE = 0.30;
 
-    private const CONTINENTAL_DRYING = 0.02;    // moisture lost crossing a flat land cell (drier interiors)
+    /** Moisture lost crossing each flat land cell. Raise for drier continental interiors — bigger inland deserts. */
+    private const CONTINENTAL_DRYING = 0.02;
 
-    private const OROGRAPHIC_WRINGING = 1.5;    // extra moisture wrung out per unit of windward upslope
+    /** Extra moisture wrung out climbing a windward slope. Raise for stronger rain shadows — drier leeward deserts. */
+    private const OROGRAPHIC_WRINGING = 1.5;
 
-    private const OROGRAPHIC_LIFT = 4.0;        // rainfall multiplier per unit of upslope (windward downpour)
+    /** Rainfall boost on a windward upslope. Raise for wetter mountain faces. */
+    private const OROGRAPHIC_LIFT = 4.0;
 
-    private const FERTILITY_OPTIMUM = 18.0;     // °C of peak agrarian suitability
+    /** Temperature of peak farmland suitability, °C. Shifts which latitude band is most fertile. */
+    private const FERTILITY_OPTIMUM = 18.0;
 
-    private const FERTILITY_SPREAD = 18.0;      // how forgiving fertility is of departing the optimum
+    /** How far from that optimum land stays farmable. Raise so more of the world is arable; lower for a narrow fertile band. */
+    private const FERTILITY_SPREAD = 18.0;
 
     public static function generate(Substrate $substrate): Climate
     {

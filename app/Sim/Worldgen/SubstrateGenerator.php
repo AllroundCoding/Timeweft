@@ -19,20 +19,26 @@ use App\Sim\Support\Rng;
  */
 final class SubstrateGenerator
 {
-    /** Share of plates that are continental (float high); the rest are ocean floor. */
+    /** Share of plate seeds that are continental (the rest are ocean floor). Raise for more land, lower for more sea. */
     private const CONTINENTAL_FRACTION = 0.45;
 
-    private const CONTINENTAL_BASE = 0.25; // sea-level-relative resting height of continental crust
+    /** Resting height of continental crust (sea level = 0). Raise to lift the land table — more, higher land. */
+    private const CONTINENTAL_BASE = 0.25;
 
-    private const OCEANIC_BASE = -0.6; // oceanic crust sits below the waterline
+    /** Resting depth of oceanic crust, below the waterline. Lower to deepen the oceans. */
+    private const OCEANIC_BASE = -0.6;
 
-    private const UPLIFT_SCALE = 1.2; // how strongly convergence lifts (or divergence drops) the boundary
+    /** How strongly converging plates lift (and diverging plates drop) the crust. Raise for taller mountains and deeper rifts. */
+    private const UPLIFT_SCALE = 1.2;
 
-    private const BOUNDARY_BAND = 0.08; // width of the deformed zone, as a fraction of the smaller map side
+    /** Width of the deformed zone along a plate boundary, as a fraction of the smaller map side. Raise for broad, gentle ranges; lower for narrow, sharp ones. */
+    private const BOUNDARY_BAND = 0.08;
 
-    private const RELIEF_AMPLITUDE = 0.18; // height of the fractal relief layered onto the flat crust (TWT-262)
+    /** Height of the fractal relief layered onto the crust (TWT-262). Raise for hillier, rougher land and craggier coasts; lower for smoother terrain. */
+    private const RELIEF_AMPLITUDE = 0.18;
 
-    private const RELIEF_FREQUENCY = 0.05; // base spatial frequency of that relief, in cells⁻¹
+    /** Base spatial frequency of that relief (cells⁻¹). Raise for many small hills; lower for fewer, broader landforms. */
+    private const RELIEF_FREQUENCY = 0.05;
 
     public static function generate(Rng $rng, int $width = 64, int $height = 48, int $plateCount = 8): Substrate
     {

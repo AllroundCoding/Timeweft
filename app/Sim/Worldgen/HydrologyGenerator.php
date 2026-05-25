@@ -17,13 +17,13 @@ namespace App\Sim\Worldgen;
  */
 final class HydrologyGenerator
 {
-    /** Accumulated flow (in rainfall units) a cell must gather before it reads as a river channel. */
-    private const RIVER_THRESHOLD = 30.0;
+    /** Accumulated flow (in rainfall units) a cell must gather to read as a river. Lower for a denser, branchier network; raise to show only major rivers. */
+    private const RIVER_THRESHOLD = 40.0;
 
-    /** Inflow a basin floor must gather before it reads as a standing lake (filters out shallow noise pits). */
-    private const LAKE_THRESHOLD = 18.0;
+    /** Inflow a basin floor must gather to read as a standing lake (filters out shallow noise pits). Raise for fewer, only-larger lakes. */
+    private const LAKE_THRESHOLD = 22.0;
 
-    /** Elevations within this of each other count as flat — routing then follows the coast-distance field. */
+    /** Float tolerance for treating two cells as the same height when routing across flats. Rarely needs tuning. */
     private const FLAT_EPSILON = 1.0e-9;
 
     /** 8-connected neighbour offsets, in a fixed order so ties resolve deterministically. */
