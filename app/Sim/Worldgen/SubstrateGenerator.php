@@ -30,6 +30,10 @@ final class SubstrateGenerator
 
     private const BOUNDARY_BAND = 0.08; // width of the deformed zone, as a fraction of the smaller map side
 
+    private const RELIEF_AMPLITUDE = 0.18; // height of the fractal relief layered onto the flat crust (TWT-262)
+
+    private const RELIEF_FREQUENCY = 0.05; // base spatial frequency of that relief, in cells⁻¹
+
     public static function generate(Rng $rng, int $width = 64, int $height = 48, int $plateCount = 8): Substrate
     {
         $plates = [];
@@ -46,6 +50,7 @@ final class SubstrateGenerator
         }
 
         $band = max(1.0, min($width, $height) * self::BOUNDARY_BAND);
+        $relief = new FractalNoise($rng->stream('relief', 0)->int(0, 2_000_000_000), self::RELIEF_FREQUENCY);
         $elevation = [];
         $plateId = [];
         $minerals = [];
@@ -62,7 +67,7 @@ final class SubstrateGenerator
                 $boundary = max(0.0, 1.0 - ($nextDist - $nearDist) / $band);
                 $tectonic = self::convergence($near, $next) * $boundary * self::UPLIFT_SCALE;
 
-                $elevation[$y][$x] = $base + $tectonic;
+                $elevation[$y][$x] = $base + $tectonic + self::RELIEF_AMPLITUDE * $relief->fbm((float) $x, (float) $y);
                 $plateId[$y][$x] = $near->id;
                 $minerals[$y][$x] = min(1.0, abs($tectonic)); // ore pools where the crust is worked
             }

@@ -56,6 +56,21 @@ class SubstrateGeneratorTest extends TestCase
         $this->assertLessThan($max * 0.5, $mean, 'but ore is concentrated, not spread evenly');
     }
 
+    public function test_fractal_relief_breaks_up_the_flat_crust(): void
+    {
+        $substrate = SubstrateGenerator::generate(new Rng('vaeris'), 64, 48, 8);
+
+        $distinct = [];
+        for ($y = 0; $y < $substrate->height; $y++) {
+            for ($x = 0; $x < $substrate->width; $x++) {
+                $distinct[(string) $substrate->elevationAt($x, $y)] = true;
+            }
+        }
+
+        $cells = $substrate->width * $substrate->height;
+        $this->assertGreaterThan($cells * 0.8, count($distinct), 'relief gives nearly every cell its own height — no dead-flat plateaus to sheet-drain');
+    }
+
     /** @return array{0: float, 1: float} the highest and mean mineral concentration */
     private function mineralStats(Substrate $substrate): array
     {
