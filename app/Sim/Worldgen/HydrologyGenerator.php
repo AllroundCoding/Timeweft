@@ -23,6 +23,12 @@ final class HydrologyGenerator
     /** Inflow a basin floor must gather to read as a standing lake (filters out shallow noise pits). Raise for fewer, only-larger lakes. */
     private const LAKE_THRESHOLD = 20.0; // 18.0
 
+    /** Below this temperature (°C) water is frozen — no liquid runoff, no rivers (ice caps stay free of channels). */
+    private const FREEZING_POINT = 0.0;
+
+    /** Rainfall (0..1) lost to evaporation per °C above freezing. Raise so hot deserts shed no runoff and grow no rivers of their own. */
+    private const EVAPORATION_PER_DEGREE = 0.012;
+
     /** Float tolerance for treating two cells as the same height when routing across flats. Rarely needs tuning. */
     private const FLAT_EPSILON = 1.0e-9;
 
@@ -36,7 +42,8 @@ final class HydrologyGenerator
 
         $distance = self::distanceToSea($substrate);
 
-        // Each land cell starts with its own rainfall; sea contributes nothing to the channels.
+        // Each land cell starts with its own runoff (rainfall minus evaporation; zero where frozen); the
+        // sea contributes nothing to the channels.
         $accumulation = [];
         $cells = [];
 
@@ -51,7 +58,7 @@ final class HydrologyGenerator
             $accumulation[$y] = [];
             for ($x = 0; $x < $width; $x++) {
                 $land = $substrate->isLand($x, $y);
-                $accumulation[$y][$x] = $land ? $climate->precipitationAt($x, $y) : 0.0;
+                $accumulation[$y][$x] = $land ? self::runoff($climate->precipitationAt($x, $y), $climate->temperatureAt($x, $y)) : 0.0;
 
                 if ($land) {
                     $cells[$i] = [$x, $y];
@@ -129,7 +136,7 @@ final class HydrologyGenerator
             $lakeRow = [];
             for ($x = 0; $x < $width; $x++) {
                 $gathered = $accumulation[$y][$x];
-                $isRiver = $substrate->isLand($x, $y) && $gathered > self::RIVER_THRESHOLD;
+                $isRiver = $substrate->isLand($x, $y) && $gathered > self::RIVER_THRESHOLD && $climate->temperatureAt($x, $y) > self::FREEZING_POINT;
 
                 $flowRow[] = $gathered;
                 $riverRow[] = $isRiver;
@@ -150,6 +157,21 @@ final class HydrologyGenerator
         }
 
         return new Hydrology($width, $height, $flow, $river, $lake, $delta);
+    }
+
+    /**
+     * The share of a cell's rainfall that actually runs off into channels: none when frozen (the water is
+     * locked as ice), and rainfall minus temperature-driven evaporation otherwise — so hot, dry ground
+     * sheds little or nothing and never sources a river, while wet temperate ground feeds the network. A
+     * river fed from wet highlands still flows on through a desert (its water arrives from upstream).
+     */
+    private static function runoff(float $precipitation, float $temperature): float
+    {
+        if ($temperature < self::FREEZING_POINT) {
+            return 0.0;
+        }
+
+        return max(0.0, $precipitation - $temperature * self::EVAPORATION_PER_DEGREE);
     }
 
     /**

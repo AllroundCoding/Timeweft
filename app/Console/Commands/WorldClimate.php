@@ -9,6 +9,9 @@ use App\Sim\Worldgen\Climate;
 use App\Sim\Worldgen\ClimateGenerator;
 use App\Sim\Worldgen\Hydrology;
 use App\Sim\Worldgen\HydrologyGenerator;
+use App\Sim\Worldgen\SettlementSite;
+use App\Sim\Worldgen\SettlementSiter;
+use App\Sim\Worldgen\SettlementTier;
 use App\Sim\Worldgen\Substrate;
 use App\Sim\Worldgen\SubstrateGenerator;
 use Illuminate\Console\Attributes\Description;
@@ -17,13 +20,13 @@ use Illuminate\Console\Command;
 use Illuminate\Support\Facades\File;
 use RuntimeException;
 
-#[Signature('world:climate {--seed=vaeris : RNG seed for a reproducible world} {--width=2560 : Grid columns} {--height=1440 : Grid rows} {--plates=70 : Number of tectonic plate seeds} {--cell=1 : Pixels per cell in the PNG} {--layer=biome : Which layer to paint — biome|temperature|precipitation|fertility} {--hide-water : Hide the rivers & lakes overlay} {--out= : PNG output path (default: storage/app/climate-SEED-LAYER.png)}')]
+#[Signature('world:climate {--seed=vaeris : RNG seed for a reproducible world} {--width=3840 : Grid columns} {--height=2160 : Grid rows} {--plates=90 : Number of tectonic plate seeds} {--cell=1 : Pixels per cell in the PNG} {--layer=biome : Which layer to paint — biome|temperature|precipitation|fertility} {--hide-water : Hide the rivers & lakes overlay} {--sites : Mark emergent settlements (TWT-82)} {--out= : PNG output path (default: storage/app/climate-SEED-LAYER.png)}')]
 #[Description('Derive the climate (TWT-132) + hydrology (TWT-131) from a generated substrate and render a layer — biome, temperature, rainfall, or fertility — with rivers & lakes, as a PNG + an ASCII biome map.')]
 class WorldClimate extends Command
 {
-    private const LAYERS = ['biome', 'temperature', 'precipitation', 'fertility'];
+    private const array LAYERS = ['biome', 'temperature', 'precipitation', 'fertility'];
 
-    private const GLYPHS = [
+    private const array GLYPHS = [
         'ocean' => ' ', 'ice' => '*', 'tundra' => '.', 'desert' => ':',
         'shrubland' => ';', 'grassland' => '-', 'forest' => '#', 'rainforest' => '@',
     ];
@@ -54,22 +57,25 @@ class WorldClimate extends Command
         $circulation = CirculationGenerator::generate($rng, $substrate);
         $climate = ClimateGenerator::generate($rng, $substrate, $circulation);
 
-        $hydrology = $this->option('hide-water') ? null : HydrologyGenerator::generate($substrate, $climate);
+        $withSites = (bool) $this->option('sites');
+        $hydrology = ($this->option('hide-water') && ! $withSites) ? null : HydrologyGenerator::generate($substrate, $climate);
+        $sites = $withSites && $hydrology !== null ? SettlementSiter::site($substrate, $climate, $hydrology) : [];
 
-        $this->renderSummary($climate, $substrate, $hydrology, $seed, $layer);
+        $this->renderSummary($climate, $substrate, $hydrology, $sites, $seed, $layer);
         $this->newLine();
         foreach (self::asciiBiomeMap($climate, 100, 34) as $row) {
             $this->line($row);
         }
         $this->newLine();
 
-        self::writePng($climate, $substrate, $hydrology, $layer, $out, $cell);
+        self::writePng($climate, $substrate, $hydrology, $sites, $layer, $out, $cell);
         $this->info('PNG → '.$out);
 
         return self::SUCCESS;
     }
 
-    private function renderSummary(Climate $climate, Substrate $substrate, ?Hydrology $hydrology, string $seed, string $layer): void
+    /** @param  list<SettlementSite>  $sites */
+    private function renderSummary(Climate $climate, Substrate $substrate, ?Hydrology $hydrology, array $sites, string $seed, string $layer): void
     {
         $landCells = 0;
         $fertile = 0;
@@ -106,6 +112,28 @@ class WorldClimate extends Command
         if ($hydrology !== null) {
             $this->line(sprintf('  water       %d river cells · %d lake cells', $rivers, $lakes));
         }
+        if ($sites !== []) {
+            $tiers = [];
+            foreach ($sites as $site) {
+                $tiers[$site->tier->value] = ($tiers[$site->tier->value] ?? 0) + 1;
+            }
+            $this->line(sprintf('  settlements %d sited · %s', count($sites), self::tierBreakdown($tiers)));
+        }
+    }
+
+    /**
+     * @param  array<string, int>  $tiers
+     */
+    private static function tierBreakdown(array $tiers): string
+    {
+        $parts = [];
+        foreach ([SettlementTier::City, SettlementTier::Town, SettlementTier::Village, SettlementTier::Hamlet] as $tier) {
+            if (($tiers[$tier->value] ?? 0) > 0) {
+                $parts[] = $tiers[$tier->value].' '.$tier->value;
+            }
+        }
+
+        return implode(' · ', $parts);
     }
 
     /**
@@ -142,7 +170,8 @@ class WorldClimate extends Command
         return $lines;
     }
 
-    private static function writePng(Climate $climate, Substrate $substrate, ?Hydrology $hydrology, string $layer, string $path, int $cell): void
+    /** @param  list<SettlementSite>  $sites */
+    private static function writePng(Climate $climate, Substrate $substrate, ?Hydrology $hydrology, array $sites, string $layer, string $path, int $cell): void
     {
         File::ensureDirectoryExists(dirname($path));
 
@@ -158,8 +187,32 @@ class WorldClimate extends Command
                 imagefilledrectangle($image, $x * $cell, $y * $cell, ($x + 1) * $cell - 1, ($y + 1) * $cell - 1, $colour === false ? 0 : $colour);
             }
         }
+
+        if ($sites !== []) {
+            $ring = imagecolorallocate($image, 20, 20, 20);
+            $dot = imagecolorallocate($image, 255, 232, 120);
+            foreach ($sites as $site) {
+                $cx = (int) ($site->x * $cell + $cell / 2);
+                $cy = (int) ($site->y * $cell + $cell / 2);
+                $diameter = self::markerDiameter($site->tier);
+                imagefilledellipse($image, $cx, $cy, $diameter + 2, $diameter + 2, $ring === false ? 0 : $ring);
+                imagefilledellipse($image, $cx, $cy, $diameter, $diameter, $dot === false ? 0 : $dot);
+            }
+        }
+
         imagepng($image, $path);
         imagedestroy($image);
+    }
+
+    /** Marker diameter in pixels by tier — bigger settlements draw bigger dots. */
+    private static function markerDiameter(SettlementTier $tier): int
+    {
+        return match ($tier) {
+            SettlementTier::City => 12,
+            SettlementTier::Town => 8,
+            SettlementTier::Village => 5,
+            SettlementTier::Hamlet => 3,
+        };
     }
 
     /** @return array{0: int, 1: int, 2: int} */

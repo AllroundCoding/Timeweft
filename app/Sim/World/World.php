@@ -117,7 +117,7 @@ final class World
         $this->director = new RuleDirector;
     }
 
-    public static function seedTharadosVillage(Rng $rng, int $population = 5): self
+    public static function seedTharadosVillage(Rng $rng, int $population = 6): self
     {
         $world = new self($rng);
         $world->species = Species::vulpini();
