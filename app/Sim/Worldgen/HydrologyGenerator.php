@@ -90,9 +90,10 @@ final class HydrologyGenerator
             foreach (self::NEIGHBORS as [$dx, $dy]) {
                 $nx = $x + $dx;
                 $ny = $y + $dy;
-                if ($nx < 0 || $ny < 0 || $nx >= $width || $ny >= $height) {
-                    continue;
+                if ($ny < 0 || $ny >= $height) {
+                    continue; // Poles don't wrap
                 }
+                $nx = ($nx + $width) % $width;
                 $neighbourElevation = $substrate->elevationAt($nx, $ny);
                 // Downhill if lower ground, or — on the flat — nearer the coast than where we've settled.
                 if ($neighbourElevation < $elevation - self::FLAT_EPSILON
@@ -137,7 +138,7 @@ final class HydrologyGenerator
                 // DELTA DETECTION: If a river flows into a non-land cell, it's a delta!
                 if ($isRiver && $targetMap[$y][$x] !== null) {
                     [$tx, $ty] = $targetMap[$y][$x];
-                    if (!$substrate->isLand($tx, $ty)) {
+                    if (! $substrate->isLand($tx, $ty)) {
                         $delta[$y][$x] = true; // The coastal land cell
                         $delta[$ty][$tx] = true; // The shallow sea cell
                     }
@@ -178,11 +179,11 @@ final class HydrologyGenerator
             [$x, $y] = $queue[$head];
             $next = $distance[$y][$x] + 1;
             foreach (self::NEIGHBORS as [$dx, $dy]) {
-                $nx = $x + $dx;
                 $ny = $y + $dy;
-                if ($nx < 0 || $ny < 0 || $nx >= $width || $ny >= $height) {
-                    continue;
+                if ($ny < 0 || $ny >= $height) {
+                    continue; // latitude is capped at the poles
                 }
+                $nx = ($x + $dx + $width) % $width; // longitude wraps around the globe
                 if ($next < $distance[$ny][$nx]) {
                     $distance[$ny][$nx] = $next;
                     $queue[] = [$nx, $ny];

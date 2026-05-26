@@ -60,8 +60,8 @@ final class CirculationGenerator
                 }
 
                 // Add organic meandering
-                $u += $noiseU->fbm((float)$x, (float)$y) * 0.5;
-                $v += $noiseV->fbm((float)$x, (float)$y) * 0.5;
+                $u += $noiseU->fbmSpherical((float) $x, (float) $y, (float) $width, (float) $height) * 0.5;
+                $v += $noiseV->fbmSpherical((float) $x, (float) $y, (float) $width, (float) $height) * 0.5;
 
                 // Normalize wind vector
                 $len = hypot($u, $v) ?: 1.0;
@@ -72,9 +72,14 @@ final class CirculationGenerator
 
                 if ($isLand) {
                     // 2. TERRAIN DEFLECTION
-                    // Very simple gradient check: look at neighbors to find uphill direction
-                    $dx = $substrate->elevationAt(min($width - 1, $x + 1), $y) - $substrate->elevationAt(max(0, $x - 1), $y);
-                    $dy = $substrate->elevationAt($x, min($height - 1, $y + 1)) - $substrate->elevationAt($x, max(0, $y - 1));
+                    // X wraps around the globe, Y caps at the poles
+                    $nextX = ($x + 1) % $width;
+                    $prevX = ($x - 1 + $width) % $width;
+                    $nextY = min($height - 1, $y + 1);
+                    $prevY = max(0, $y - 1);
+
+                    $dx = $substrate->elevationAt($nextX, $y) - $substrate->elevationAt($prevX, $y);
+                    $dy = $substrate->elevationAt($x, $nextY) - $substrate->elevationAt($x, $prevY);
 
                     // Dot product of wind vector and slope gradient
                     $facingSlope = ($u * $dx) + ($v * $dy);
@@ -96,7 +101,9 @@ final class CirculationGenerator
                     }
 
                     // Land has no ocean current
-                    $cU = 0.0; $cV = 0.0; $cT = 0.0;
+                    $cU = 0.0;
+                    $cV = 0.0;
+                    $cT = 0.0;
 
                 } else {
                     // 3. OCEAN CURRENTS & GYRES
@@ -105,20 +112,24 @@ final class CirculationGenerator
                     $cV = $v;
 
                     // Coastline deflection check (Look ahead in the direction of flow)
-                    $lookX = (int)round($x + $cU * 2.0);
-                    $lookY = (int)round($y + $cV * 2.0);
+                    $lookX = (int) round($x + $cU * 2.0);
+                    $lookY = (int) round($y + $cV * 2.0);
 
-                    // Bound checks
-                    $lookX = max(0, min($width - 1, $lookX));
+                    // Bound checks: X wraps securely (handling negative PHP modulo), Y caps
+                    $lookX = (($lookX % $width) + $width) % $width;
                     $lookY = max(0, min($height - 1, $lookY));
 
                     // If the current is about to hit land, deflect it 90 degrees
                     if ($substrate->elevationAt($lookX, $lookY) > 0.0) {
                         // Hemisphere determines default gyre rotation (North = Clockwise, South = Counter)
                         if ($isNorthernHemisphere) {
-                            $temp = $cU; $cU = -$cV; $cV = $temp; // Rotate 90 deg clockwise
+                            $temp = $cU;
+                            $cU = -$cV;
+                            $cV = $temp; // Rotate 90 deg clockwise
                         } else {
-                            $temp = $cU; $cU = $cV; $cV = -$temp; // Rotate 90 deg counter
+                            $temp = $cU;
+                            $cU = $cV;
+                            $cV = -$temp; // Rotate 90 deg counter
                         }
                     }
 
@@ -132,7 +143,7 @@ final class CirculationGenerator
                 $windV[$y][$x] = $v;
                 $currentU[$y][$x] = $cU;
                 $currentV[$y][$x] = $cV;
-                $currentTemp[$y][$x] = $cT ?? 0.0;
+                $currentTemp[$y][$x] = $cT;
             }
         }
 

@@ -2,43 +2,23 @@
 
 namespace App\Sim\Worldgen;
 
-/**
- * Fluvial erosion over the substrate DEM (design doc 13; TWT-262 pass 2). Two coupled steps that make
- * rivers shape the land:
- *
- *  1. **Fill the basins** — a Planchon-Darboux relaxation raises every closed depression to its spill
- *     level (with a hair of downhill gradient), so water always has a path to the sea. This dissolves the
- *     spurious little lakes that raw fractal relief leaves behind.
- *  2. **Incise** — route the rainfall downhill, accumulate it, and cut each cell down in proportion to the
- *     water passing through it (a stream-power law). Trunks carve deep valleys, headwaters barely a crease,
- *     so the drainage network is etched into the terrain and rivers sit in the valleys they cut.
- *
- * Pure, framework-free, and deterministic — a fixed function of the input heightmap, so the same world
- * reproduces the same valleys.
- */
 final class HydraulicErosion
 {
-    /** Slight downhill slope enforced across a filled basin so water keeps moving. Rarely needs tuning. */
     private const EPSILON = 1.0e-4;
 
-    /** Safety cap on basin-filling passes (it stops early once stable). Raise only if very large flat basins fail to drain. */
     private const FILL_SWEEPS = 60;
 
-    /** The master erosion-strength dial — how hard flowing water cuts down. Raise for deeper, more dramatic valleys. */
     private const INCISION = 0.006;
 
-    /** How much carving favours big rivers over headwaters (flow exponent). Raise so only major rivers carve; lower so even small streams bite. */
     private const INCISION_EXPONENT = 0.5;
 
-    /** Hard cap on how deep one channel may cut. Lower to stop trunk rivers gouging canyons; raise to allow deep gorges. */
     private const MAX_INCISION = 0.20;
 
-    /** 8-connected neighbour offsets, fixed order for deterministic tie-breaks. */
     private const NEIGHBORS = [[-1, -1], [0, -1], [1, -1], [-1, 0], [1, 0], [-1, 1], [0, 1], [1, 1]];
 
     /**
-     * @param  list<list<float>>  $elevation  sea-level-relative heightmap
-     * @return list<list<float>> the eroded heightmap — basins filled, valleys cut
+     * @param  list<list<float>>  $elevation
+     * @return list<list<float>>
      */
     public static function erode(array $elevation, int $width, int $height): array
     {
@@ -59,10 +39,6 @@ final class HydraulicErosion
     }
 
     /**
-     * Planchon-Darboux depression filling: sea and map-edge cells are fixed outlets; every other cell is
-     * pulled down to the lowest level that still drains to an outlet (plus a tiny gradient). Alternating
-     * scan directions converge in a handful of sweeps on relief terrain.
-     *
      * @param  list<list<float>>  $dem
      * @return list<list<float>>
      */
@@ -72,7 +48,8 @@ final class HydraulicErosion
         for ($y = 0; $y < $height; $y++) {
             $row = [];
             for ($x = 0; $x < $width; $x++) {
-                $outlet = $x === 0 || $y === 0 || $x === $width - 1 || $y === $height - 1 || $dem[$y][$x] <= 0.0;
+                // CHANGED: X-edges are no longer outlets. Only the poles (Y edges) and the sea.
+                $outlet = $y === 0 || $y === $height - 1 || $dem[$y][$x] <= 0.0;
                 $row[] = $outlet ? $dem[$y][$x] : INF;
             }
             $filled[] = $row;
@@ -86,15 +63,19 @@ final class HydraulicErosion
                 for ($j = 0; $j < $width; $j++) {
                     $x = $forward ? $j : $width - 1 - $j;
                     if ($filled[$y][$x] <= $dem[$y][$x]) {
-                        continue; // already at ground level — an outlet or resolved
+                        continue;
                     }
                     $lowestNeighbour = INF;
                     foreach (self::NEIGHBORS as [$dx, $dy]) {
-                        $nx = $x + $dx;
                         $ny = $y + $dy;
-                        if ($nx >= 0 && $ny >= 0 && $nx < $width && $ny < $height) {
-                            $lowestNeighbour = min($lowestNeighbour, $filled[$ny][$nx]);
+
+                        // Cap Y (poles), Wrap X (longitude)
+                        if ($ny < 0 || $ny >= $height) {
+                            continue;
                         }
+                        $nx = ($x + $dx + $width) % $width;
+
+                        $lowestNeighbour = min($lowestNeighbour, $filled[$ny][$nx]);
                     }
                     $spill = $lowestNeighbour + self::EPSILON;
                     if ($dem[$y][$x] >= $spill) {
@@ -115,38 +96,61 @@ final class HydraulicErosion
     }
 
     /**
-     * Uniform-rainfall flow accumulation over a depression-free surface: each cell sheds to its lowest
-     * neighbour, and visiting from the top down sums the water passing through every cell.
-     *
      * @param  list<list<float>>  $surface
      * @return list<list<float>>
      */
     private static function flowAccumulation(array $surface, int $width, int $height): array
     {
         $flow = [];
-        $cells = [];
+
+        $elevations = [];
+        $ys = [];
+        $xs = [];
+        $i = 0;
+
         for ($y = 0; $y < $height; $y++) {
-            $flow[$y] = array_fill(0, $width, 1.0); // every cell catches one unit of rain
+            $flow[$y] = array_fill(0, $width, 1.0);
             for ($x = 0; $x < $width; $x++) {
-                $cells[] = [$surface[$y][$x], $x, $y];
+                $elevations[$i] = $surface[$y][$x];
+                $ys[$i] = $y;
+                $xs[$i] = $x;
+                $i++;
             }
         }
 
-        usort($cells, static fn (array $a, array $b): int => [$b[0], $a[2], $a[1]] <=> [$a[0], $b[2], $b[1]]);
+        // Massively faster than usort with a closure. Preserves perfect determinism.
+        array_multisort(
+            $elevations, SORT_DESC, SORT_NUMERIC,
+            $ys, SORT_ASC, SORT_NUMERIC,
+            $xs, SORT_ASC, SORT_NUMERIC
+        );
 
-        foreach ($cells as [$level, $x, $y]) {
+        // Process cells top-down
+        for ($k = 0; $k < $i; $k++) {
+            $level = $elevations[$k];
+            $y = $ys[$k];
+            $x = $xs[$k];
+
             $lowest = $level;
             $targetX = -1;
             $targetY = -1;
+
             foreach (self::NEIGHBORS as [$dx, $dy]) {
-                $nx = $x + $dx;
                 $ny = $y + $dy;
-                if ($nx >= 0 && $ny >= 0 && $nx < $width && $ny < $height && $surface[$ny][$nx] < $lowest) {
+
+                // CHANGED: Cap Y, Wrap X
+                if ($ny < 0 || $ny >= $height) {
+                    continue;
+                }
+                $nx = ($x + $dx + $width) % $width;
+
+                if ($surface[$ny][$nx] < $lowest) {
                     $lowest = $surface[$ny][$nx];
                     $targetX = $nx;
                     $targetY = $ny;
                 }
             }
+
             if ($targetX >= 0) {
                 $flow[$targetY][$targetX] += $flow[$y][$x];
             }

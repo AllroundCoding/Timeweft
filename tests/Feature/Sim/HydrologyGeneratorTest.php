@@ -3,6 +3,7 @@
 namespace Tests\Feature\Sim;
 
 use App\Sim\Support\Rng;
+use App\Sim\Worldgen\CirculationGenerator;
 use App\Sim\Worldgen\Climate;
 use App\Sim\Worldgen\ClimateGenerator;
 use App\Sim\Worldgen\HydrologyGenerator;
@@ -11,8 +12,8 @@ use App\Sim\Worldgen\SubstrateGenerator;
 use PHPUnit\Framework\TestCase;
 
 /**
- * TWT-131 — rainfall routed over the terrain into rivers and lakes. Deterministic per seed; rivers should
- * form, concentrate flow downstream, and sit on land; lakes pool in basins on land.
+ * TWT-131/81 — rainfall routed over the terrain into rivers and lakes. Deterministic per seed; rivers
+ * should form, concentrate flow downstream, and sit on land; lakes pool in basins on land.
  */
 class HydrologyGeneratorTest extends TestCase
 {
@@ -86,8 +87,10 @@ class HydrologyGeneratorTest extends TestCase
     /** @return array{0: Substrate, 1: Climate} */
     private function world(string $seed = 'vaeris', int $width = 160, int $height = 100, int $plates = 12): array
     {
-        $substrate = SubstrateGenerator::generate(new Rng($seed), $width, $height, $plates);
+        $rng = new Rng($seed);
+        $substrate = SubstrateGenerator::generate($rng, $width, $height, $plates);
+        $circulation = CirculationGenerator::generate($rng, $substrate);
 
-        return [$substrate, ClimateGenerator::generate($substrate)];
+        return [$substrate, ClimateGenerator::generate($rng, $substrate, $circulation)];
     }
 }
