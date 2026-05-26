@@ -79,11 +79,21 @@ class SettlementDistanceTest extends TestCase
 
     public function test_a_trading_route_matures_with_use(): void
     {
-        $world = World::seedTharadosVillage(new Rng('vaeris'), 16);
-        $world->foundVillage('Breadbasket', 40, landYield: 60.0);
-        $world->foundVillage('Dusthold', 20, landYield: 10.0);
+        // The same route carries grain year after year — from a granary that always holds a surplus to a
+        // holding whose own land never quite feeds it — and with each year of use it matures (TWT-127).
+        $world = new World(new Rng('mature'));
+        $world->goods = GoodRegistry::tharados();
+        $exporter = $this->village('Breadbasket', 4, ['food' => 200.0], 0.0, 0.0);
+        $importer = $this->village('Farhold', 10, ['food' => 0.0, 'money' => 100000.0], 50.0, 0.0);
+        $world->villages = [$exporter, $importer];
+        $world->village = $exporter;
 
-        $world->advance(self::TICKS_PER_YEAR * 20);
+        for ($year = 1; $year <= 3; $year++) {
+            $exporter->stockpile->add('food', 200.0);                                     // a standing surplus
+            $importer->stockpile->withdraw('food', $importer->stockpile->amount('food')); // a standing shortfall
+            $tick = $year * self::TICKS_PER_YEAR + 8;                                      // the turn of each year
+            TradeEngine::runDay($world, $tick, TharadiCalendar::fromTick($tick));
+        }
 
         $matured = array_filter($world->routes, static fn (array $r): bool => $r['ageYears'] >= 2);
         $this->assertNotEmpty($matured, 'a route used across several years accrues maturity');

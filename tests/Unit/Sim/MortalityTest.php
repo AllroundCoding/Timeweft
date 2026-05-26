@@ -20,10 +20,12 @@ class MortalityTest extends TestCase
 
     public function test_infant_mortality_is_materially_high(): void
     {
-        // A newborn's daily risk compounds to a brutal first-year mortality (historically realistic).
+        // A newborn's daily risk compounds to a hard first-year mortality (historically realistic) — set
+        // so childhood is perilous yet survivable enough that settlements sustain and grow (see the
+        // EmergenceEngine docblock on the replacement balance).
         $annualSurvival = (1.0 - EmergenceEngine::dailyMortality(0)) ** 365;
 
-        $this->assertLessThan(0.85, $annualSurvival); // >15% die in the first year
+        $this->assertLessThan(0.92, $annualSurvival); // ~10% die in the first year
     }
 
     public function test_child_mortality_fades_with_age(): void

@@ -10,6 +10,21 @@ use App\Sim\Time\TharadiDate;
  * Evaluated once per in-world day. Produces the emergent, path-dependent
  * skeleton — pairings, births (with inherited traits), and deaths — and
  * records each as a canonical chronicle event.
+ *
+ * The vital rates are tuned for **long-run replacement**: a settlement must be able to grow into its
+ * land and hold there over centuries, not merely survive its first few decades (they were once tuned
+ * only for the 22-year canonical horizon, and bled slowly to extinction over longer runs). The pieces:
+ * a hard but survivable childhood ({@see INFANT_MORTALITY} — well over a third of those born still die
+ * before adulthood), founders seeded young (see {@see World::seedTharadosVillage()}) so the founding
+ * generation has its fertile years ahead, quick pairing ({@see PAIR_CHANCE_DAY}), and a density brake
+ * in {@see tryBirth()} that keeps births full until a settlement is about half-full so it fills toward
+ * carrying capacity instead of stalling at a fraction of it.
+ *
+ * Fertility ({@see BIRTH_CHANCE_DAY}) is deliberately *moderate*, not maximal: net reproduction sits
+ * comfortably above one at low density and tapers to balance near capacity. Pushing it higher backfires
+ * in a multi-settlement world — the faster growth overshoots carrying capacity, and the famine that
+ * follows drives sickness (and so mortality) into a spiral the settlement cannot climb back out of. A
+ * gentler climb is what lets settlements consolidate and grow into towns rather than boom and collapse.
  */
 final class EmergenceEngine
 {
@@ -17,9 +32,9 @@ final class EmergenceEngine
 
     private const FERTILE_MAX = 45;
 
-    private const PAIR_CHANCE_DAY = 0.02;
+    private const PAIR_CHANCE_DAY = 0.05;
 
-    private const BIRTH_CHANCE_DAY = 0.0025;
+    private const BIRTH_CHANCE_DAY = 0.0050;
 
     private const BIRTH_SPACING_YEARS = 2;
 
@@ -29,7 +44,7 @@ final class EmergenceEngine
 
     private const AID_STRENGTH = 0.6; // how far mutual aid buffers the famine die-back
 
-    private const INFANT_MORTALITY = 0.0008; // daily death risk at birth, fading through childhood
+    private const INFANT_MORTALITY = 0.0003; // daily death risk at birth, fading through childhood
 
     private const CHILD_MORTALITY_DECAY = 3.0; // years over which the infant risk fades
 
@@ -81,10 +96,12 @@ final class EmergenceEngine
     {
         $ticksPerYear = TharadiCalendar::HOURS_PER_DAY * TharadiCalendar::DAYS_PER_YEAR;
 
-        // Density-dependent fertility: births slow as the population nears carrying capacity.
+        // Density-dependent fertility: births stay full until a settlement is about half-full, then
+        // taper to zero at carrying capacity — so a settlement grows into its land instead of stalling
+        // at a fraction of it, while still being checked before it overshoots into famine.
         $population = count($world->livingAgents());
         $capacity = $world->village->carryingCapacity;
-        $density = $capacity > 0 ? max(0.0, 1.0 - $population / $capacity) : 1.0;
+        $density = $capacity > 0 ? max(0.0, min(1.0, 2.0 * (1.0 - $population / $capacity))) : 1.0;
 
         foreach ($world->livingAgents() as $mother) {
             if ($mother->sex !== 'f' || $mother->partnerId === null) {

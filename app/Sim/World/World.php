@@ -140,7 +140,9 @@ final class World
             // sub-stream so adding/removing a draw elsewhere never shifts who is born here (TWT-118).
             $id = $world->nextId++;
             $entityRng = $rng->stream('agent', $id);
-            $birthTick = -$entityRng->int(18, 50) * $ticksPerYear;
+            // Founders are young adults — most of the fertile window (to 45) still ahead — so a fresh
+            // settlement can actually grow rather than age out before its first generation matures.
+            $birthTick = -$entityRng->int(18, 35) * $ticksPerYear;
             $agents[] = $world->species->birth($id, $birthTick, $world->region, $culture, $entityRng, $world->names);
         }
 
@@ -244,7 +246,9 @@ final class World
         for ($i = 0; $i < $population; $i++) {
             $id = $this->nextId++;
             $entityRng = $this->rng->stream('agent', $id);
-            $birthTick = -$entityRng->int(18, 50) * $ticksPerYear;
+            // Founders are young adults — most of the fertile window (to 45) still ahead — so a fresh
+            // settlement can actually grow rather than age out before its first generation matures.
+            $birthTick = -$entityRng->int(18, 35) * $ticksPerYear;
             $agents[] = $this->species->birth($id, $birthTick, $region, $culture, $entityRng, $this->names);
         }
 
