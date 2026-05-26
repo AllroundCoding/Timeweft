@@ -43,17 +43,21 @@ readonly class Substrate
         return $this->minerals[$y][$x];
     }
 
-    /** Local steepness — the largest elevation drop to a four-neighbour, the input to travel cost and defensibility. */
+    /**
+     * Local steepness — the largest elevation drop to a four-neighbour, the input to travel cost and
+     * defensibility. Longitude wraps around the globe; latitude is capped at the poles.
+     */
     public function slopeAt(int $x, int $y): float
     {
         $here = $this->elevation[$y][$x];
         $slope = 0.0;
         foreach ([[1, 0], [-1, 0], [0, 1], [0, -1]] as [$dx, $dy]) {
-            $nx = $x + $dx;
             $ny = $y + $dy;
-            if ($nx >= 0 && $nx < $this->width && $ny >= 0 && $ny < $this->height) {
-                $slope = max($slope, abs($here - $this->elevation[$ny][$nx]));
+            if ($ny < 0 || $ny >= $this->height) {
+                continue; // latitude is capped at the poles
             }
+            $nx = ($x + $dx + $this->width) % $this->width; // longitude wraps around the globe
+            $slope = max($slope, abs($here - $this->elevation[$ny][$nx]));
         }
 
         return $slope;
