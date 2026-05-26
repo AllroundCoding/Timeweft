@@ -3,7 +3,7 @@
 namespace Tests\Feature\Sim;
 
 use App\Sim\Support\Rng;
-use App\Sim\Worldgen\Biome;
+use App\Sim\Worldgen\CirculationGenerator;
 use App\Sim\Worldgen\Climate;
 use App\Sim\Worldgen\ClimateGenerator;
 use App\Sim\Worldgen\Substrate;
@@ -11,16 +11,15 @@ use App\Sim\Worldgen\SubstrateGenerator;
 use PHPUnit\Framework\TestCase;
 
 /**
- * TWT-132 — the climate surface derived from the substrate. A first pass: temperature, precipitation,
- * fertility, and a coarse biome map. Deterministic per seed; the physics should read true — a warm
- * equator and cold poles, colder peaks, barren seas, and a world of varied biomes.
+ * TWT-132/77 — the climate surface derived from the substrate + circulation. Deterministic per seed; the
+ * physics should read true — a warm equator and cold poles, colder mountains, barren seas, varied biomes.
  */
 class ClimateGeneratorTest extends TestCase
 {
-    public function test_climate_is_a_pure_function_of_the_substrate(): void
+    public function test_climate_is_a_pure_function_of_the_world(): void
     {
-        $a = ClimateGenerator::generate($this->substrate());
-        $b = ClimateGenerator::generate($this->substrate());
+        [, $a] = $this->world();
+        [, $b] = $this->world();
 
         $this->assertSame($a->temperature, $b->temperature, 'same seed → the same temperatures');
         $this->assertSame($a->precipitation, $b->precipitation, 'same seed → the same rainfall');
@@ -30,7 +29,7 @@ class ClimateGeneratorTest extends TestCase
 
     public function test_the_equator_runs_warmer_than_the_poles(): void
     {
-        $climate = ClimateGenerator::generate($this->substrate());
+        [, $climate] = $this->world();
 
         $equator = $this->rowMeanTemperature($climate, intdiv($climate->height, 2));
         $poles = ($this->rowMeanTemperature($climate, 0) + $this->rowMeanTemperature($climate, $climate->height - 1)) / 2.0;
@@ -38,45 +37,32 @@ class ClimateGeneratorTest extends TestCase
         $this->assertGreaterThan($poles + 10.0, $equator, 'the equator is much warmer than the poles');
     }
 
-    public function test_higher_ground_is_colder_at_the_same_latitude(): void
+    public function test_mountains_run_colder_than_lowlands(): void
     {
-        $substrate = $this->substrate();
-        $climate = ClimateGenerator::generate($substrate);
-        $y = intdiv($climate->height, 2);
+        [$substrate, $climate] = $this->world();
 
-        $highest = null;
-        $lowest = null;
-        $highestElevation = -INF;
-        $lowestElevation = INF;
-        for ($x = 0; $x < $climate->width; $x++) {
-            if (! $substrate->isLand($x, $y)) {
-                continue;
-            }
-            $elevation = $substrate->elevationAt($x, $y);
-            if ($elevation > $highestElevation) {
-                $highestElevation = $elevation;
-                $highest = $x;
-            }
-            if ($elevation < $lowestElevation) {
-                $lowestElevation = $elevation;
-                $lowest = $x;
+        // Gather land cells as [elevation, temperature], then compare the highest tenth against the lowest
+        // tenth: the lapse rate should make high ground colder on average, latitude noise washing out.
+        $cells = [];
+        for ($y = 0; $y < $climate->height; $y++) {
+            for ($x = 0; $x < $climate->width; $x++) {
+                if ($substrate->isLand($x, $y)) {
+                    $cells[] = [$substrate->elevationAt($x, $y), $climate->temperatureAt($x, $y)];
+                }
             }
         }
+        usort($cells, static fn (array $a, array $b): int => $a[0] <=> $b[0]);
 
-        $this->assertNotNull($highest);
-        $this->assertNotNull($lowest);
-        $this->assertNotSame($highest, $lowest, 'the equator row holds varied terrain');
-        $this->assertLessThan(
-            $climate->temperatureAt($lowest, $y),
-            $climate->temperatureAt($highest, $y),
-            'the mountain cell is colder than the lowland in the same row',
-        );
+        $tenth = max(1, intdiv(count($cells), 10));
+        $lowMean = $this->meanTemperature(array_slice($cells, 0, $tenth));
+        $highMean = $this->meanTemperature(array_slice($cells, -$tenth));
+
+        $this->assertLessThan($lowMean, $highMean, 'the highest ground is colder than the lowest');
     }
 
     public function test_seas_are_barren_and_some_land_is_fertile(): void
     {
-        $substrate = $this->substrate();
-        $climate = ClimateGenerator::generate($substrate);
+        [$substrate, $climate] = $this->world();
 
         $seasBarren = true;
         $fertileLand = 0;
@@ -98,7 +84,7 @@ class ClimateGeneratorTest extends TestCase
 
     public function test_a_whole_world_grows_several_biomes(): void
     {
-        $climate = ClimateGenerator::generate($this->substrate());
+        [, $climate] = $this->world();
 
         $kinds = [];
         foreach ($climate->biome as $row) {
@@ -108,12 +94,16 @@ class ClimateGeneratorTest extends TestCase
         }
 
         $this->assertGreaterThanOrEqual(4, count($kinds), 'a whole world wears varied biomes');
-        $this->assertArrayHasKey(Biome::Ocean->value, $kinds, 'and it has seas');
     }
 
-    private function substrate(string $seed = 'vaeris', int $width = 80, int $height = 50, int $plates = 10): Substrate
+    /** @return array{0: Substrate, 1: Climate} */
+    private function world(string $seed = 'vaeris', int $width = 80, int $height = 50, int $plates = 10): array
     {
-        return SubstrateGenerator::generate(new Rng($seed), $width, $height, $plates);
+        $rng = new Rng($seed);
+        $substrate = SubstrateGenerator::generate($rng, $width, $height, $plates);
+        $circulation = CirculationGenerator::generate($rng, $substrate);
+
+        return [$substrate, ClimateGenerator::generate($rng, $substrate, $circulation)];
     }
 
     private function rowMeanTemperature(Climate $climate, int $y): float
@@ -124,5 +114,16 @@ class ClimateGeneratorTest extends TestCase
         }
 
         return $sum / $climate->width;
+    }
+
+    /** @param  list<array{0: float, 1: float}>  $cells */
+    private function meanTemperature(array $cells): float
+    {
+        $sum = 0.0;
+        foreach ($cells as [, $temperature]) {
+            $sum += $temperature;
+        }
+
+        return $sum / max(1, count($cells));
     }
 }

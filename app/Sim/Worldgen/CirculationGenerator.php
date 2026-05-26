@@ -60,8 +60,8 @@ final class CirculationGenerator
                 }
 
                 // Add organic meandering
-                $u += $noiseU->fbmSpherical((float)$x, (float)$y, (float)$width, (float)$height) * 0.5;
-                $v += $noiseV->fbmSpherical((float)$x, (float)$y, (float)$width, (float)$height) * 0.5;
+                $u += $noiseU->fbmSpherical((float) $x, (float) $y, (float) $width, (float) $height) * 0.5;
+                $v += $noiseV->fbmSpherical((float) $x, (float) $y, (float) $width, (float) $height) * 0.5;
 
                 // Normalize wind vector
                 $len = hypot($u, $v) ?: 1.0;
@@ -101,7 +101,9 @@ final class CirculationGenerator
                     }
 
                     // Land has no ocean current
-                    $cU = 0.0; $cV = 0.0; $cT = 0.0;
+                    $cU = 0.0;
+                    $cV = 0.0;
+                    $cT = 0.0;
 
                 } else {
                     // 3. OCEAN CURRENTS & GYRES
@@ -110,8 +112,8 @@ final class CirculationGenerator
                     $cV = $v;
 
                     // Coastline deflection check (Look ahead in the direction of flow)
-                    $lookX = (int)round($x + $cU * 2.0);
-                    $lookY = (int)round($y + $cV * 2.0);
+                    $lookX = (int) round($x + $cU * 2.0);
+                    $lookY = (int) round($y + $cV * 2.0);
 
                     // Bound checks: X wraps securely (handling negative PHP modulo), Y caps
                     $lookX = (($lookX % $width) + $width) % $width;
@@ -121,9 +123,13 @@ final class CirculationGenerator
                     if ($substrate->elevationAt($lookX, $lookY) > 0.0) {
                         // Hemisphere determines default gyre rotation (North = Clockwise, South = Counter)
                         if ($isNorthernHemisphere) {
-                            $temp = $cU; $cU = -$cV; $cV = $temp; // Rotate 90 deg clockwise
+                            $temp = $cU;
+                            $cU = -$cV;
+                            $cV = $temp; // Rotate 90 deg clockwise
                         } else {
-                            $temp = $cU; $cU = $cV; $cV = -$temp; // Rotate 90 deg counter
+                            $temp = $cU;
+                            $cU = $cV;
+                            $cV = -$temp; // Rotate 90 deg counter
                         }
                     }
 
@@ -137,7 +143,7 @@ final class CirculationGenerator
                 $windV[$y][$x] = $v;
                 $currentU[$y][$x] = $cU;
                 $currentV[$y][$x] = $cV;
-                $currentTemp[$y][$x] = $cT ?? 0.0;
+                $currentTemp[$y][$x] = $cT;
             }
         }
 

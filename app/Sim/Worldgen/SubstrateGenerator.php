@@ -46,7 +46,7 @@ final class SubstrateGenerator
     {
         $plates = [];
         // Define how many plates are massive world-spanning continents/oceans, default is 20%
-        $majorPlateCount = max(3, (int)($plateCount * 0.20));
+        $majorPlateCount = max(3, (int) ($plateCount * 0.20));
 
         for ($i = 0; $i < $plateCount; $i++) {
             $seed = $rng->stream('plate', $i);
@@ -68,7 +68,7 @@ final class SubstrateGenerator
             );
         }
 
-        // NEW: Precalculate 3D Spherical Coordinates for the Tectonic Plates
+        // Precalculate 3D Spherical Coordinates for the Tectonic Plates
         $plateCoords = [];
         foreach ($plates as $plate) {
             $lon = ($plate->x / $width) * 2.0 * M_PI;
@@ -102,11 +102,11 @@ final class SubstrateGenerator
             for ($x = 0; $x < $width; $x++) {
 
                 // 1. Calculate raw displacements directly using 3D Spherical Noise
-                $rawWarpX = ($macroNoise->fbmSpherical((float)$x, (float)$y, (float)$width, (float)$height) * $macroWarpAmp) +
-                    ($microNoise->fbmSpherical((float)$x, (float)$y, (float)$width, (float)$height) * self::MICRO_WARP_AMPLITUDE);
+                $rawWarpX = ($macroNoise->fbmSpherical((float) $x, (float) $y, (float) $width, (float) $height) * $macroWarpAmp) +
+                    ($microNoise->fbmSpherical((float) $x, (float) $y, (float) $width, (float) $height) * self::MICRO_WARP_AMPLITUDE);
 
-                $rawWarpY = ($macroNoise->fbmSpherical((float)$x, (float)$y, (float)$width, (float)$height, 1000.0) * $macroWarpAmp) +
-                    ($microNoise->fbmSpherical((float)$x, (float)$y, (float)$width, (float)$height, 1000.0) * self::MICRO_WARP_AMPLITUDE);
+                $rawWarpY = ($macroNoise->fbmSpherical((float) $x, (float) $y, (float) $width, (float) $height, 1000.0) * $macroWarpAmp) +
+                    ($microNoise->fbmSpherical((float) $x, (float) $y, (float) $width, (float) $height, 1000.0) * self::MICRO_WARP_AMPLITUDE);
 
                 // 2. Apply Warp
                 $warpX = $x + $rawWarpX;
@@ -154,7 +154,7 @@ final class SubstrateGenerator
                 if ($boundary > 0.0) {
                     if ($near->continental && $next->continental) {
                         $tectonic = max(0.0, $convergence) * $boundary * self::UPLIFT_SCALE * 2.0;
-                    } elseif (!$near->continental && !$next->continental) {
+                    } elseif (! $near->continental && ! $next->continental) {
                         $tectonic = $convergence * ($boundary ** 1.5) * self::UPLIFT_SCALE * 1.2;
                     } else {
                         if ($convergence > 0) {
@@ -169,7 +169,7 @@ final class SubstrateGenerator
                     }
                 }
 
-                $rawElevation = $base + $tectonic + self::RELIEF_AMPLITUDE * $relief->fbmSpherical((float)$x, (float)$y, (float)$width, (float)$height);
+                $rawElevation = $base + $tectonic + self::RELIEF_AMPLITUDE * $relief->fbmSpherical((float) $x, (float) $y, (float) $width, (float) $height);
 
                 // 5. Bathymetric Flattening (The true "Continental Shelf" effect)
                 // If we are just below sea level (0.0 to -1.0), flatten the depth curve.
@@ -191,7 +191,13 @@ final class SubstrateGenerator
         return new Substrate($width, $height, $elevation, $plateId, $minerals, $plates);
     }
 
-    /** * NEW: Replaces 2D math with True 3D Euclidean distance calculations across the sphere
+    /**
+     * Nearest and second-nearest plate to a point, by true 3D distance across the sphere (divided by the
+     * plate's weight, so major plates command more territory).
+     *
+     * @param  list<Plate>  $plates
+     * @param  array<int, array{nx: float, ny: float, nz: float}>  $plateCoords
+     * @return array{0: Plate, 1: float, 2: Plate, 3: float}
      */
     private static function twoNearest(array $plates, array $plateCoords, float $x, float $y, int $width, int $height): array
     {
@@ -216,7 +222,7 @@ final class SubstrateGenerator
             $dy = $coords['ny'] - $ny;
             $dz = $coords['nz'] - $nz;
 
-            $distance = sqrt($dx*$dx + $dy*$dy + $dz*$dz) / $plate->weight;
+            $distance = sqrt($dx * $dx + $dy * $dy + $dz * $dz) / $plate->weight;
 
             if ($distance < $nearDist) {
                 $next = $near;
@@ -228,6 +234,7 @@ final class SubstrateGenerator
                 $nextDist = $distance;
             }
         }
+
         return [$near, $nearDist, $next, $nextDist];
     }
 
@@ -243,7 +250,10 @@ final class SubstrateGenerator
 
         $dy = $b->y - $a->y;
         $length = hypot($dx, $dy);
-        if ($length <= 0.0) return 0.0;
+        if ($length <= 0.0) {
+            return 0.0;
+        }
+
         return (($a->driftX - $b->driftX) * $dx + ($a->driftY - $b->driftY) * $dy) / $length;
     }
 }

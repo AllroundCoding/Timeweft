@@ -2,31 +2,43 @@
 
 namespace App\Sim\Worldgen;
 
+use Random\Engine\Mt19937;
+use Random\Randomizer;
+
 /**
- * A fast, seeded 3D Perlin Noise generator for true spherical planet mapping.
+ * A fast, seeded 3D Perlin noise generator for seamless spherical planet mapping (TWT-77/262).
+ *
+ * Sampling on a 3D sphere ({@see fbmSpherical()}) removes the east-west seam and the polar stretching a
+ * flat 2D lattice would show. Deterministic: the permutation table is shuffled with the project's seeded
+ * {@see Randomizer} (never the global mt_rand()), so the same seed yields the same noise with no global
+ * side effects.
  */
 final class FractalNoise
 {
     private float $frequency;
+
+    /** @var array<int, int> doubled permutation table, shuffled deterministically from the seed */
     private array $perm = [];
+
     private const OCTAVES = 6;
+
     private const GAIN = 0.5;
+
     private const LACUNARITY = 2.0;
 
     public function __construct(int $seed, float $frequency)
     {
         $this->frequency = $frequency;
 
-        // Generate a stable permutation table from the seed
-        mt_srand($seed);
+        // Stable permutation table from the seed — shuffled with a local seeded Randomizer (Mt19937), not
+        // the global mt_rand(), so worldgen stays deterministic and free of global side effects.
+        $randomizer = new Randomizer(new Mt19937($seed));
         $p = range(0, 255);
 
         // Fisher-Yates shuffle
         for ($i = 255; $i > 0; $i--) {
-            $j = mt_rand(0, $i);
-            $temp = $p[$i];
-            $p[$i] = $p[$j];
-            $p[$j] = $temp;
+            $j = $randomizer->getInt(0, $i);
+            [$p[$i], $p[$j]] = [$p[$j], $p[$i]];
         }
 
         // Double it to avoid overflow in lookups
@@ -73,9 +85,9 @@ final class FractalNoise
     /** Classic 3D Perlin Noise */
     private function noise3D(float $x, float $y, float $z): float
     {
-        $X = (int)floor($x) & 255;
-        $Y = (int)floor($y) & 255;
-        $Z = (int)floor($z) & 255;
+        $X = (int) floor($x) & 255;
+        $Y = (int) floor($y) & 255;
+        $Z = (int) floor($z) & 255;
 
         $x -= floor($x);
         $y -= floor($y);
@@ -86,8 +98,12 @@ final class FractalNoise
         $w = $this->fade($z);
 
         $p = $this->perm;
-        $A  = $p[$X] + $Y; $AA = $p[$A] + $Z; $AB = $p[$A + 1] + $Z;
-        $B  = $p[$X + 1] + $Y; $BA = $p[$B] + $Z; $BB = $p[$B + 1] + $Z;
+        $A = $p[$X] + $Y;
+        $AA = $p[$A] + $Z;
+        $AB = $p[$A + 1] + $Z;
+        $B = $p[$X + 1] + $Y;
+        $BA = $p[$B] + $Z;
+        $BB = $p[$B + 1] + $Z;
 
         return $this->lerp($w,
             $this->lerp($v,
@@ -101,14 +117,22 @@ final class FractalNoise
         );
     }
 
-    private function fade(float $t): float { return $t * $t * $t * ($t * ($t * 6.0 - 15.0) + 10.0); }
-    private function lerp(float $t, float $a, float $b): float { return $a + $t * ($b - $a); }
+    private function fade(float $t): float
+    {
+        return $t * $t * $t * ($t * ($t * 6.0 - 15.0) + 10.0);
+    }
+
+    private function lerp(float $t, float $a, float $b): float
+    {
+        return $a + $t * ($b - $a);
+    }
 
     private function grad3(int $hash, float $x, float $y, float $z): float
     {
         $h = $hash & 15;
         $u = $h < 8 ? $x : $y;
         $v = $h < 4 ? $y : ($h === 12 || $h === 14 ? $x : $z);
+
         return (($h & 1) === 0 ? $u : -$u) + (($h & 2) === 0 ? $v : -$v);
     }
 }

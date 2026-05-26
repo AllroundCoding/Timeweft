@@ -63,7 +63,7 @@ class HydraulicErosionTest extends TestCase
             $row = [];
             for ($x = 0; $x < self::W; $x++) {
                 $edge = $x < 2 || $y < 2 || $x >= self::W - 2 || $y >= self::H - 2;
-                $row[] = $edge ? -0.5 : 0.25 + 0.35 * $noise->fbm($x, $y);
+                $row[] = $edge ? -0.5 : 0.25 + 0.35 * $noise->fbmSpherical((float) $x, (float) $y, (float) self::W, (float) self::H);
             }
             $dem[] = $row;
         }

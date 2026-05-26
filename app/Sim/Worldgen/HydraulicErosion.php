@@ -5,12 +5,21 @@ namespace App\Sim\Worldgen;
 final class HydraulicErosion
 {
     private const EPSILON = 1.0e-4;
+
     private const FILL_SWEEPS = 60;
+
     private const INCISION = 0.006;
+
     private const INCISION_EXPONENT = 0.5;
+
     private const MAX_INCISION = 0.20;
+
     private const NEIGHBORS = [[-1, -1], [0, -1], [1, -1], [-1, 0], [1, 0], [-1, 1], [0, 1], [1, 1]];
 
+    /**
+     * @param  list<list<float>>  $elevation
+     * @return list<list<float>>
+     */
     public static function erode(array $elevation, int $width, int $height): array
     {
         $filled = self::fillDepressions($elevation, $width, $height);
@@ -29,6 +38,10 @@ final class HydraulicErosion
         return $eroded;
     }
 
+    /**
+     * @param  list<list<float>>  $dem
+     * @return list<list<float>>
+     */
     private static function fillDepressions(array $dem, int $width, int $height): array
     {
         $filled = [];
@@ -82,6 +95,10 @@ final class HydraulicErosion
         return $filled;
     }
 
+    /**
+     * @param  list<list<float>>  $surface
+     * @return list<list<float>>
+     */
     private static function flowAccumulation(array $surface, int $width, int $height): array
     {
         $flow = [];
