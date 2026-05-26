@@ -12,6 +12,7 @@ use App\Sim\Culture\CultureEngine;
 use App\Sim\Culture\Legend;
 use App\Sim\Culture\LegendEngine;
 use App\Sim\Direction\Director;
+use App\Sim\Direction\Generation;
 use App\Sim\Direction\Milestone;
 use App\Sim\Direction\RuleDirector;
 use App\Sim\Economy\EconomyEngine;
@@ -27,6 +28,10 @@ use App\Sim\Support\NameGenerator;
 use App\Sim\Support\Rng;
 use App\Sim\Time\TharadiCalendar;
 use App\Sim\Time\TharadiDate;
+use App\Sim\Worldgen\Biome;
+use App\Sim\Worldgen\Climate;
+use App\Sim\Worldgen\SettlementSite;
+use App\Sim\Worldgen\SettlementTier;
 
 /** Top-level sim container: the canonical clock, the world's agents, RNG, and chronicle. */
 final class World
@@ -150,6 +155,69 @@ final class World
         );
 
         return $world;
+    }
+
+    /**
+     * Seed-from-worldgen (TWT-82): build a live world whose settlements emerge from procedural geography
+     * instead of the hand-placed Sunwell Oasis. Each sited settlement is founded on the same engine — its
+     * region archetype from the biome, its land yield from the local fertility, its founding size from the
+     * site's tier — and the existing economy/trade/population machinery grows them from there. An opt-in
+     * path ({@see Generation::fromWorldgen()}); the canonical seeded run is untouched.
+     *
+     * @param  list<SettlementSite>  $sites
+     */
+    public static function seedFromWorldgen(Rng $rng, Climate $climate, array $sites): self
+    {
+        $world = new self($rng);
+        $world->species = Species::vulpini();
+        $world->region = RegionProfile::tharados(); // the fallback world region; each village carries its own
+        $world->goods = GoodRegistry::tharados();
+        $world->recipes = RecipeBook::tharados();
+        $world->names = NameGenerator::vaeris();
+
+        foreach ($sites as $site) {
+            $world->foundVillage(
+                population: self::foundingPopulation($site->tier),
+                landYield: self::landYieldFor($climate->fertilityAt($site->x, $site->y)),
+                archetype: self::archetypeForBiome($climate->biomeAt($site->x, $site->y)),
+                x: (float) $site->x,
+                y: (float) $site->y,
+            );
+        }
+
+        if ($world->villages === []) {
+            $world->foundVillage(archetype: RegionArchetype::sownland()); // a world that sited nothing still needs a start
+        }
+
+        $world->village = $world->villages[0];
+
+        return $world;
+    }
+
+    /** Map a biome to its nearest region archetype — arid land breeds the desert culture, the rest the temperate sownland. */
+    private static function archetypeForBiome(Biome $biome): RegionArchetype
+    {
+        return match ($biome) {
+            Biome::Desert, Biome::Shrubland => RegionArchetype::desert(),
+            default => RegionArchetype::sownland(),
+        };
+    }
+
+    /** Land yield (food/day) from local fertility (0..1): a richer site feeds more, lifting its carrying capacity. */
+    private static function landYieldFor(float $fertility): float
+    {
+        return 12.0 + 30.0 * max(0.0, min(1.0, $fertility));
+    }
+
+    /** Founding population by tier — a prime site starts larger; the sim grows it from there. */
+    private static function foundingPopulation(SettlementTier $tier): int
+    {
+        return match ($tier) {
+            SettlementTier::City => 12,
+            SettlementTier::Town => 9,
+            SettlementTier::Village => 6,
+            SettlementTier::Hamlet => 4,
+        };
     }
 
     /**

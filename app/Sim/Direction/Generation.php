@@ -4,6 +4,11 @@ namespace App\Sim\Direction;
 
 use App\Sim\Support\Rng;
 use App\Sim\World\World;
+use App\Sim\Worldgen\CirculationGenerator;
+use App\Sim\Worldgen\ClimateGenerator;
+use App\Sim\Worldgen\HydrologyGenerator;
+use App\Sim\Worldgen\SettlementSiter;
+use App\Sim\Worldgen\SubstrateGenerator;
 
 /**
  * The two generation modes on one engine (design doc 08) — same causal machinery, opposite directions:
@@ -48,5 +53,21 @@ final class Generation
         $world->milestones = array_values($milestones);
 
         return $world;
+    }
+
+    /**
+     * Worldgen-forward (TWT-82): generate procedural geography — terrain, climate, rivers — site
+     * settlements where the land supports them, and let the same `advance()` engine grow them. An
+     * additive, opt-in path; the seeded canonical run is untouched.
+     */
+    public static function fromWorldgen(Rng $rng, int $width = 200, int $height = 120, int $plates = 16, int $maxSites = 40): World
+    {
+        $substrate = SubstrateGenerator::generate($rng, $width, $height, $plates);
+        $circulation = CirculationGenerator::generate($rng, $substrate);
+        $climate = ClimateGenerator::generate($rng, $substrate, $circulation);
+        $hydrology = HydrologyGenerator::generate($substrate, $climate);
+        $sites = array_slice(SettlementSiter::site($substrate, $climate, $hydrology), 0, $maxSites);
+
+        return World::seedFromWorldgen($rng, $climate, $sites);
     }
 }

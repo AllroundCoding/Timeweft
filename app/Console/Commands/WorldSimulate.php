@@ -16,7 +16,7 @@ use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 
-#[Signature('world:simulate {--years=22 : In-world years to simulate} {--seed=vaeris : RNG seed for reproducible runs} {--population=8 : Number of founding villagers} {--end-state= : Justify an authored end-state instead of surprising me — e.g. empire@500 or empire@500,town@300} {--json : Also write the chronicle + roster to storage/app/chronicle.json}')]
+#[Signature('world:simulate {--years=22 : In-world years to simulate} {--seed=vaeris : RNG seed for reproducible runs} {--population=8 : Number of founding villagers} {--end-state= : Justify an authored end-state instead of surprising me — e.g. empire@500 or empire@500,town@300} {--worldgen : Generate the world from procedural geography (TWT-82) instead of the seeded village} {--json : Also write the chronicle + roster to storage/app/chronicle.json}')]
 #[Description('Run the headless world simulation and dump the resulting chronicle')]
 class WorldSimulate extends Command
 {
@@ -29,7 +29,9 @@ class WorldSimulate extends Command
 
         $rng = new Rng($seed);
 
-        if ($endStateSpec !== '') {
+        if ($this->option('worldgen')) {
+            $world = Generation::fromWorldgen($rng);
+        } elseif ($endStateSpec !== '') {
             $waypoints = self::parseEndState($endStateSpec);
             $problems = LoreCheck::check(...$waypoints);
             if ($problems !== []) {
@@ -47,9 +49,11 @@ class WorldSimulate extends Command
         $foundingCount = count($world->village->agents);
 
         $this->info(sprintf('Timeweft — %s (%s), seed "%s"', $world->village->name, $world->village->region, $seed));
-        $this->line($endStateSpec !== ''
-            ? sprintf('Generation mode: end-state-backward — justifying %s', $endStateSpec)
-            : 'Generation mode: seed-forward — surprise me');
+        $this->line(match (true) {
+            (bool) $this->option('worldgen') => sprintf('Generation mode: worldgen — %d settlements sited on procedural geography', count($world->villages)),
+            $endStateSpec !== '' => sprintf('Generation mode: end-state-backward — justifying %s', $endStateSpec),
+            default => 'Generation mode: seed-forward — surprise me',
+        });
         $this->line(sprintf('Founded %s; simulating %d years…', TharadiCalendar::fromTick(0), $years));
         $this->newLine();
 
