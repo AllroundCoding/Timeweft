@@ -16,7 +16,7 @@ namespace App\Sim\Worldgen;
 final class SettlementSiter
 {
     /** A cell must score at least this to seed a settlement. Lower for a denser, more crowded world. */
-    private const MIN_SUITABILITY = 0.45;
+    private const MIN_SUITABILITY = 0.40;
 
     /** River flow above which the water carries trade (a navigable river). Lower to make more rivers count as trade routes. */
     private const NAVIGABLE_FLOW = 120.0;
@@ -24,13 +24,11 @@ final class SettlementSiter
     /** Hinterland radius (cells) sampled around a site for its growth potential. Raise so a city needs a bigger fertile catchment. */
     private const CATCHMENT_RADIUS = 4;
 
-    private const WEIGHT_WATER = 0.40;    // fresh water is the first need of any settlement
+    /** How much a prime trade position (coast, river mouth, navigable river) boosts an already-livable site. */
+    private const TRADE_BONUS = 0.5;
 
-    private const WEIGHT_ARABLE = 0.30;   // food from the surrounding land
-
-    private const WEIGHT_DEFENSE = 0.10;  // a little high ground helps
-
-    private const WEIGHT_TRADE = 0.20;    // coasts, river mouths and navigable rivers draw commerce
+    /** How much defensible high ground boosts a site. */
+    private const DEFENSE_BONUS = 0.15;
 
     private const NEIGHBORS4 = [[1, 0], [-1, 0], [0, 1], [0, -1]];
 
@@ -84,20 +82,26 @@ final class SettlementSiter
         return $sites;
     }
 
-    /** How good a single land cell is to settle — fresh water, food, defensibility, and trade, gated on water. */
+    /**
+     * How good a single land cell is to settle. Food and fresh water are the essentials — both must be
+     * present (their geometric mean), and since fertility already encodes temperature and rainfall, a
+     * frozen pole or a barren desert scores ~0. Trade and defensibility only *boost* an already-livable
+     * site; they can't make an unlivable one habitable.
+     */
     private static function suitabilityAt(Substrate $substrate, Climate $climate, Hydrology $hydrology, int $x, int $y): float
     {
+        $arable = $climate->fertilityAt($x, $y); // food — already 0 when frozen or too dry (so temperature gates it)
         $water = self::waterAccess($substrate, $hydrology, $x, $y);
-        $arable = $climate->fertilityAt($x, $y);
-        $defense = min(1.0, $substrate->slopeAt($x, $y) / 0.3);
+        $livable = sqrt($arable * $water);        // a site needs both food and fresh water
+
+        if ($livable <= 0.0) {
+            return 0.0;
+        }
+
         $trade = self::tradeValue($substrate, $hydrology, $x, $y);
+        $defense = min(1.0, $substrate->slopeAt($x, $y) / 0.3);
 
-        $score = self::WEIGHT_WATER * $water
-            + self::WEIGHT_ARABLE * $arable
-            + self::WEIGHT_DEFENSE * $defense
-            + self::WEIGHT_TRADE * $trade;
-
-        return $water < 0.3 ? $score * 0.25 : $score; // a waterless interior barely settles
+        return $livable * (1.0 + self::TRADE_BONUS * $trade + self::DEFENSE_BONUS * $defense);
     }
 
     /** Proximity to fresh water (0..1): on a river/delta is best, then coast, river- or lake-shore. */

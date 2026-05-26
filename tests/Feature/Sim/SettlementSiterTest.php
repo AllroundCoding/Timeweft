@@ -55,6 +55,15 @@ class SettlementSiterTest extends TestCase
         }
     }
 
+    public function test_settlements_avoid_frozen_and_barren_ground(): void
+    {
+        [$substrate, $climate, $hydrology] = $this->world();
+
+        foreach (SettlementSiter::site($substrate, $climate, $hydrology) as $site) {
+            $this->assertGreaterThan(0.0, $climate->fertilityAt($site->x, $site->y), 'a settlement sits on land that can feed it — never a frozen ice cap or a barren desert');
+        }
+    }
+
     /** @param  array{0: Substrate, 1: Climate, 2: Hydrology}  $world @return list<array{int, int, string, float}> */
     private function sites(array $world): array
     {
