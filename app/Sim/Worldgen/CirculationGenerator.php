@@ -60,8 +60,8 @@ final class CirculationGenerator
                 }
 
                 // Add organic meandering
-                $u += $noiseU->fbmWrapped((float)$x, (float)$y, (float)$width) * 0.5;
-                $v += $noiseV->fbmWrapped((float)$x, (float)$y, (float)$width) * 0.5;
+                $u += $noiseU->fbmSpherical((float)$x, (float)$y, (float)$width, (float)$height) * 0.5;
+                $v += $noiseV->fbmSpherical((float)$x, (float)$y, (float)$width, (float)$height) * 0.5;
 
                 // Normalize wind vector
                 $len = hypot($u, $v) ?: 1.0;

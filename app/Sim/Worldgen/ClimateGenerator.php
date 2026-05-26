@@ -40,11 +40,11 @@ final class ClimateGenerator
             for ($x = 0; $x < $substrate->width; $x++) {
 
                 // 1. LATITUDINAL WOBBLES
-                $tWobble = $tempNoise->fbmWrapped((float)$x, (float)$y, (float)$substrate->width) * 0.15;
+                $tWobble = $tempNoise->fbmSpherical((float)$x, (float)$y, (float)$substrate->width, (float)$substrate->height) * 0.15;
                 $wobbledTempLat = self::clamp($baseLatitude + $tWobble, 0.0, 1.0);
                 $baseTemp = self::EQUATOR_TEMP + (self::POLE_TEMP - self::EQUATOR_TEMP) * $wobbledTempLat ** self::LATITUDE_FALLOFF;
 
-                $pWobble = $precipNoise->fbmWrapped((float)$x, (float)$y, (float)$substrate->width) * 0.20;
+                $pWobble = $precipNoise->fbmSpherical((float)$x, (float)$y, (float)$substrate->width, (float)$substrate->height) * 0.20;
                 $wobbledPrecipLat = self::clamp($baseLatitude + $pWobble, 0.0, 1.0);
                 $precipLat = self::clamp(0.5 + 0.4 * cos(3.0 * M_PI * $wobbledPrecipLat), 0.20, 0.95);
 

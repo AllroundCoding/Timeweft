@@ -3,104 +3,112 @@
 namespace App\Sim\Worldgen;
 
 /**
- * Deterministic fractal value noise (fBm; TWT-262) — layered, hash-based lattice noise that adds organic
- * relief to the otherwise dead-flat tectonic substrate. Pure and framework-free: a fixed function of its
- * integer seed and coordinates (a 32-bit integer hash, no floating-point drift between octaves), so the
- * same world seed yields the same hills.
+ * A fast, seeded 3D Perlin Noise generator for true spherical planet mapping.
  */
 final class FractalNoise
 {
-    /** How many layers of detail are summed. Raise for finer, busier detail; lower for smoother, simpler shapes. */
-    private const OCTAVES = 15;
+    private float $frequency;
+    private array $perm = [];
+    private const OCTAVES = 6;
+    private const GAIN = 0.5;
+    private const LACUNARITY = 2.0;
 
-    /** How fast each finer layer fades out. Below 0.5 reads smoother; above 0.5 reads rougher and more jagged. */
-    private const PERSISTENCE = 0.6;
-
-    /** How much smaller each successive layer's features are (the frequency step). 2.0 is the usual value. */
-    private const LACUNARITY = 2.2;
-
-    private const MASK = 0xFFFFFFFF;   // keep the hash in 32 bits so products never spill into floats
-
-    public function __construct(
-        private readonly int $seed,
-        private readonly float $frequency = 0.04,
-    ) {}
-
-    /** Fractal Brownian motion at (x, y), in roughly [-1, 1]. */
-    public function fbm(float $x, float $y): float
+    public function __construct(int $seed, float $frequency)
     {
-        $sum = 0.0;
-        $norm = 0.0;
-        $amplitude = 1.0;
-        $frequency = $this->frequency;
-        for ($octave = 0; $octave < self::OCTAVES; $octave++) {
-            $sum += $amplitude * $this->value($x * $frequency, $y * $frequency, $octave);
-            $norm += $amplitude;
-            $amplitude *= self::PERSISTENCE;
-            $frequency *= self::LACUNARITY;
+        $this->frequency = $frequency;
+
+        // Generate a stable permutation table from the seed
+        mt_srand($seed);
+        $p = range(0, 255);
+
+        // Fisher-Yates shuffle
+        for ($i = 255; $i > 0; $i--) {
+            $j = mt_rand(0, $i);
+            $temp = $p[$i];
+            $p[$i] = $p[$j];
+            $p[$j] = $temp;
         }
 
-        return $norm > 0.0 ? ($sum / $norm) * 2.0 - 1.0 : 0.0; // value() is [0,1] → remap to [-1,1]
+        // Double it to avoid overflow in lookups
+        for ($i = 0; $i < 512; $i++) {
+            $this->perm[$i] = $p[$i & 255];
+        }
     }
 
-    /** * Instead of: $noise->fbm($x, $y)
-     * Use this wrapper to evaluate noise that wraps seamlessly on the X-axis:
+    /**
+     * Projects 2D map coordinates onto a 3D sphere and samples noise.
+     * Completely eliminates polar stretching and wrapping seams.
      */
-    public function fbmWrapped(float $x, float $y, float $width): float
+    public function fbmSpherical(float $x, float $y, float $width, float $height, float $seedOffset = 0.0): float
     {
-        // Map X to a 0.0 - 2PI circle
-        $angle = ($x / $width) * 2.0 * M_PI;
+        // 1. Convert flat X/Y to Longitude (0 to 2PI) and Latitude (-PI/2 to PI/2)
+        $lon = ($x / $width) * 2.0 * M_PI;
+        $lat = ($y / $height) * M_PI - (M_PI / 2.0);
 
-        // The "radius" of our noise field
+        // 2. Project onto a 3D sphere
         $radius = $width / (2.0 * M_PI);
 
-        // Project X into two dimensions so it wraps
-        $wrappedX = cos($angle) * $radius;
-        $wrappedY = sin($angle) * $radius;
+        $nx = cos($lat) * cos($lon) * $radius;
+        $ny = cos($lat) * sin($lon) * $radius;
+        $nz = sin($lat) * $radius;
 
-        // If your FBM implementation isn't perfectly seamless, add this:
-        $wrappedX = fmod($wrappedX, $width);
-        if ($wrappedX < 0) $wrappedX += $width;
+        // 3. Sample 3D Fractal Brownian Motion
+        $amplitude = 1.0;
+        $freq = $this->frequency;
+        $total = 0.0;
+        $maxValue = 0.0;
 
-        // Evaluate noise using these circular coordinates
-        return $this->fbm($wrappedX, $wrappedY + ($y * 0.05));
+        for ($i = 0; $i < self::OCTAVES; $i++) {
+            // The seedOffset cleanly forces the 3D sampling to happen in a totally different sector
+            // of the noise universe, guaranteeing uncorrelated lookups without breaking the sphere!
+            $total += $this->noise3D($nx * $freq + $seedOffset, $ny * $freq - $seedOffset, $nz * $freq + $seedOffset) * $amplitude;
+            $maxValue += $amplitude;
+            $amplitude *= self::GAIN;
+            $freq *= self::LACUNARITY;
+        }
+
+        return $total / $maxValue;
     }
 
-    /** Smooth value noise on the integer lattice, in [0, 1]. */
-    private function value(float $x, float $y, int $octave): float
+    /** Classic 3D Perlin Noise */
+    private function noise3D(float $x, float $y, float $z): float
     {
-        $x0 = (int) floor($x);
-        $y0 = (int) floor($y);
-        $fx = self::fade($x - $x0);
-        $fy = self::fade($y - $y0);
+        $X = (int)floor($x) & 255;
+        $Y = (int)floor($y) & 255;
+        $Z = (int)floor($z) & 255;
 
-        $n00 = $this->lattice($x0, $y0, $octave);
-        $n10 = $this->lattice($x0 + 1, $y0, $octave);
-        $n01 = $this->lattice($x0, $y0 + 1, $octave);
-        $n11 = $this->lattice($x0 + 1, $y0 + 1, $octave);
+        $x -= floor($x);
+        $y -= floor($y);
+        $z -= floor($z);
 
-        $nx0 = $n00 + ($n10 - $n00) * $fx;
-        $nx1 = $n01 + ($n11 - $n01) * $fx;
+        $u = $this->fade($x);
+        $v = $this->fade($y);
+        $w = $this->fade($z);
 
-        return $nx0 + ($nx1 - $nx0) * $fy;
+        $p = $this->perm;
+        $A  = $p[$X] + $Y; $AA = $p[$A] + $Z; $AB = $p[$A + 1] + $Z;
+        $B  = $p[$X + 1] + $Y; $BA = $p[$B] + $Z; $BB = $p[$B + 1] + $Z;
+
+        return $this->lerp($w,
+            $this->lerp($v,
+                $this->lerp($u, $this->grad3($p[$AA], $x, $y, $z), $this->grad3($p[$BA], $x - 1, $y, $z)),
+                $this->lerp($u, $this->grad3($p[$AB], $x, $y - 1, $z), $this->grad3($p[$BB], $x - 1, $y - 1, $z))
+            ),
+            $this->lerp($v,
+                $this->lerp($u, $this->grad3($p[$AA + 1], $x, $y, $z - 1), $this->grad3($p[$BA + 1], $x - 1, $y, $z - 1)),
+                $this->lerp($u, $this->grad3($p[$AB + 1], $x, $y - 1, $z - 1), $this->grad3($p[$BB + 1], $x - 1, $y - 1, $z - 1))
+            )
+        );
     }
 
-    /** A stable pseudo-random value in [0, 1] for one lattice point, from a 32-bit integer avalanche hash. */
-    private function lattice(int $x, int $y, int $octave): float
-    {
-        $h = ($this->seed + $octave * 0x9E3779B1) & self::MASK;
-        $h = ($h ^ ($x * 0x85EBCA77)) & self::MASK;
-        $h = ($h ^ ($y * 0xC2B2AE3D)) & self::MASK;
-        $h = ($h ^ ($h >> 15)) & self::MASK;
-        $h = ($h * 0x27D4EB2F) & self::MASK;
-        $h = ($h ^ ($h >> 13)) & self::MASK;
+    private function fade(float $t): float { return $t * $t * $t * ($t * ($t * 6.0 - 15.0) + 10.0); }
+    private function lerp(float $t, float $a, float $b): float { return $a + $t * ($b - $a); }
 
-        return $h / self::MASK;
-    }
-
-    /** Perlin's smootherstep — a soft S-curve so the lattice interpolation has no creases. */
-    private static function fade(float $t): float
+    private function grad3(int $hash, float $x, float $y, float $z): float
     {
-        return $t * $t * $t * ($t * ($t * 6.0 - 15.0) + 10.0);
+        $h = $hash & 15;
+        $u = $h < 8 ? $x : $y;
+        $v = $h < 4 ? $y : ($h === 12 || $h === 14 ? $x : $z);
+        return (($h & 1) === 0 ? $u : -$u) + (($h & 2) === 0 ? $v : -$v);
     }
 }

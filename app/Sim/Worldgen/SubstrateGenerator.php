@@ -68,13 +68,26 @@ final class SubstrateGenerator
             );
         }
 
+        // NEW: Precalculate 3D Spherical Coordinates for the Tectonic Plates
+        $plateCoords = [];
+        foreach ($plates as $plate) {
+            $lon = ($plate->x / $width) * 2.0 * M_PI;
+            $lat = ($plate->y / $height) * M_PI - (M_PI / 2.0);
+            $radius = $width / (2.0 * M_PI);
+            $plateCoords[$plate->id] = [
+                'nx' => cos($lat) * cos($lon) * $radius,
+                'ny' => cos($lat) * sin($lon) * $radius,
+                'nz' => sin($lat) * $radius,
+            ];
+        }
+
         $band = max(1.0, min($width, $height) * self::BOUNDARY_BAND);
-        // Calculate the massive wide band for continental slopes
         $shelfBandDist = max(1.0, min($width, $height) * self::SHELF_BAND);
 
         $relief = new FractalNoise($rng->stream('relief', 0)->int(0, 2_000_000_000), self::RELIEF_FREQUENCY);
         $macroNoise = new FractalNoise($rng->stream('warp_macro', 0)->int(0, 2_000_000_000), self::MACRO_WARP_FREQUENCY);
         $microNoise = new FractalNoise($rng->stream('warp_micro', 0)->int(0, 2_000_000_000), self::MICRO_WARP_FREQUENCY);
+
         $macroWarpAmp = min($width, $height) * self::MACRO_WARP_AMPLITUDE_PCT;
 
         $elevation = [];
@@ -82,37 +95,43 @@ final class SubstrateGenerator
         $minerals = [];
 
         for ($y = 0; $y < $height; $y++) {
-            // 1. Calculate Latitude (-1.0 at top/bottom, 0.0 at equator)
-            $normalizedY = ($y / ($height - 1)) * 2.0 - 1.0;
-
-            // 2. Calculate the Cosine factor
-            // cos(0) = 1 (Equator, no change)
-            // cos(PI/2) = 0 (Poles, infinite stretch - so we clamp it)
-            $cosLat = cos($normalizedY * (M_PI / 2.0));
-            $yScale = max(0.2, $cosLat); // Clamp so we don't get divide-by-zero at poles
+            $elevation[$y] = [];
+            $plateId[$y] = [];
+            $minerals[$y] = [];
 
             for ($x = 0; $x < $width; $x++) {
-                // 3. Scale the Y coordinate based on latitude
-                // We use $yScale to "squeeze" the noise so it appears uniform
-                $sampledY = ($y - ($height / 2)) / $yScale + ($height / 2);
 
-                // Now use $sampledY in your fbmWrapped calls:
-                $rawWarpX = ($macroNoise->fbmWrapped((float)$x, (float)$sampledY, (float)$width) * $macroWarpAmp) +
-                    ($microNoise->fbmWrapped((float)$x, (float)$y, (float)$width) * self::MICRO_WARP_AMPLITUDE);
+                // 1. Calculate raw displacements directly using 3D Spherical Noise
+                $rawWarpX = ($macroNoise->fbmSpherical((float)$x, (float)$y, (float)$width, (float)$height) * $macroWarpAmp) +
+                    ($microNoise->fbmSpherical((float)$x, (float)$y, (float)$width, (float)$height) * self::MICRO_WARP_AMPLITUDE);
 
-                $rawWarpY = ($macroNoise->fbmWrapped((float)$x + 1000.0, (float)$y + 1000.0, (float)$width) * $macroWarpAmp) +
-                    ($microNoise->fbmWrapped((float)$x + 1000.0, (float)$y + 1000.0, (float)$width) * self::MICRO_WARP_AMPLITUDE);
+                $rawWarpY = ($macroNoise->fbmSpherical((float)$x, (float)$y, (float)$width, (float)$height, 1000.0) * $macroWarpAmp) +
+                    ($microNoise->fbmSpherical((float)$x, (float)$y, (float)$width, (float)$height, 1000.0) * self::MICRO_WARP_AMPLITUDE);
 
-                // 2. Wrap X, but CAP Y to prevent wrapping over the poles
-                $warpX = fmod($x + $rawWarpX, $width);
+                // 2. Apply Warp
+                $warpX = $x + $rawWarpX;
+                $warpY = $y + $rawWarpY;
+
+                // 3. TRUE SPHERICAL FOLDING (No more clamping!)
+                // If we warp "over" the North Pole...
+                if ($warpY < 0.0) {
+                    $warpY = -$warpY; // Bounce back down
+                    $warpX += $width / 2.0; // Shift to the other side of the world
+                }
+                // If we warp "over" the South Pole...
+                elseif ($warpY >= $height) {
+                    $warpY = (2.0 * $height) - $warpY - 1.0; // Bounce back up
+                    $warpX += $width / 2.0; // Shift to the other side of the world
+                }
+
+                // 4. Wrap Longitude (X-axis) normally
+                $warpX = fmod($warpX, $width);
                 if ($warpX < 0) {
                     $warpX += $width;
                 }
 
-                $warpY = max(0.0, min((float)$height - 1.0, $y + $rawWarpY));
-
-                // 3. Pass the wrapped coordinates to twoNearest
-                [$near, $nearDist, $next, $nextDist] = self::twoNearest($plates, $warpX, $warpY, $width);
+                // 5. Find Tectonic plates using True 3D Distance
+                [$near, $nearDist, $next, $nextDist] = self::twoNearest($plates, $plateCoords, $warpX, $warpY, $width, $height);
 
                 // 1. Tectonic Boundary (Narrow, for mountains)
                 $boundary = max(0.0, 1.0 - ($nextDist - $nearDist) / $band);
@@ -150,7 +169,7 @@ final class SubstrateGenerator
                     }
                 }
 
-                $rawElevation = $base + $tectonic + self::RELIEF_AMPLITUDE * $relief->fbmWrapped((float)$x, (float)$y, (float)$width);
+                $rawElevation = $base + $tectonic + self::RELIEF_AMPLITUDE * $relief->fbmSpherical((float)$x, (float)$y, (float)$width, (float)$height);
 
                 // 5. Bathymetric Flattening (The true "Continental Shelf" effect)
                 // If we are just below sea level (0.0 to -1.0), flatten the depth curve.
@@ -172,20 +191,32 @@ final class SubstrateGenerator
         return new Substrate($width, $height, $elevation, $plateId, $minerals, $plates);
     }
 
-    private static function twoNearest(array $plates, float $x, float $y, int $width): array
+    /** * NEW: Replaces 2D math with True 3D Euclidean distance calculations across the sphere
+     */
+    private static function twoNearest(array $plates, array $plateCoords, float $x, float $y, int $width, int $height): array
     {
+        $lon = ($x / $width) * 2.0 * M_PI;
+        $lat = ($y / $height) * M_PI - (M_PI / 2.0);
+        $radius = $width / (2.0 * M_PI);
+
+        $nx = cos($lat) * cos($lon) * $radius;
+        $ny = cos($lat) * sin($lon) * $radius;
+        $nz = sin($lat) * $radius;
+
         $near = $plates[0];
         $nearDist = INF;
         $next = $plates[0];
         $nextDist = INF;
 
         foreach ($plates as $plate) {
-            $dx = abs($plate->x - $x);
-            // CYLINDRICAL WRAP: If distance is > half the map, go around the back!
-            $dx = min($dx, $width - $dx);
-            $dy = abs($plate->y - $y);
+            $coords = $plateCoords[$plate->id];
 
-            $distance = hypot($dx, $dy) / $plate->weight;
+            // Fast Euclidean distance in 3D space
+            $dx = $coords['nx'] - $nx;
+            $dy = $coords['ny'] - $ny;
+            $dz = $coords['nz'] - $nz;
+
+            $distance = sqrt($dx*$dx + $dy*$dy + $dz*$dz) / $plate->weight;
 
             if ($distance < $nearDist) {
                 $next = $near;
