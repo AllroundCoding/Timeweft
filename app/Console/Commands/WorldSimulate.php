@@ -11,6 +11,7 @@ use App\Sim\Projects\ProjectEngine;
 use App\Sim\Support\Rng;
 use App\Sim\Time\TharadiCalendar;
 use App\Sim\World\Agent;
+use App\Sim\World\Village;
 use App\Sim\World\World;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
@@ -46,7 +47,7 @@ class WorldSimulate extends Command
         } else {
             $world = Generation::seedForward($rng, $population);
         }
-        $foundingCount = count($world->village->agents);
+        $foundingCount = array_sum(array_map(static fn (Village $v): int => count($v->agents), $world->villages));
 
         $this->info(sprintf('Timeweft — %s (%s), seed "%s"', $world->village->name, $world->village->region, $seed));
         $this->line(match (true) {
@@ -61,7 +62,7 @@ class WorldSimulate extends Command
         $popSeries = [];
         for ($y = 1; $y <= $years; $y++) {
             $world->advance($ticksPerYear);
-            $popSeries[] = count($world->livingAgents());
+            $popSeries[] = $world->livingPopulation();
         }
 
         $this->comment('Chronicle:');
@@ -81,11 +82,12 @@ class WorldSimulate extends Command
         $this->newLine();
 
         $all = $world->village->agents;
-        $born = count(array_filter($all, fn (Agent $a) => $a->parentIds !== []));
-        $died = count(array_filter($all, fn (Agent $a) => ! $a->alive));
+        $worldAgents = $world->villages === [] ? $all : array_merge(...array_map(static fn (Village $v): array => $v->agents, $world->villages));
+        $born = count(array_filter($worldAgents, fn (Agent $a) => $a->parentIds !== []));
+        $died = count(array_filter($worldAgents, fn (Agent $a) => ! $a->alive));
         $living = $world->livingAgents();
         $this->comment('Population:');
-        $this->line(sprintf('  founders %d  ·  born %d  ·  died %d  ·  living now %d', $foundingCount, $born, $died, count($living)));
+        $this->line(sprintf('  founders %d  ·  born %d  ·  died %d  ·  living now %d', $foundingCount, $born, $died, $world->livingPopulation()));
         $this->line(sprintf(
             '  trajectory %s  Y1=%d … Y%d=%d  (peak %d, carrying capacity %d)',
             $this->sparkline($popSeries),
@@ -93,8 +95,27 @@ class WorldSimulate extends Command
             $years,
             $popSeries[array_key_last($popSeries)] ?? 0,
             $popSeries === [] ? 0 : max($popSeries),
-            $world->village->carryingCapacity,
+            array_sum(array_map(static fn (Village $v): int => $v->carryingCapacity, $world->villages)),
         ));
+        if (count($world->villages) > 1) {
+            $this->line('  settlements (population / capacity — a world spreads its fate across many, not one):');
+            $ranked = $world->villages;
+            usort($ranked, static fn (Village $a, Village $b): int => $b->headcount() <=> $a->headcount());
+            foreach (array_slice($ranked, 0, 12) as $v) {
+                $pop = (int) round($v->headcount());
+                $this->line(sprintf(
+                    '    %-18s %5d / %-5d  %s',
+                    $v->name, $pop, $v->carryingCapacity,
+                    $v->isTracked() ? ($pop === 0 ? 'emptied' : 'tracked') : 'folded into a cohort',
+                ));
+            }
+            if (count($ranked) > 12) {
+                $tail = array_slice($ranked, 12);
+                $inhabited = count(array_filter($tail, static fn (Village $v): bool => $v->headcount() > 0.0));
+                $this->line(sprintf('    … and %d more (%d still inhabited)', count($tail), $inhabited));
+            }
+            $this->line(sprintf('  (the detail below spotlights the primary settlement, %s)', $world->village->name));
+        }
         if ($living !== []) {
             $sickness = array_map(fn (Agent $a) => ($a->needs['sickness'] ?? null)?->value ?? 0.0, $living);
             $ill = count(array_filter($sickness, fn (float $s) => $s >= 40.0));

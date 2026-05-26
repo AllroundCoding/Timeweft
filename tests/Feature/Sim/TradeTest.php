@@ -20,13 +20,14 @@ class TradeTest extends TestCase
     public function test_surplus_flows_between_settlements_over_a_run(): void
     {
         $world = World::seedTharadosVillage(new Rng('vaeris'), 16);
-        $world->foundVillage('Breadbasket', 40, landYield: 60.0); // a food-rich land
-        $world->foundVillage('Dusthold', 20, landYield: 10.0);    // crowded, lean land
+        $world->foundVillage('Breadbasket', 40, landYield: 80.0);       // a food-rich land
+        $hungry = $world->foundVillage('Dusthold', 40, landYield: 8.0); // too many mouths for too little land
+        $hungry->stockpile->withdraw('food', $hungry->stockpile->amount('food')); // and an empty granary to start
 
         $world->advance(self::TICKS_PER_YEAR * 20);
 
         $trades = array_filter($world->chronicle->all(), static fn (ChronicleEvent $e): bool => $e->type === 'trade');
-        $this->assertNotEmpty($trades, 'settlements with mismatched stores open trade routes');
+        $this->assertNotEmpty($trades, 'a settlement that cannot feed itself draws grain from a flush neighbour');
     }
 
     public function test_a_trading_world_is_deterministic(): void
