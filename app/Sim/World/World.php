@@ -560,6 +560,19 @@ final class World
         return $this->village->livingAgents();
     }
 
+    /**
+     * Living souls across the whole world — every settlement summed, tracked and folded alike (a folded
+     * cohort contributes its expected headcount). This is the world's population; {@see livingAgents()}
+     * is only the settlement in focus. Equal to that focus count when the world holds one settlement.
+     */
+    public function livingPopulation(): int
+    {
+        return (int) round(array_sum(array_map(
+            static fn (Village $village): float => $village->headcount(),
+            $this->villages,
+        )));
+    }
+
     public function hasOpenProject(): bool
     {
         return $this->village->hasOpenProject();
