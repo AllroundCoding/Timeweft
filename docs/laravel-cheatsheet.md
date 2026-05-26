@@ -13,7 +13,7 @@ The table below is generated from `composer.lock` — do not edit it by hand. Ru
 <!-- stack:versions:start -->
 | Package | Version |
 | --- | --- |
-| `php` | `^8.3` |
+| `php` | `^8.4` |
 | `laravel/framework` | `v13.11.2` |
 | `laravel/tinker` | `v3.0.2` |
 | `laravel/prompts` | `v0.3.18` |
