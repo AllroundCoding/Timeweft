@@ -23,14 +23,15 @@ class WorldSubstrate extends Command
      * @var list<array{max: float, rgb: array{0: int, 1: int, 2: int}, ascii: string}>
      */
     private const BANDS = [
-        ['max' => -0.50, 'rgb' => [12, 34, 78], 'ascii' => ' '],    // deep ocean
-        ['max' => -0.15, 'rgb' => [26, 78, 140], 'ascii' => '.'],   // ocean
-        ['max' => 0.00, 'rgb' => [70, 132, 190], 'ascii' => ','],   // shallow sea
-        ['max' => 0.05, 'rgb' => [214, 200, 140], 'ascii' => ':'],  // coast
-        ['max' => 0.20, 'rgb' => [96, 160, 84], 'ascii' => '-'],    // lowland
-        ['max' => 0.40, 'rgb' => [150, 156, 78], 'ascii' => '+'],   // hills
-        ['max' => 0.65, 'rgb' => [140, 110, 72], 'ascii' => '*'],   // highland
-        ['max' => 0.95, 'rgb' => [120, 112, 104], 'ascii' => '#'],  // mountain
+        ['max' => -0.25, 'rgb' => [0, 25, 35], 'ascii' => ' '],     // very deep
+        ['max' => -0.40, 'rgb' => [0, 47, 69], 'ascii' => '!'],    // deep ocean
+        ['max' => -0.25, 'rgb' => [0, 75, 122], 'ascii' => '.'],   // ocean
+        ['max' => -0.05, 'rgb' => [74, 156, 217], 'ascii' => ','],   // shallow sea
+        ['max' => 0.05, 'rgb' => [218, 190, 126], 'ascii' => ':'],  // coast
+        ['max' => 0.20, 'rgb' => [96, 123, 60], 'ascii' => '-'],    // lowland
+        ['max' => 0.40, 'rgb' => [89, 187, 89], 'ascii' => '+'],   // hills
+        ['max' => 0.65, 'rgb' => [57, 101, 57], 'ascii' => '*'],   // highland
+        ['max' => 0.95, 'rgb' => [101, 112, 101], 'ascii' => '#'],  // mountain
         ['max' => INF, 'rgb' => [242, 242, 246], 'ascii' => '^'],   // peak / snow
     ];
 
