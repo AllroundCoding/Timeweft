@@ -96,10 +96,7 @@ final class RegionArchetype
             ],
             basket: ['grain' => 4.0, 'fruit' => 2.0, 'herbs' => 0.5],
             resources: ['grain', 'fruit', 'herbs', 'wool', 'horses', 'timber', 'iron', 'silver', 'gold', 'gems', 'enchanted goods'],
-            goods: [
-                new Good('fruit', nutrition: 55.0, value: 25.0, perishability: 50.0),
-                new Good('herbs', nutrition: 20.0, value: 35.0, perishability: 60.0),
-            ],
+            goods: array_values(GoodRegistry::aetheria()->all()),
             recipes: [
                 new Recipe('fruited grain pottage', ['grain' => 2.0, 'fruit' => 1.0]),
                 new Recipe('herb-and-grain loaf', ['grain' => 2.0, 'herbs' => 0.5]),

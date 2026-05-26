@@ -27,6 +27,11 @@ final class RegionProfile
         public readonly string $cultureName = '',
     ) {}
 
+    public static function aetheria(): self
+    {
+        return RegionArchetype::sownland()->toRegionProfile();
+    }
+
     public static function tharados(): self
     {
         return RegionArchetype::desert()->toRegionProfile();

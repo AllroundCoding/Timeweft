@@ -20,13 +20,13 @@ use Illuminate\Console\Command;
 use Illuminate\Support\Facades\File;
 use RuntimeException;
 
-#[Signature('world:climate {--seed=vaeris : RNG seed for a reproducible world} {--width=2560 : Grid columns} {--height=1440 : Grid rows} {--plates=70 : Number of tectonic plate seeds} {--cell=1 : Pixels per cell in the PNG} {--layer=biome : Which layer to paint — biome|temperature|precipitation|fertility} {--hide-water : Hide the rivers & lakes overlay} {--sites : Mark emergent settlements (TWT-82)} {--out= : PNG output path (default: storage/app/climate-SEED-LAYER.png)}')]
+#[Signature('world:climate {--seed=vaeris : RNG seed for a reproducible world} {--width=3840 : Grid columns} {--height=2160 : Grid rows} {--plates=90 : Number of tectonic plate seeds} {--cell=1 : Pixels per cell in the PNG} {--layer=biome : Which layer to paint — biome|temperature|precipitation|fertility} {--hide-water : Hide the rivers & lakes overlay} {--sites : Mark emergent settlements (TWT-82)} {--out= : PNG output path (default: storage/app/climate-SEED-LAYER.png)}')]
 #[Description('Derive the climate (TWT-132) + hydrology (TWT-131) from a generated substrate and render a layer — biome, temperature, rainfall, or fertility — with rivers & lakes, as a PNG + an ASCII biome map.')]
 class WorldClimate extends Command
 {
-    private const LAYERS = ['biome', 'temperature', 'precipitation', 'fertility'];
+    private const array LAYERS = ['biome', 'temperature', 'precipitation', 'fertility'];
 
-    private const GLYPHS = [
+    private const array GLYPHS = [
         'ocean' => ' ', 'ice' => '*', 'tundra' => '.', 'desert' => ':',
         'shrubland' => ';', 'grassland' => '-', 'forest' => '#', 'rainforest' => '@',
     ];

@@ -11,7 +11,7 @@ use Illuminate\Console\Command;
 use Illuminate\Support\Facades\File;
 use RuntimeException;
 
-#[Signature('world:substrate {--seed=vaeris : RNG seed for a reproducible world} {--width=2560 : Grid columns} {--height=1440 : Grid rows} {--plates=70 : Number of tectonic plate seeds} {--cell=1 : Pixels per cell in the PNG} {--out= : PNG output path (default: storage/app/substrate-{seed}.png)}')]
+#[Signature('world:substrate {--seed=vaeris : RNG seed for a reproducible world} {--width=3840 : Grid columns} {--height=2160 : Grid rows} {--plates=90 : Number of tectonic plate seeds} {--cell=1 : Pixels per cell in the PNG} {--out= : PNG output path (default: storage/app/substrate-{seed}.png)}')]
 #[Description('Generate a solid-earth substrate (TWT-130) and render it as a colored elevation PNG + an ASCII preview — eyeball worldgen before the full map view (TWT-134).')]
 class WorldSubstrate extends Command
 {
@@ -22,8 +22,8 @@ class WorldSubstrate extends Command
      *
      * @var list<array{max: float, rgb: array{0: int, 1: int, 2: int}, ascii: string}>
      */
-    private const BANDS = [
-        ['max' => -0.25, 'rgb' => [0, 25, 35], 'ascii' => ' '],     // very deep
+    private const array BANDS = [
+        ['max' => -0.65, 'rgb' => [0, 25, 35], 'ascii' => ' '],     // very deep
         ['max' => -0.40, 'rgb' => [0, 47, 69], 'ascii' => '!'],    // deep ocean
         ['max' => -0.25, 'rgb' => [0, 75, 122], 'ascii' => '.'],   // ocean
         ['max' => -0.05, 'rgb' => [74, 156, 217], 'ascii' => ','],   // shallow sea

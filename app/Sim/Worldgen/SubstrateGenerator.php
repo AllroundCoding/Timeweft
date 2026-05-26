@@ -42,7 +42,7 @@ final class SubstrateGenerator
     /** High frequency creates rapid, tight variations. */
     private const float MICRO_WARP_FREQUENCY = 0.04; // 0.04 earth-like default
 
-    public static function generate(Rng $rng, int $width = 2560, int $height = 1440, int $plateCount = 70): Substrate
+    public static function generate(Rng $rng, int $width = 3840, int $height = 2160, int $plateCount = 90): Substrate
     {
         $plates = [];
         // Define how many plates are massive world-spanning continents/oceans, default is 20%

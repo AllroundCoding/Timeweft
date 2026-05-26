@@ -13,25 +13,25 @@ final class ClimateGenerator
     private const POLE_TEMP = -35.0; // -15.0
 
     /** Shape of the equator→pole falloff: above 1 keeps mid-latitudes temperate and concentrates cold at the poles; 1 is a straight gradient. */
-    private const LATITUDE_FALLOFF = 1.8; // 1.4
+    private const LATITUDE_FALLOFF = 1.6; // 1.4
 
     /** °C lost per unit of elevation (lapse rate). Raise for colder mountains — more alpine snow and tundra. */
     private const LAPSE = 6.5; // 7.0
 
     /** Moisture lost crossing each flat land cell. Raise for drier continental interiors — bigger inland deserts. */
-    private const CONTINENTAL_DRYING = 0.005; // 0.02
+    private const CONTINENTAL_DRYING = 0.003; // 0.02
 
     /** Extra moisture wrung out climbing a windward slope. Raise for stronger rain shadows — drier leeward deserts. */
-    private const OROGRAPHIC_WRINGING = 0.8; // 1.5
+    private const OROGRAPHIC_WRINGING = 1.5; // 1.5
 
     /** Rainfall boost on a windward upslope. Raise for wetter mountain faces. */
-    private const OROGRAPHIC_LIFT = 5.0; // 4.0
+    private const OROGRAPHIC_LIFT = 6.0; // 4.0
 
     /** Temperature of peak farmland suitability, °C. Shifts which latitude band is most fertile. */
-    private const FERTILITY_OPTIMUM = 15.0; // 18.0
+    private const FERTILITY_OPTIMUM = 16.0; // 18.0
 
     /** How far from that optimum land stays farmable. Raise so more of the world is arable; lower for a narrow fertile band. */
-    private const FERTILITY_SPREAD = 14.0; // 18.0
+    private const FERTILITY_SPREAD = 17.0; // 18.0
 
     public static function generate(Rng $rng, Substrate $substrate, Circulation $circulation): Climate
     {
