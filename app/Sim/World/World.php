@@ -23,6 +23,7 @@ use App\Sim\Economy\RecipeBook;
 use App\Sim\Institutions\InstitutionEngine;
 use App\Sim\Persistence\Checkpoint;
 use App\Sim\Persistence\WorldSkeleton;
+use App\Sim\Play\PlayerController;
 use App\Sim\Projects\ProjectEngine;
 use App\Sim\Support\NameGenerator;
 use App\Sim\Support\Rng;
@@ -59,6 +60,13 @@ final class World
      * @var array<string,true>
      */
     public array $salient = [];
+
+    /**
+     * The player, when one is embodied — a single controlled agent whose activity comes from input
+     * instead of the behaviour stack (TWT-100). Null in a headless/autonomous run, so the canonical
+     * world is byte-identical; the realtime boundary sets it to take a seat.
+     */
+    public ?PlayerController $playerController = null;
 
     public Chronicle $chronicle;
 
@@ -317,7 +325,10 @@ final class World
                 $projectOpen = $village->hasOpenProject();
                 foreach ($village->livingAgents() as $agent) {
                     $contributing = $projectOpen && $agent->ageInYears($this->tick) >= self::ADULT_AGE;
-                    $activity = BehaviorEngine::derive($agent, $date, $festival !== null, $contributing);
+                    // The player, if embodied, drives its agent's activity from input; every other agent
+                    // (and every agent in a headless run) falls through to autonomy — byte-identical (TWT-100).
+                    $activity = $this->playerController?->activityFor($agent->id)
+                        ?? BehaviorEngine::derive($agent, $date, $festival !== null, $contributing);
                     $agent->activity = $activity;
                     BehaviorEngine::applyEffects($agent, $activity, $seasonMultiplier);
                 }
