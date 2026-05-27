@@ -3,9 +3,15 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 
 const CELL = 1; // px per terrain cell at scale 1
 const MIN_SCALE = 0.1;
-const MAX_SCALE = 28; // far enough in to feel like the management zoom (hex layer lands here next)
+const MAX_SCALE = 40;
 
-// Continuous-terrain palette, keyed by the one-char raster the controller emits.
+// Hex tiles crossfade in as the camera zooms, measured in on-screen pixels per terrain cell — so the
+// threshold means the same "how far am I zoomed in" regardless of world size.
+const HEX_START = 14; // tiles begin to appear
+const HEX_FULL = 26; // fully tiled
+const HEX_GAP = 0.9; // tile inset, so terrain shows between tiles as a subtle border
+
+// Continuous-terrain palette, keyed by the one-char raster the controller emits (shared by both layers).
 const COLOR = {
     O: '#1c3d5a', // ocean
     I: '#dbeafe', // ice
@@ -44,7 +50,19 @@ function toRgb(hex) {
 }
 const RGB = Object.fromEntries(Object.entries(COLOR).map(([k, v]) => [k, toRgb(v)]));
 
-export default function Map({ run, width, height, rows, settlements }) {
+// Pointy-top hexagon path in display-pixel space, centred at (cx, cy) with the given half-extents.
+function hexPath(cx, cy, hw, hh) {
+    return (
+        `M${cx},${cy - hh}` +
+        `L${cx + hw},${cy - hh / 2}` +
+        `L${cx + hw},${cy + hh / 2}` +
+        `L${cx},${cy + hh}` +
+        `L${cx - hw},${cy + hh / 2}` +
+        `L${cx - hw},${cy - hh / 2}Z`
+    );
+}
+
+export default function Map({ run, width, height, rows, hex, settlements }) {
     const viewportRef = useRef(null);
     const canvasRef = useRef(null);
     const drag = useRef(null);
@@ -125,6 +143,31 @@ export default function Map({ run, width, height, rows, settlements }) {
         drag.current = null;
     }, []);
 
+    // The hex tiles are laid out once in display-pixel space (an offset, odd-row-shifted grid filling the
+    // terrain rect); the wrapper's transform handles pan/zoom, so this never recomputes on camera moves.
+    const hexEls = useMemo(() => {
+        const { cols, rows: hRows, cells } = hex;
+        const stepX = dispW / (cols + 0.5);
+        const stepY = dispH / (hRows + 1 / 3);
+        const hh = stepY / 1.5;
+        const hw = stepX / 2;
+        const els = [];
+        for (let r = 0; r < hRows; r += 1) {
+            const line = cells[r] ?? '';
+            const cy = hh + r * stepY;
+            for (let q = 0; q < cols; q += 1) {
+                const ch = line[q];
+                const cx = stepX * (0.5 + q + 0.5 * (r & 1));
+                els.push(<path key={`${q},${r}`} d={hexPath(cx, cy, hw * HEX_GAP, hh * HEX_GAP)} fill={COLOR[ch] ?? '#777'} />);
+            }
+        }
+        return els;
+    }, [hex, dispW, dispH]);
+
+    // Crossfade the two layers by how far we are zoomed in (pixels per terrain cell).
+    const hexT = clamp((view.scale * CELL - HEX_START) / (HEX_FULL - HEX_START), 0, 1);
+    const terrainOpacity = 1 - 0.7 * hexT;
+
     // Settlements ride in an un-scaled overlay so their markers stay a constant screen size at any zoom.
     const settleEls = useMemo(
         () =>
@@ -157,7 +200,8 @@ export default function Map({ run, width, height, rows, settlements }) {
                         Timeweft <span className="text-stone-500">— world of seed “{run.seed}”</span>
                     </h1>
                     <p className="mt-1 text-sm text-stone-400">
-                        {width}×{height} terrain · {settlements.length} settlements · scroll to zoom, drag to pan
+                        {width}×{height} terrain · {settlements.length} settlements · scroll to zoom (tiles appear as you zoom in), drag to
+                        pan
                     </p>
                     <ul className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-xs text-stone-400">
                         {LEGEND.map(([ch, name]) => (
@@ -190,8 +234,20 @@ export default function Map({ run, width, height, rows, settlements }) {
                             ref={canvasRef}
                             width={width}
                             height={height}
-                            style={{ width: `${dispW}px`, height: `${dispH}px`, imageRendering: 'pixelated' }}
+                            style={{ width: `${dispW}px`, height: `${dispH}px`, imageRendering: 'pixelated', opacity: terrainOpacity }}
                         />
+                        {hexT > 0 && (
+                            <svg
+                                className="pointer-events-none absolute left-0 top-0"
+                                width={dispW}
+                                height={dispH}
+                                viewBox={`0 0 ${dispW} ${dispH}`}
+                                preserveAspectRatio="none"
+                                style={{ opacity: hexT }}
+                            >
+                                {hexEls}
+                            </svg>
+                        )}
                     </div>
                     <div className="pointer-events-none absolute inset-0">{settleEls}</div>
                 </div>
