@@ -101,12 +101,16 @@ final class SubstrateGenerator
 
             for ($x = 0; $x < $width; $x++) {
 
-                // 1. Calculate raw displacements directly using 3D Spherical Noise
-                $rawWarpX = ($macroNoise->fbmSpherical((float) $x, (float) $y, (float) $width, (float) $height) * $macroWarpAmp) +
-                    ($microNoise->fbmSpherical((float) $x, (float) $y, (float) $width, (float) $height) * self::MICRO_WARP_AMPLITUDE);
+                // 1. Calculate raw displacements directly using 3D Spherical Noise. The sphere projection
+                // depends only on the cell (not the noise field), so project once and reuse it across
+                // every sample at this cell instead of re-deriving it five times (TWT-263).
+                [$snx, $sny, $snz] = FractalNoise::sphereCoords((float) $x, (float) $y, (float) $width, (float) $height);
 
-                $rawWarpY = ($macroNoise->fbmSpherical((float) $x, (float) $y, (float) $width, (float) $height, 1000.0) * $macroWarpAmp) +
-                    ($microNoise->fbmSpherical((float) $x, (float) $y, (float) $width, (float) $height, 1000.0) * self::MICRO_WARP_AMPLITUDE);
+                $rawWarpX = ($macroNoise->fbm3D($snx, $sny, $snz) * $macroWarpAmp) +
+                    ($microNoise->fbm3D($snx, $sny, $snz) * self::MICRO_WARP_AMPLITUDE);
+
+                $rawWarpY = ($macroNoise->fbm3D($snx, $sny, $snz, 1000.0) * $macroWarpAmp) +
+                    ($microNoise->fbm3D($snx, $sny, $snz, 1000.0) * self::MICRO_WARP_AMPLITUDE);
 
                 // 2. Apply Warp
                 $warpX = $x + $rawWarpX;
@@ -169,7 +173,7 @@ final class SubstrateGenerator
                     }
                 }
 
-                $rawElevation = $base + $tectonic + self::RELIEF_AMPLITUDE * $relief->fbmSpherical((float) $x, (float) $y, (float) $width, (float) $height);
+                $rawElevation = $base + $tectonic + self::RELIEF_AMPLITUDE * $relief->fbm3D($snx, $sny, $snz);
 
                 // 5. Bathymetric Flattening (The true "Continental Shelf" effect)
                 // If we are just below sea level (0.0 to -1.0), flatten the depth curve.
