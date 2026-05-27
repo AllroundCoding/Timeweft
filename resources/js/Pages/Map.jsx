@@ -1,98 +1,152 @@
 import { Head } from '@inertiajs/react';
-import { useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 
-const SIZE = 7; // hex radius in px
-const SQRT3 = Math.sqrt(3);
+const CELL = 1; // px per terrain cell at scale 1
+const MIN_SCALE = 0.1;
+const MAX_SCALE = 28; // far enough in to feel like the management zoom (hex layer lands here next)
 
-const BIOME = {
-    ocean: '#1c3d5a',
-    ice: '#dbeafe',
-    tundra: '#94a3b8',
-    desert: '#e6d29a',
-    shrubland: '#b7a66b',
-    grassland: '#74a942',
-    forest: '#2f7d4f',
-    rainforest: '#1c5b3a',
+// Continuous-terrain palette, keyed by the one-char raster the controller emits.
+const COLOR = {
+    O: '#1c3d5a', // ocean
+    I: '#dbeafe', // ice
+    T: '#94a3b8', // tundra
+    D: '#e6d29a', // desert
+    S: '#b7a66b', // shrubland
+    G: '#74a942', // grassland
+    F: '#2f7d4f', // forest
+    J: '#1c5b3a', // rainforest
+    '~': '#4aa3cf', // river
+    L: '#2a6f97', // lake
 };
-const LAKE = '#2a6f97';
-const RIVER = '#4aa3cf';
-const TIER_R = { hamlet: 0.45, village: 0.7, town: 1.0, city: 1.4 };
 
-function hexColor(h) {
-    if (!h.land) {
-        return BIOME.ocean;
-    }
-    if (h.lake) {
-        return LAKE;
-    }
-    if (h.river) {
-        return RIVER;
-    }
-    return BIOME[h.biome] ?? '#777';
+const LEGEND = [
+    ['G', 'grassland'],
+    ['F', 'forest'],
+    ['J', 'rainforest'],
+    ['S', 'shrubland'],
+    ['D', 'desert'],
+    ['T', 'tundra'],
+    ['I', 'ice'],
+    ['~', 'river'],
+    ['L', 'lake'],
+    ['O', 'ocean'],
+];
+
+const TIER_PX = { hamlet: 5, village: 7, town: 10, city: 14 };
+const FALLBACK = [119, 119, 119];
+
+function clamp(n, lo, hi) {
+    return Math.max(lo, Math.min(hi, n));
 }
 
-// Pointy-top axial (q, r) → pixel centre.
-function center(q, r) {
-    return { cx: SIZE * SQRT3 * (q + r / 2), cy: SIZE * 1.5 * r };
+function toRgb(hex) {
+    return [parseInt(hex.slice(1, 3), 16), parseInt(hex.slice(3, 5), 16), parseInt(hex.slice(5, 7), 16)];
 }
+const RGB = Object.fromEntries(Object.entries(COLOR).map(([k, v]) => [k, toRgb(v)]));
 
-function hexPoints(cx, cy) {
-    const pts = [];
-    for (let i = 0; i < 6; i += 1) {
-        const a = (Math.PI / 180) * (60 * i - 30);
-        pts.push(`${(cx + SIZE * Math.cos(a)).toFixed(2)},${(cy + SIZE * Math.sin(a)).toFixed(2)}`);
-    }
-    return pts.join(' ');
-}
-
-export default function Map({ run, hexes, settlements }) {
-    const [view, setView] = useState({ scale: 1, tx: 60, ty: 60 });
+export default function Map({ run, width, height, rows, settlements }) {
+    const viewportRef = useRef(null);
+    const canvasRef = useRef(null);
     const drag = useRef(null);
+    const [view, setView] = useState({ scale: 1, tx: 0, ty: 0 });
 
-    // The hex polygons never change with pan/zoom, so build them once — only the <g> transform moves.
-    const hexEls = useMemo(
-        () =>
-            hexes.map((h) => {
-                const { cx, cy } = center(h.q, h.r);
-                return (
-                    <polygon key={`${h.q},${h.r}`} points={hexPoints(cx, cy)} fill={hexColor(h)} stroke="#0c0a09" strokeWidth="0.25">
-                        <title>{`${h.biome}${h.river ? ' · river' : ''}${h.lake ? ' · lake' : ''} (${h.q},${h.r})`}</title>
-                    </polygon>
-                );
-            }),
-        [hexes],
+    const dispW = width * CELL;
+    const dispH = height * CELL;
+
+    // Paint the raster at one device pixel per cell; CSS upscales it crisp (pixelated), so the heavy
+    // per-cell loop runs once per world, not per frame.
+    useEffect(() => {
+        const ctx = canvasRef.current?.getContext('2d');
+        if (!ctx) {
+            return;
+        }
+        const img = ctx.createImageData(width, height);
+        for (let y = 0; y < height; y += 1) {
+            const line = rows[y] ?? '';
+            for (let x = 0; x < width; x += 1) {
+                const [r, g, b] = RGB[line[x]] ?? FALLBACK;
+                const o = (y * width + x) * 4;
+                img.data[o] = r;
+                img.data[o + 1] = g;
+                img.data[o + 2] = b;
+                img.data[o + 3] = 255;
+            }
+        }
+        ctx.putImageData(img, 0, 0);
+    }, [rows, width, height]);
+
+    // Fit the whole world into the viewport and centre it on first paint (and if the world changes size).
+    useLayoutEffect(() => {
+        const vp = viewportRef.current;
+        if (!vp) {
+            return;
+        }
+        const scale = Math.min(vp.clientWidth / dispW, vp.clientHeight / dispH);
+        setView({ scale, tx: (vp.clientWidth - dispW * scale) / 2, ty: (vp.clientHeight - dispH * scale) / 2 });
+    }, [dispW, dispH]);
+
+    // Zoom anchored on the cursor — the world point under the pointer stays put. A non-passive listener so
+    // we can stop the page from scrolling while zooming.
+    useEffect(() => {
+        const vp = viewportRef.current;
+        if (!vp) {
+            return;
+        }
+        const onWheel = (e) => {
+            e.preventDefault();
+            const rect = vp.getBoundingClientRect();
+            const mx = e.clientX - rect.left;
+            const my = e.clientY - rect.top;
+            setView((v) => {
+                const scale = clamp(v.scale * (e.deltaY < 0 ? 1.15 : 1 / 1.15), MIN_SCALE, MAX_SCALE);
+                const wx = (mx - v.tx) / v.scale;
+                const wy = (my - v.ty) / v.scale;
+                return { scale, tx: mx - wx * scale, ty: my - wy * scale };
+            });
+        };
+        vp.addEventListener('wheel', onWheel, { passive: false });
+        return () => vp.removeEventListener('wheel', onWheel);
+    }, []);
+
+    const onDown = useCallback(
+        (e) => {
+            drag.current = { x: e.clientX, y: e.clientY, tx: view.tx, ty: view.ty };
+        },
+        [view.tx, view.ty],
     );
+    const onMove = useCallback((e) => {
+        const d = drag.current;
+        if (!d) {
+            return;
+        }
+        setView((v) => ({ ...v, tx: d.tx + (e.clientX - d.x), ty: d.ty + (e.clientY - d.y) }));
+    }, []);
+    const onUp = useCallback(() => {
+        drag.current = null;
+    }, []);
 
+    // Settlements ride in an un-scaled overlay so their markers stay a constant screen size at any zoom.
     const settleEls = useMemo(
         () =>
             settlements.map((s, i) => {
-                const { cx, cy } = center(s.q, s.r);
+                const size = TIER_PX[s.tier] ?? 6;
                 return (
-                    <circle key={`s-${i}`} cx={cx} cy={cy} r={SIZE * (TIER_R[s.tier] ?? 0.6)} fill="#fde68a" stroke="#78350f" strokeWidth="0.8">
-                        <title>{s.tier}</title>
-                    </circle>
+                    <div
+                        key={`s-${i}`}
+                        title={s.tier}
+                        className="absolute rounded-full border border-amber-900 bg-amber-300 shadow"
+                        style={{
+                            left: `${view.tx + s.nx * dispW * view.scale}px`,
+                            top: `${view.ty + s.ny * dispH * view.scale}px`,
+                            width: `${size}px`,
+                            height: `${size}px`,
+                            transform: 'translate(-50%, -50%)',
+                        }}
+                    />
                 );
             }),
-        [settlements],
+        [settlements, view, dispW, dispH],
     );
-
-    const onWheel = (e) => {
-        const factor = e.deltaY < 0 ? 1.15 : 1 / 1.15;
-        setView((v) => ({ ...v, scale: Math.max(0.25, Math.min(8, v.scale * factor)) }));
-    };
-    const onDown = (e) => {
-        drag.current = { x: e.clientX, y: e.clientY, tx: view.tx, ty: view.ty };
-    };
-    const onMove = (e) => {
-        if (!drag.current) {
-            return;
-        }
-        const d = drag.current;
-        setView((v) => ({ ...v, tx: d.tx + (e.clientX - d.x), ty: d.ty + (e.clientY - d.y) }));
-    };
-    const onUp = () => {
-        drag.current = null;
-    };
 
     return (
         <>
@@ -103,40 +157,43 @@ export default function Map({ run, hexes, settlements }) {
                         Timeweft <span className="text-stone-500">— world of seed “{run.seed}”</span>
                     </h1>
                     <p className="mt-1 text-sm text-stone-400">
-                        {run.cols}×{run.rows} hexes · {settlements.length} settlements · scroll to zoom, drag to pan
+                        {width}×{height} terrain · {settlements.length} settlements · scroll to zoom, drag to pan
                     </p>
                     <ul className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-xs text-stone-400">
-                        {Object.entries(BIOME).map(([name, c]) => (
+                        {LEGEND.map(([ch, name]) => (
                             <li key={name} className="flex items-center gap-1.5">
-                                <span className="inline-block h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: c }} />
+                                <span className="inline-block h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: COLOR[ch] }} />
                                 {name}
                             </li>
                         ))}
                         <li className="flex items-center gap-1.5">
-                            <span className="inline-block h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: RIVER }} />
-                            river
-                        </li>
-                        <li className="flex items-center gap-1.5">
-                            <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ backgroundColor: '#fde68a' }} />
+                            <span className="inline-block h-2.5 w-2.5 rounded-full border border-amber-900 bg-amber-300" />
                             settlement
                         </li>
                     </ul>
                 </header>
 
-                <div className="overflow-hidden rounded-lg border border-stone-800 bg-stone-950" style={{ height: '72vh' }}>
-                    <svg
-                        className="block h-full w-full cursor-grab active:cursor-grabbing"
-                        onWheel={onWheel}
-                        onMouseDown={onDown}
-                        onMouseMove={onMove}
-                        onMouseUp={onUp}
-                        onMouseLeave={onUp}
+                <div
+                    ref={viewportRef}
+                    className="relative cursor-grab overflow-hidden rounded-lg border border-stone-800 bg-stone-950 active:cursor-grabbing"
+                    style={{ height: '72vh' }}
+                    onMouseDown={onDown}
+                    onMouseMove={onMove}
+                    onMouseUp={onUp}
+                    onMouseLeave={onUp}
+                >
+                    <div
+                        className="absolute left-0 top-0 origin-top-left"
+                        style={{ transform: `translate(${view.tx}px, ${view.ty}px) scale(${view.scale})` }}
                     >
-                        <g transform={`translate(${view.tx} ${view.ty}) scale(${view.scale})`}>
-                            {hexEls}
-                            {settleEls}
-                        </g>
-                    </svg>
+                        <canvas
+                            ref={canvasRef}
+                            width={width}
+                            height={height}
+                            style={{ width: `${dispW}px`, height: `${dispH}px`, imageRendering: 'pixelated' }}
+                        />
+                    </div>
+                    <div className="pointer-events-none absolute inset-0">{settleEls}</div>
                 </div>
             </div>
         </>
