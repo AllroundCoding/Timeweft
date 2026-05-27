@@ -130,6 +130,33 @@ At the edges, follow the [Boost guidelines](../CLAUDE.md) and standard Laravel p
   static-analysis gate landing under the same ticket. Tooling catches the mechanical; this document
   catches the judgement calls.
 
+## Local performance — CLI JIT
+
+The headless sim is CPU-bound PHP, and **enabling opcache + JIT for the CLI roughly halves sim runtime**
+(a 200-year single-village run: ~33s → ~17s) — and it is **byte-identical**, the canonical hash is
+unchanged with JIT on. Worldgen *generation* is allocation-bound and does not benefit (its noise
+hot-path is optimised in code instead — [TWT-263](https://linear.app/allroundcoding/issue/TWT-263)).
+
+In the CLI `php.ini`, opcache + JIT should be on:
+
+```ini
+opcache.enable=1
+opcache.enable_cli=1
+opcache.jit=tracing
+opcache.jit_buffer_size=64M
+```
+
+**Windows gotcha:** a large `jit_buffer_size` (e.g. Herd's default `256M`) can fail to allocate the
+shared segment and then silently disables opcache *entirely* — `opcache_get_status()['opcache_enabled']`
+reads `false` even though `jit.on` reports `true`, so you run fully interpreted with no warning. Use
+`64M`–`100M` on Windows. Verify it actually took:
+
+```bash
+php -r "var_dump(opcache_get_status(false)['opcache_enabled']);"  # must be true
+```
+
+JIT must never change results — re-run the byte-identical canonical hash after touching these settings.
+
 ## Keeping this current
 
 The version table in [`laravel-cheatsheet.md`](laravel-cheatsheet.md) is generated from
