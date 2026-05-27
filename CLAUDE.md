@@ -31,14 +31,23 @@ skills, per-need capacity. *v2-game* = the playable layer (doc 16). Tickets bloc
 milestone were moved out into a phase-2 milestone of their own topic (doc-18 concurrency, doc-16 game
 phase) — a ticket lives in the milestone whose work actually unblocks it.
 
-**The byte-identical invariant.** The canonical run `world:simulate --seed=vaeris --years=22` must stay
-reproducible: same seed → same world, byte for byte. Additive, cross-settlement, or
-no-op-below-two-villages features keep the hash stable; features that deliberately change behavior
-(money TWT-135, sickness TWT-115) **re-baseline** the narrative on purpose. Golden tests assert on
-*invariants*, not snapshots, so they survive a re-baseline. This holds because RNG is drawn only
-through `App\Sim\Support\Rng` forked sub-streams keyed by (concern, entity, epoch) off the immutable
-seed — the main generator accumulates no draw-state, so **seed + boundary state is enough to resume**.
-That is what makes `Checkpoint` a plain `serialize()` and resume byte-identical.
+**What must reproduce (three tiers).** Be precise about what's actually a contract:
+1. **Worldgen - the map (layout & feel): byte-identical for a seed, always.** The one hard
+reproducibility contract, in every run and mode.
+2. **Canon - authored milestones / end-state waypoints: *reached*, path-free.** Destination C must be
+met whether via path A or B; assert the outcome, not the path. If a decision makes a waypoint
+unreachable, escalate to GM conflict resolution (TWT-287), don't fail silently.
+3. **Emergent history: meant to diverge** - one decision redefines empires - so behavior-changing
+features (money TWT-135, sickness TWT-115) **re-baseline** the narrative on purpose; golden tests
+assert *invariants* (bounded values, carrying-capacity bands, no degenerate states), never a
+full-history snapshot.
+The regression gate is being re-anchored to **worldgen-hash + canon-satisfaction + invariants**
+(TWT-314), with a full byte-identical *exact mode* kept as an optional deep-regression tool (TWT-313).
+All of it rests on RNG drawn only through `App\Sim\Support\Rng` forked sub-streams keyed by (concern,
+entity, epoch) off the immutable seed - the main generator accumulates no draw-state, so **seed +
+boundary state is enough to resume**, which makes `Checkpoint` a plain `serialize()` and resume exact.
+Today's gate is still the full-history hash until TWT-314 lands; the canonical single-village seed stays
+all-tracked, so it remains byte-identical regardless.
 
 **Architecture in a breath.** Canonical events + entities are the persisted *skeleton*; per-tick
 activity and need values are *texture* — recomputed on demand, never stored (marker interfaces in

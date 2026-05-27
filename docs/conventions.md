@@ -7,9 +7,27 @@
 
 Timeweft is a **deterministic simulation engine** that happens to be hosted in Laravel. That single
 fact drives everything below: "do it the Laravel way" is correct at the edges and actively *wrong* in
-the core. Same seed → same chronicle is the hard contract (see [design doc 09](design/09-causality-editing-ripple.md)),
-and Laravel's conveniences — `now()`, the container, facades, global helpers — are exactly the hidden,
-ambient inputs that break it.
+the core. The engine is fully deterministic - same seed + same inputs → same world - and Laravel's
+conveniences (`now()`, the container, facades, global helpers) are exactly the hidden, ambient inputs
+that break it.
+
+**Determinism is the *mechanism*; be precise about what must actually reproduce.** Three tiers (see
+[design doc 09](design/09-causality-editing-ripple.md), and TWT-314 / TWT-313):
+
+1. **Worldgen - the map (layout & feel): byte-identical, always.** The one hard reproducibility
+   contract. Same seed → same map, every run, every mode. This is the regression gate's exact anchor.
+2. **Canon - lore-bound waypoints: *reached*, path-free.** Authored milestones / end-state waypoints
+   (the story director) must be *satisfied* - destination C is met whether the world got there via
+   path A or path B. Assert the outcome, not the path; if a decision makes a waypoint unreachable,
+   escalate to GM conflict resolution rather than fail silently.
+3. **Emergent history: free to diverge - by design.** Everything else is path-dependent and *meant* to
+   vary; one different decision redefines whole empires. Behavior-changing features re-baseline history
+   on purpose. The gate checks **behavioral invariants** (bounded values, no negative resources,
+   population within carrying-capacity, no degenerate equilibria), never a byte-for-byte history.
+
+The RNG discipline below is what makes all three possible - a reproducible map, a replayable/resumable
+run, an optional exact-regression mode - but it does *not* mean every byte of history is frozen.
+**Protect the map and the canon; let the history live.**
 
 ## The two-zone rule
 
